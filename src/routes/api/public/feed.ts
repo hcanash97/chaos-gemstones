@@ -105,11 +105,7 @@ export const Route = createFileRoute("/api/public/feed")({
             });
           }
 
-          return json({
-            count: stones.length,
-            last_updated: new Date().toISOString(),
-            stones,
-          });
+          return json(stones);
         } catch (e) {
           console.error("[feed] internal error", e);
           return json({ error: "Internal server error" }, 500);
