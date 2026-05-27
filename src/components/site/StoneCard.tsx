@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { countryFlag } from "@/lib/countries";
+import { fadeUp } from "@/components/anim/Motion";
 
 export type StoneCardData = {
   id: string;
@@ -19,22 +21,24 @@ export type StoneCardData = {
 
 export function StoneCard({ stone }: { stone: StoneCardData }) {
   return (
+    <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
     <Link
       to="/stone/$id"
       params={{ id: stone.id }}
-      className="group block overflow-hidden rounded-md border border-border bg-card transition-all hover:border-[var(--color-gold)]"
+      className="group block overflow-hidden rounded-md border border-border bg-card transition-shadow duration-300 hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
     >
-      <div className="aspect-square overflow-hidden bg-muted">
+      <div className="relative aspect-square overflow-hidden bg-muted">
         {stone.image ? (
           <img
             src={stone.image}
             alt={`${stone.carat_weight ?? ""}ct ${stone.stone_type}`}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
             loading="lazy"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No image</div>
         )}
+        <span className="shimmer-overlay" aria-hidden />
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between text-xs">
@@ -69,5 +73,6 @@ export function StoneCard({ stone }: { stone: StoneCardData }) {
         </div>
       </div>
     </Link>
+    </motion.div>
   );
 }
