@@ -54,7 +54,7 @@ function StonesList() {
     setRows((r) => r.filter((x) => x.id !== id));
   }
 
-  async function updateStatus(id: string, status: string) {
+  async function updateStatus(id: string, status: "available" | "reserved" | "sold") {
     const prev = rows;
     setRows((r) => r.map((x) => (x.id === id ? { ...x, status } : x)));
     const { error } = await supabase.from("stones").update({ status }).eq("id", id);
