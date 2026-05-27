@@ -82,19 +82,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Chaos — The global marketplace for independent gemstone dealers" },
-      { name: "description", content: "The global marketplace for independent gemstone dealers." },
+      { title: "Chaos — Gemstone & Diamond Marketplace" },
+      { name: "description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
       { property: "og:site_name", content: "Chaos" },
-      { property: "og:title", content: "Chaos — The global marketplace for independent gemstone dealers" },
-      { property: "og:description", content: "The global marketplace for independent gemstone dealers." },
+      { property: "og:title", content: "Chaos — Gemstone & Diamond Marketplace" },
+      { property: "og:description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "theme-color", content: "#1B3A2D" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Chaos" },
-      { name: "twitter:title", content: "Chaos — The global marketplace for independent gemstone dealers" },
-      { name: "twitter:description", content: "The global marketplace for independent gemstone dealers." },
+      { name: "twitter:title", content: "Chaos — Gemstone & Diamond Marketplace" },
+      { name: "twitter:description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f8d5ac77-32b2-4b05-8884-3fd148ffa122" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f8d5ac77-32b2-4b05-8884-3fd148ffa122" },
     ],
@@ -147,7 +147,7 @@ function RootComponent() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
         >
-          <Outlet />
+          <main id="main"><Outlet /></main>
         </motion.div>
       </AnimatePresence>
       <PwaRegister />

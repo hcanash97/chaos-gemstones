@@ -41,6 +41,21 @@ export const Route = createFileRoute("/stone/$id")({
         { name: "twitter:card", content: "summary_large_image" },
       ],
       links: [{ rel: "canonical", href: `/stone/${params.id}` }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: `${carat}${shape}${s.stone_type}`.trim(),
+            description: desc,
+            ...(img ? { image: img } : {}),
+            ...(s.profiles?.company_name
+              ? { brand: { "@type": "Organization", name: s.profiles.company_name } }
+              : {}),
+          }),
+        },
+      ],
     };
   },
 });
