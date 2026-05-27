@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +63,9 @@ export const Route = createFileRoute("/stone/$id")({
 
 function StoneDetail() {
   const { id } = Route.useParams();
+  useEffect(() => {
+    supabase.rpc("increment_stone_view", { _stone_id: id }).then(() => {});
+  }, [id]);
   const { data, isLoading } = useQuery({
     queryKey: ["stone", id],
     queryFn: async () => {
@@ -113,9 +117,29 @@ function StoneDetail() {
     ["Polish", stone.polish],
     ["Symmetry", stone.symmetry],
     ["Fluorescence", stone.fluorescence],
+    ["Fluorescence colour", stone.fluorescence_colour],
     ["Colour hue", stone.colour_hue],
     ["Colour tone", stone.colour_tone],
     ["Colour saturation", stone.colour_saturation],
+    ["Phenomenon", stone.phenomenon],
+    ["Length (mm)", stone.measurements_length],
+    ["Width (mm)", stone.measurements_width],
+    ["Height (mm)", stone.measurements_height],
+    ["L/W ratio", stone.lw_ratio],
+    ["Depth %", stone.depth_pct],
+    ["Table %", stone.table_pct],
+    ["Girdle", stone.girdle],
+    ["Culet size", stone.culet_size],
+    ["Culet condition", stone.culet_condition],
+    ["Shade", stone.shade],
+    ["Milky", stone.milky],
+    ["Eye clean", stone.eye_clean],
+    ["Black inclusion", stone.black_inclusion],
+    ["Enhancement", stone.enhancement],
+    ["Listing type", stone.listing_type === "parcel" ? `Parcel (${stone.parcel_quantity ?? "?"} stones)` : null],
+    ["Matching pair", stone.matching_pair ? "Available" : null],
+    ["Media", [stone.has_video && "Video", stone.has_360 && "360°"].filter(Boolean).join(", ") || null],
+    ["Provenance", stone.provenance_report],
     ["Cert lab", stone.cert_lab],
     ["Report date", stone.report_date],
     ["Lead time", stone.lead_time_days ? `${stone.lead_time_days} days` : null],
