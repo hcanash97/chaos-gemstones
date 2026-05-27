@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check } from "lucide-react";
+import { LaunchBanner } from "@/components/site/LaunchBanner";
 
 export const Route = createFileRoute("/sign-up/dealer")({
   component: () => <SignUpForm accountType="dealer" />,
@@ -148,6 +149,8 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
         </div>
         <h1 className="mt-2 font-serif text-4xl">{title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{sub}</p>
+
+        {isDealer && <div className="mt-6"><LaunchBanner /></div>}
 
         <div className="mt-10">
           <Progress step={step} total={total} labels={labels} />
