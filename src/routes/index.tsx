@@ -11,6 +11,16 @@ import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Mot
 
 export const Route = createFileRoute("/")({
   component: Home,
+  head: () => ({
+    meta: [
+      { title: "B2B Gemstone & Diamond Marketplace — Chaos" },
+      { name: "description", content: "Connect with verified independent gemstone and diamond dealers from Jaipur, Surat, Colombo and beyond. Browse certified stones and integrate live inventory feeds into your jewellery website." },
+      { property: "og:title", content: "B2B Gemstone & Diamond Marketplace — Chaos" },
+      { property: "og:description", content: "Connect with verified independent gemstone and diamond dealers worldwide." },
+      { property: "og:url", content: "/" },
+    ],
+    links: [{ rel: "canonical", href: "/" }],
+  }),
 });
 
 function Home() {
