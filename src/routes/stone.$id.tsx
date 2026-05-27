@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, FileText } from "lucide-react";
+import { ShieldCheck, FileText, Share2, Check } from "lucide-react";
+import { useState } from "react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { certLink, countryFlag } from "@/lib/countries";
 import { getCertSignedUrl } from "@/lib/cert.functions";
@@ -63,9 +64,27 @@ export const Route = createFileRoute("/stone/$id")({
 
 function StoneDetail() {
   const { id } = Route.useParams();
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `stone-viewed:${id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
     supabase.rpc("increment_stone_view", { _stone_id: id }).then(() => {});
   }, [id]);
+
+  async function onShare() {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/stone/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // ignore — clipboard might be unavailable
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+    supabase.rpc("increment_stone_share", { _stone_id: id }).then(() => {});
+  }
   const { data, isLoading } = useQuery({
     queryKey: ["stone", id],
     queryFn: async () => {
