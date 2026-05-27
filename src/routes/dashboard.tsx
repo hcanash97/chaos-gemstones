@@ -22,10 +22,10 @@ function DashboardLayout() {
       navigate({ to: "/pending-approval", replace: true });
       return;
     }
-    if (profile && profile.account_type !== "dealer" && profile.account_type !== "admin") {
-      navigate({ to: "/", replace: true });
+    if (profile && pathname === "/dashboard" && profile.account_type === "jeweller") {
+      navigate({ to: "/dashboard/jeweller", replace: true });
     }
-  }, [loading, user, profile, navigate]);
+  }, [loading, user, profile, navigate, pathname]);
 
   if (loading || !user || !profile) {
     return (
@@ -35,12 +35,21 @@ function DashboardLayout() {
     );
   }
 
-  if (profile.account_type !== "dealer" && profile.account_type !== "admin") return null;
-
-  const nav = [
-    { to: "/dashboard", label: "Overview", exact: true },
-    { to: "/dashboard/stones", label: "My Inventory", exact: false },
-  ];
+  const isJeweller = profile.account_type === "jeweller";
+  const nav = isJeweller
+    ? [
+        { to: "/dashboard/jeweller", label: "Overview", exact: true },
+        { to: "/dashboard/jeweller/feeds", label: "Vendors & Stones", exact: false },
+        { to: "/dashboard/jeweller/markup", label: "Markup", exact: false },
+        { to: "/dashboard/jeweller/api", label: "API Feed", exact: false },
+        { to: "/dashboard/jeweller/enquiries", label: "My Enquiries", exact: false },
+      ]
+    : [
+        { to: "/dashboard", label: "Overview", exact: true },
+        { to: "/dashboard/stones", label: "My Inventory", exact: false },
+        { to: "/dashboard/enquiries", label: "Enquiries", exact: false },
+        { to: "/dashboard/import", label: "CSV Import", exact: false },
+      ];
 
   return (
     <div className="min-h-screen bg-background">
