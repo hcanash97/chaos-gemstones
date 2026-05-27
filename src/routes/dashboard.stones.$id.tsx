@@ -1,10 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { StoneForm, emptyStone, type StoneFormValues } from "@/components/dashboard/StoneForm";
 import { StoneImages } from "@/components/dashboard/StoneImages";
 import { CertUpload } from "@/components/dashboard/CertUpload";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/stones/$id")({
   component: EditStone,
@@ -13,8 +15,10 @@ export const Route = createFileRoute("/dashboard/stones/$id")({
 function EditStone() {
   const { id } = Route.useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [values, setValues] = useState<StoneFormValues | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -91,6 +95,36 @@ function EditStone() {
     return <div className="text-sm text-muted-foreground">Loading…</div>;
   }
 
+  async function duplicate() {
+    if (!user) return;
+    setDuplicating(true);
+    const { data: src, error: fetchErr } = await supabase
+      .from("stones")
+      .select("*")
+      .eq("id", id)
+      .eq("dealer_id", user.id)
+      .maybeSingle();
+    if (fetchErr || !src) {
+      setDuplicating(false);
+      toast.error("Could not load source stone");
+      return;
+    }
+    const { id: _id, created_at: _c, updated_at: _u, view_count: _v, share_count: _s, cert_number: _cn, cert_url: _cu, ...rest } = src as Record<string, unknown>;
+    const payload = { ...rest, status: "available", cert_number: null, cert_url: null, feed_inactive: false };
+    const { data: created, error: insErr } = await supabase
+      .from("stones")
+      .insert(payload as any)
+      .select("id")
+      .single();
+    setDuplicating(false);
+    if (insErr || !created) {
+      toast.error(insErr?.message ?? "Duplicate failed");
+      return;
+    }
+    toast.success("Duplicate created — update the cert number and images before publishing.");
+    navigate({ to: "/dashboard/stones/$id", params: { id: created.id }, search: { duplicated: "1" } as any });
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -99,9 +133,14 @@ function EditStone() {
         </Link>
         <div className="mt-2 flex items-center justify-between">
           <h1 className="font-serif text-3xl text-foreground">Edit stone</h1>
-          <Link to="/stone/$id" params={{ id }}>
-            <span className="text-sm text-muted-foreground underline hover:text-foreground">View public page</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="outline" size="sm" onClick={duplicate} disabled={duplicating}>
+              {duplicating ? "Duplicating…" : "Duplicate this listing"}
+            </Button>
+            <Link to="/stone/$id" params={{ id }}>
+              <span className="text-sm text-muted-foreground underline hover:text-foreground">View public page</span>
+            </Link>
+          </div>
         </div>
       </div>
       <div className="rounded-lg border border-border bg-card p-6">
