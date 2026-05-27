@@ -23,8 +23,12 @@ import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
+import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
+import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.jeweller.markup'
+import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
+import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 
 const PendingApprovalRoute = PendingApprovalRouteImport.update({
   id: '/pending-approval',
@@ -96,6 +100,11 @@ const DashboardStonesIndexRoute = DashboardStonesIndexRouteImport.update({
   path: '/stones/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardJewellerIndexRoute = DashboardJewellerIndexRouteImport.update({
+  id: '/jeweller/',
+  path: '/jeweller/',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardStonesNewRoute = DashboardStonesNewRouteImport.update({
   id: '/stones/new',
   path: '/stones/new',
@@ -105,6 +114,21 @@ const DashboardStonesIdRoute = DashboardStonesIdRouteImport.update({
   id: '/stones/$id',
   path: '/stones/$id',
   getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardJewellerMarkupRoute = DashboardJewellerMarkupRouteImport.update({
+  id: '/jeweller/markup',
+  path: '/jeweller/markup',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardJewellerFeedsRoute = DashboardJewellerFeedsRouteImport.update({
+  id: '/jeweller/feeds',
+  path: '/jeweller/feeds',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const ApiPublicFeedRoute = ApiPublicFeedRouteImport.update({
+  id: '/api/public/feed',
+  path: '/api/public/feed',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -121,8 +145,12 @@ export interface FileRoutesByFullPath {
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
+  '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -138,8 +166,12 @@ export interface FileRoutesByTo {
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard': typeof DashboardIndexRoute
   '/vendors': typeof VendorsIndexRoute
+  '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
+  '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesById {
@@ -157,8 +189,12 @@ export interface FileRoutesById {
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
+  '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRouteTypes {
@@ -177,8 +213,12 @@ export interface FileRouteTypes {
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/api/public/feed'
+    | '/dashboard/jeweller/feeds'
+    | '/dashboard/jeweller/markup'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/dashboard/jeweller/'
     | '/dashboard/stones/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -194,8 +234,12 @@ export interface FileRouteTypes {
     | '/vendors/$slug'
     | '/dashboard'
     | '/vendors'
+    | '/api/public/feed'
+    | '/dashboard/jeweller/feeds'
+    | '/dashboard/jeweller/markup'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/dashboard/jeweller'
     | '/dashboard/stones'
   id:
     | '__root__'
@@ -212,8 +256,12 @@ export interface FileRouteTypes {
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/api/public/feed'
+    | '/dashboard/jeweller/feeds'
+    | '/dashboard/jeweller/markup'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/dashboard/jeweller/'
     | '/dashboard/stones/'
   fileRoutesById: FileRoutesById
 }
@@ -230,6 +278,7 @@ export interface RootRouteChildren {
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
   VendorsIndexRoute: typeof VendorsIndexRoute
+  ApiPublicFeedRoute: typeof ApiPublicFeedRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -332,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardStonesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/jeweller/': {
+      id: '/dashboard/jeweller/'
+      path: '/jeweller'
+      fullPath: '/dashboard/jeweller/'
+      preLoaderRoute: typeof DashboardJewellerIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/stones/new': {
       id: '/dashboard/stones/new'
       path: '/stones/new'
@@ -346,20 +402,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardStonesIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/jeweller/markup': {
+      id: '/dashboard/jeweller/markup'
+      path: '/jeweller/markup'
+      fullPath: '/dashboard/jeweller/markup'
+      preLoaderRoute: typeof DashboardJewellerMarkupRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/jeweller/feeds': {
+      id: '/dashboard/jeweller/feeds'
+      path: '/jeweller/feeds'
+      fullPath: '/dashboard/jeweller/feeds'
+      preLoaderRoute: typeof DashboardJewellerFeedsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/api/public/feed': {
+      id: '/api/public/feed'
+      path: '/api/public/feed'
+      fullPath: '/api/public/feed'
+      preLoaderRoute: typeof ApiPublicFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface DashboardRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
+  DashboardJewellerMarkupRoute: typeof DashboardJewellerMarkupRoute
   DashboardStonesIdRoute: typeof DashboardStonesIdRoute
   DashboardStonesNewRoute: typeof DashboardStonesNewRoute
+  DashboardJewellerIndexRoute: typeof DashboardJewellerIndexRoute
   DashboardStonesIndexRoute: typeof DashboardStonesIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
+  DashboardJewellerMarkupRoute: DashboardJewellerMarkupRoute,
   DashboardStonesIdRoute: DashboardStonesIdRoute,
   DashboardStonesNewRoute: DashboardStonesNewRoute,
+  DashboardJewellerIndexRoute: DashboardJewellerIndexRoute,
   DashboardStonesIndexRoute: DashboardStonesIndexRoute,
 }
 
@@ -380,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
   VendorsIndexRoute: VendorsIndexRoute,
+  ApiPublicFeedRoute: ApiPublicFeedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
