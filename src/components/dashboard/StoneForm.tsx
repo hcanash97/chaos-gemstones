@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 export type StoneFormValues = {
   stone_type: string;
@@ -196,6 +195,3 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
     </form>
   );
 }
-
-// Suppress unused warning for Textarea import (kept for future notes field)
-export const _TextareaRef = Textarea;
