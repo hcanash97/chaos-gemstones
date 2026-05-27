@@ -217,10 +217,20 @@ function StoneDetail() {
               {stone.carat_weight ? `${Number(stone.carat_weight).toFixed(2)}ct ` : ""}
               {stone.shape} {stone.stone_type}
             </h1>
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex items-center gap-2">
               {stone.colour_grade && <Badge variant="outline" className="font-mono">{stone.colour_grade}</Badge>}
               {stone.clarity_grade && <Badge variant="outline" className="font-mono">{stone.clarity_grade}</Badge>}
               {stone.cut_grade && <Badge variant="outline" className="font-mono">{stone.cut_grade}</Badge>}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onShare}
+                className="ml-auto h-7 gap-1.5 px-2 text-xs"
+              >
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+                {copied ? "Link copied" : "Share"}
+              </Button>
             </div>
 
             <div className="mt-6 rounded-md border border-border bg-card p-5">
