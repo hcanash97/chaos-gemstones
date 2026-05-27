@@ -18,6 +18,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { SlidersHorizontal } from "lucide-react";
+import { StaggerGroup } from "@/components/anim/Motion";
 
 export const Route = createFileRoute("/marketplace")({
   component: Marketplace,
@@ -197,9 +198,9 @@ function Marketplace() {
           <aside className="hidden lg:block">{Filters}</aside>
 
           <div>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <StaggerGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" delay={0.06}>
               {filtered.map((s) => <StoneCard key={s.id} stone={s} />)}
-            </div>
+            </StaggerGroup>
             {!isLoading && filtered.length === 0 && (
               <div className="rounded-md border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
                 No stones match your filters.
