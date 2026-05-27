@@ -3,7 +3,7 @@ import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   return (
     <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -27,6 +27,13 @@ export function SiteHeader() {
               {(profile?.account_type === "dealer" || profile?.account_type === "admin") && (
                 <Link to="/dashboard">
                   <Button variant="outline" size="sm">Dashboard</Button>
+                </Link>
+              )}
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline" size="sm" className="border-[var(--color-gold)] text-[var(--color-gold)]">
+                    Admin
+                  </Button>
                 </Link>
               )}
               <Button variant="ghost" size="sm" onClick={() => signOut()}>Sign out</Button>
