@@ -118,7 +118,7 @@ function StonesList() {
                   <td className="px-4 py-3 text-muted-foreground">{r.origin || "—"}</td>
                   <td className="px-4 py-3">{r.wholesale_price_usd ? `$${Number(r.wholesale_price_usd).toLocaleString()}` : "—"}</td>
                   <td className="px-4 py-3">
-                    <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
+                    <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v as "available" | "reserved" | "sold")}>
                       <SelectTrigger
                         className={`h-7 w-[120px] border-0 px-2 text-xs font-medium ${
                           r.status === "available"
