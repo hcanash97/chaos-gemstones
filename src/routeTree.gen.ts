@@ -23,6 +23,9 @@ import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
+import { Route as LegalTermsJewellersRouteImport } from './routes/legal.terms-jewellers'
+import { Route as LegalTermsDealersRouteImport } from './routes/legal.terms-dealers'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
 import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
@@ -106,6 +109,21 @@ const SignUpJewellerRoute = SignUpJewellerRouteImport.update({
 const SignUpDealerRoute = SignUpDealerRouteImport.update({
   id: '/sign-up/dealer',
   path: '/sign-up/dealer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsJewellersRoute = LegalTermsJewellersRouteImport.update({
+  id: '/legal/terms-jewellers',
+  path: '/legal/terms-jewellers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsDealersRoute = LegalTermsDealersRouteImport.update({
+  id: '/legal/terms-dealers',
+  path: '/legal/terms-dealers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmbedKeyRoute = EmbedKeyRouteImport.update({
@@ -193,6 +211,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/import': typeof DashboardImportRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms-dealers': typeof LegalTermsDealersRoute
+  '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
@@ -222,6 +243,9 @@ export interface FileRoutesByTo {
   '/dashboard/import': typeof DashboardImportRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms-dealers': typeof LegalTermsDealersRoute
+  '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
@@ -253,6 +277,9 @@ export interface FileRoutesById {
   '/dashboard/import': typeof DashboardImportRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms-dealers': typeof LegalTermsDealersRoute
+  '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
@@ -285,6 +312,9 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/docs/api'
     | '/embed/$key'
+    | '/legal/privacy'
+    | '/legal/terms-dealers'
+    | '/legal/terms-jewellers'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
@@ -314,6 +344,9 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/docs/api'
     | '/embed/$key'
+    | '/legal/privacy'
+    | '/legal/terms-dealers'
+    | '/legal/terms-jewellers'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
@@ -344,6 +377,9 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/docs/api'
     | '/embed/$key'
+    | '/legal/privacy'
+    | '/legal/terms-dealers'
+    | '/legal/terms-jewellers'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
@@ -373,6 +409,9 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
   EmbedKeyRoute: typeof EmbedKeyRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsDealersRoute: typeof LegalTermsDealersRoute
+  LegalTermsJewellersRoute: typeof LegalTermsJewellersRoute
   SignUpDealerRoute: typeof SignUpDealerRoute
   SignUpJewellerRoute: typeof SignUpJewellerRoute
   StoneIdRoute: typeof StoneIdRoute
@@ -480,6 +519,27 @@ declare module '@tanstack/react-router' {
       path: '/sign-up/dealer'
       fullPath: '/sign-up/dealer'
       preLoaderRoute: typeof SignUpDealerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms-jewellers': {
+      id: '/legal/terms-jewellers'
+      path: '/legal/terms-jewellers'
+      fullPath: '/legal/terms-jewellers'
+      preLoaderRoute: typeof LegalTermsJewellersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms-dealers': {
+      id: '/legal/terms-dealers'
+      path: '/legal/terms-dealers'
+      fullPath: '/legal/terms-dealers'
+      preLoaderRoute: typeof LegalTermsDealersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/embed/$key': {
@@ -626,6 +686,9 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
   EmbedKeyRoute: EmbedKeyRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsDealersRoute: LegalTermsDealersRoute,
+  LegalTermsJewellersRoute: LegalTermsJewellersRoute,
   SignUpDealerRoute: SignUpDealerRoute,
   SignUpJewellerRoute: SignUpJewellerRoute,
   StoneIdRoute: StoneIdRoute,

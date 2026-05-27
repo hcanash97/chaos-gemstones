@@ -100,7 +100,13 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="md:text-right">
-          <div className="text-xs uppercase tracking-[0.2em] opacity-60">Sourcing hubs</div>
+          <div className="text-xs uppercase tracking-[0.2em] opacity-60">Legal</div>
+          <ul className="mt-3 space-y-2 text-sm md:flex md:flex-col md:items-end">
+            <li><Link to="/legal/terms-dealers" className="opacity-80 hover:opacity-100">Dealer terms</Link></li>
+            <li><Link to="/legal/terms-jewellers" className="opacity-80 hover:opacity-100">Jeweller terms</Link></li>
+            <li><Link to="/legal/privacy" className="opacity-80 hover:opacity-100">Privacy policy</Link></li>
+          </ul>
+          <div className="mt-6 text-xs uppercase tracking-[0.2em] opacity-60">Sourcing hubs</div>
           <p className="mt-3 text-sm opacity-80">
             Jaipur · Surat · Bangkok · Colombo · Antwerp · New York
           </p>
