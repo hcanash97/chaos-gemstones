@@ -103,13 +103,3 @@ function Method({ icon, title, note, tag }: { icon: React.ReactNode; title: stri
     </div>
   );
 }
-
-function FeeBox({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div className="rounded-md border border-border bg-card p-5 text-center">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
-      <div className="mt-1 font-serif text-3xl text-[var(--color-gold)]">{value}</div>
-      <div className="text-[11px] text-muted-foreground">{sub}</div>
-    </div>
-  );
-}
