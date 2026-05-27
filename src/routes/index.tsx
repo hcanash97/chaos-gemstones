@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ShieldCheck, Globe2, Boxes } from "lucide-react";
+import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Motion";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -62,21 +64,30 @@ function Home() {
       <SiteHeader />
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-primary text-primary-foreground">
-        <div className="absolute inset-0 opacity-[0.06]" style={{
-          backgroundImage: "radial-gradient(circle at 20% 30%, var(--color-gold) 0%, transparent 50%), radial-gradient(circle at 80% 70%, var(--color-gold) 0%, transparent 50%)",
-        }} />
+      <section className="relative overflow-hidden text-primary-foreground hero-aurora">
         <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
-          <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">B2B · For the trade</Badge>
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">B2B · For the trade</Badge>
+          </motion.div>
           <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">
-            Verified diamonds & coloured stones, sourced direct from the world's dealers.
+            <WordReveal text="Verified diamonds & coloured stones, sourced direct from the world's dealers." />
           </h1>
-          <p className="mt-6 max-w-xl text-lg opacity-80">
+          <motion.p
+            className="mt-6 max-w-xl text-lg opacity-80"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 0.8, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.6 }}
+          >
             CHAOS connects independent gemstone dealers in Jaipur, Surat, Bangkok and Colombo with jewellers in the UK, US, Europe and Australia. Browse the marketplace, follow vendors, pull live inventory into your own site.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          </motion.p>
+          <motion.div
+            className="mt-8 flex flex-wrap gap-3"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.9 }}
+          >
             <Link to="/marketplace">
-              <Button size="lg" className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+              <Button size="lg" className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] gold-glow transition-shadow hover:opacity-95">
                 Browse marketplace <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -85,7 +96,7 @@ function Home() {
                 List as a dealer
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -118,7 +129,7 @@ function Home() {
       {/* Featured stones */}
       <section className="bg-secondary/30 py-20">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="flex items-end justify-between">
+          <FadeUp className="flex items-end justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Featured Inventory</div>
               <h2 className="mt-2 font-serif text-4xl">Hand-picked stones</h2>
@@ -126,18 +137,18 @@ function Home() {
             <Link to="/marketplace" className="text-sm text-foreground hover:text-[var(--color-gold)]">
               View all →
             </Link>
-          </div>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          </FadeUp>
+          <StaggerGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" delay={0.08}>
             {(featuredStones ?? []).map((s) => (
               <StoneCard key={s.id} stone={s} />
             ))}
-          </div>
+          </StaggerGroup>
         </div>
       </section>
 
       {/* Featured vendors */}
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="flex items-end justify-between">
+        <FadeUp className="flex items-end justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trusted Suppliers</div>
             <h2 className="mt-2 font-serif text-4xl">Featured vendors</h2>
@@ -145,41 +156,53 @@ function Home() {
           <Link to="/vendors" className="text-sm text-foreground hover:text-[var(--color-gold)]">
             View all →
           </Link>
-        </div>
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
+        </FadeUp>
+        <StaggerGroup className="mt-8 grid gap-5 md:grid-cols-3">
           {(featuredVendors ?? []).map((v: any) => (
-            <Link
+            <motion.div
               key={v.id}
-              to="/vendors/$slug"
-              params={{ slug: v.slug }}
-              className="block rounded-md border border-border bg-card p-6 transition-all hover:border-[var(--color-gold)]"
+              variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
+              whileHover={{ y: -4 }}
+              className="group"
             >
-              <div className="flex items-center gap-2">
-                <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
-                {v.profiles?.is_verified && (
-                  <ShieldCheck className="h-4 w-4 text-[var(--color-gold)]" />
-                )}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
-              </div>
-              <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {(v.specialities ?? []).slice(0, 3).map((s: string) => (
-                  <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
-                ))}
-              </div>
-            </Link>
+              <Link
+                to="/vendors/$slug"
+                params={{ slug: v.slug }}
+                className="block rounded-md border border-border bg-card p-6 transition-all hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
+                  {v.profiles?.is_verified && (
+                    <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
+                </div>
+                <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {(v.specialities ?? []).slice(0, 3).map((s: string, i: number) => (
+                    <span
+                      key={s}
+                      className="inline-block -translate-x-2 opacity-80 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
+                      style={{ transitionDelay: `${i * 60}ms` }}
+                    >
+                      <Badge variant="secondary" className="text-[10px]">{s}</Badge>
+                    </span>
+                  ))}
+                </div>
+              </Link>
+            </motion.div>
           ))}
-        </div>
+        </StaggerGroup>
       </section>
 
       {/* Trust strip */}
       <section className="border-t border-border bg-secondary/30 py-16">
         <div className="mx-auto grid max-w-7xl gap-8 px-6 md:grid-cols-3 md:divide-x md:divide-border">
-          <StatBig label="Approved dealers" value={stats?.dealers ?? "—"} />
-          <StatBig label="Stones available" value={stats?.stones ?? "—"} />
-          <StatBig label="Sourcing countries" value={stats?.countries ?? "—"} />
+          <StatBig label="Approved dealers" value={stats?.dealers ?? 0} />
+          <StatBig label="Stones available" value={stats?.stones ?? 0} />
+          <StatBig label="Sourcing countries" value={stats?.countries ?? 0} />
         </div>
         <div className="mx-auto mt-10 grid max-w-7xl gap-8 px-6 md:grid-cols-3">
           <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Verified dealers" desc="Every supplier reviewed and approved before listing." />
@@ -193,14 +216,14 @@ function Home() {
   );
 }
 
-function StatBig({ label, value }: { label: string; value: number | string }) {
+function StatBig({ label, value }: { label: string; value: number }) {
   return (
-    <div className="text-center md:px-6">
+    <FadeUp className="text-center md:px-6">
       <div className="font-serif text-5xl text-[var(--color-gold)]">
-        {typeof value === "number" ? value.toLocaleString() : value}
+        <CountUp value={value} />
       </div>
       <div className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
-    </div>
+    </FadeUp>
   );
 }
 

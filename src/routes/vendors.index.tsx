@@ -6,6 +6,8 @@ import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { StaggerGroup } from "@/components/anim/Motion";
 
 export const Route = createFileRoute("/vendors/")({
   component: Vendors,
@@ -58,33 +60,47 @@ function Vendors() {
         <h1 className="font-serif text-4xl">Vendors</h1>
         <p className="mt-1 text-sm text-muted-foreground">Independent dealers across the gemstone trade.</p>
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, city, country or speciality…" className="mt-6 max-w-md" />
-        <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <StaggerGroup className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3" delay={0.06}>
           {filtered.map((v: any) => (
-            <Link
+            <motion.div
               key={v.id}
-              to="/vendors/$slug"
-              params={{ slug: v.slug }}
-              className="block rounded-md border border-border bg-card p-6 transition-all hover:border-[var(--color-gold)]"
+              variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
+              whileHover={{ y: -4 }}
+              className="group"
             >
-              <div className="flex items-center gap-2">
-                <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
-                {v.profiles?.is_verified && <ShieldCheck className="h-4 w-4 text-[var(--color-gold)]" />}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
-              </div>
-              <div className="mt-1 text-xs font-mono text-[var(--color-gold)]">
-                {stoneCounts?.[v.id] ?? 0} stones available
-              </div>
-              <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {(v.specialities ?? []).slice(0, 4).map((s: string) => (
-                  <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>
-                ))}
-              </div>
-            </Link>
+              <Link
+                to="/vendors/$slug"
+                params={{ slug: v.slug }}
+                className="block rounded-md border border-border bg-card p-6 transition-all hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
+                  {v.profiles?.is_verified && (
+                    <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
+                </div>
+                <div className="mt-1 text-xs font-mono text-[var(--color-gold)]">
+                  {stoneCounts?.[v.id] ?? 0} stones available
+                </div>
+                <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {(v.specialities ?? []).slice(0, 4).map((s: string, i: number) => (
+                    <span
+                      key={s}
+                      className="inline-block -translate-x-2 opacity-80 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
+                      style={{ transitionDelay: `${i * 60}ms` }}
+                    >
+                      <Badge variant="secondary" className="text-[10px]">{s}</Badge>
+                    </span>
+                  ))}
+                </div>
+              </Link>
+            </motion.div>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
       <SiteFooter />
     </div>

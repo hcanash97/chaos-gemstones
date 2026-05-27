@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
@@ -76,10 +77,17 @@ function StoneDetail() {
         <Link to="/marketplace" className="text-xs text-muted-foreground hover:text-foreground">← Back to marketplace</Link>
         <div className="mt-4 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
           {/* Gallery */}
-          <div>
-            <div className="aspect-square overflow-hidden rounded-md border border-border bg-card">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+            <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-card">
               {primaryImage ? (
-                <img src={primaryImage} alt="" className="h-full w-full object-cover" />
+                <motion.img
+                  src={primaryImage}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  initial={{ opacity: 0, scale: 1.02 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                />
               ) : (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No image</div>
               )}
@@ -87,13 +95,19 @@ function StoneDetail() {
             {images.length > 1 && (
               <div className="mt-3 grid grid-cols-5 gap-2">
                 {images.slice(0, 5).map((src, i) => (
-                  <div key={i} className="aspect-square overflow-hidden rounded border border-border">
+                  <motion.div
+                    key={i}
+                    className="aspect-square overflow-hidden rounded border border-border"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.2 + i * 0.06 }}
+                  >
                     <img src={src} className="h-full w-full object-cover" alt="" />
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Specs */}
           <div>
@@ -142,11 +156,17 @@ function StoneDetail() {
               <dl className="mt-3 divide-y divide-border border-y border-border text-sm">
                 {specs
                   .filter(([, v]) => v !== null && v !== undefined && v !== "")
-                  .map(([k, v]) => (
-                    <div key={k} className="grid grid-cols-2 py-2.5">
+                  .map(([k, v], i) => (
+                    <motion.div
+                      key={k}
+                      className="grid grid-cols-2 py-2.5"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.35, delay: 0.15 + i * 0.06 }}
+                    >
                       <dt className="text-muted-foreground">{k}</dt>
                       <dd className="font-mono capitalize">{String(v)}</dd>
-                    </div>
+                    </motion.div>
                   ))}
               {stone.cert_number && (
                 <div className="grid grid-cols-2 py-2.5">
