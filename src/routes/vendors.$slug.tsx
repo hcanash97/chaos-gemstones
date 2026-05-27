@@ -34,6 +34,26 @@ export const Route = createFileRoute("/vendors/$slug")({
         { property: "og:url", content: `/vendors/${params.slug}` },
       ],
       links: [{ rel: "canonical", href: `/vendors/${params.slug}` }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name,
+            ...(city || v?.profiles?.country
+              ? {
+                  address: {
+                    "@type": "PostalAddress",
+                    ...(city ? { addressLocality: city } : {}),
+                    ...(v?.profiles?.country ? { addressCountry: v.profiles.country } : {}),
+                  },
+                }
+              : {}),
+            url: `https://chaosgemstones.com/vendors/${params.slug}`,
+          }),
+        },
+      ],
     };
   },
 });
