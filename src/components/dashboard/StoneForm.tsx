@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export type StoneFormValues = {
   stone_type: string;
@@ -21,6 +22,9 @@ export type StoneFormValues = {
   cert_lab: string;
   cert_number: string;
   featured: boolean;
+  minimum_order_qty: string;
+  bulk_pricing_available: boolean;
+  notes_for_buyers: string;
 };
 
 export const emptyStone: StoneFormValues = {
@@ -39,6 +43,9 @@ export const emptyStone: StoneFormValues = {
   cert_lab: "",
   cert_number: "",
   featured: false,
+  minimum_order_qty: "1",
+  bulk_pricing_available: false,
+  notes_for_buyers: "",
 };
 
 type Props = {
@@ -78,6 +85,9 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
       cert_lab: values.cert_lab.trim() || null,
       cert_number: values.cert_number.trim() || null,
       featured: values.featured,
+      minimum_order_qty: values.minimum_order_qty ? Number(values.minimum_order_qty) : 1,
+      bulk_pricing_available: values.bulk_pricing_available,
+      notes_for_buyers: values.notes_for_buyers.trim() || null,
     };
     let resultId = stoneId;
     if (stoneId) {
@@ -184,6 +194,40 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
         <input type="checkbox" checked={values.featured} onChange={(e) => set("featured", e.target.checked)} />
         Feature this stone on the homepage and vendor page
       </label>
+      <div className="space-y-4 rounded-md border border-border bg-secondary/30 p-5">
+        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Bulk & buyer notes</div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label>Minimum order quantity</Label>
+            <Input
+              className="mt-1"
+              type="number"
+              min="1"
+              value={values.minimum_order_qty}
+              onChange={(e) => set("minimum_order_qty", e.target.value)}
+            />
+          </div>
+          <label className="mt-6 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={values.bulk_pricing_available}
+              onChange={(e) => set("bulk_pricing_available", e.target.checked)}
+            />
+            Bulk pricing available on request
+          </label>
+        </div>
+        <div>
+          <Label>Notes for buyers</Label>
+          <Textarea
+            className="mt-1"
+            rows={3}
+            value={values.notes_for_buyers}
+            onChange={(e) => set("notes_for_buyers", e.target.value)}
+            placeholder="e.g. Available in matched pairs, parcels of 10+, custom cuts to order."
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">Shown publicly on the stone page.</p>
+        </div>
+      </div>
       <div className="flex gap-2">
         <Button type="submit" disabled={saving} className="bg-primary text-primary-foreground">
           {saving ? "Saving…" : stoneId ? "Save changes" : "Create stone"}
