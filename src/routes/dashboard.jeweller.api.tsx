@@ -227,7 +227,7 @@ function ApiPage() {
         </TabsList>
         <TabsContent value="js">
           <pre className="overflow-x-auto rounded-md border border-border bg-foreground/95 p-4 text-xs text-background">
-{`// Fetch your CHAOS feed
+{`// Fetch your Chaos feed
 const res = await fetch("${feedUrl}");
 const { stones } = await res.json();
 stones.forEach(stone => {
