@@ -33,6 +33,7 @@ import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardSalesRouteImport } from './routes/dashboard.sales'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
+import { Route as AdminImportTestRouteImport } from './routes/admin.import-test'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
 import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
@@ -168,6 +169,11 @@ const DashboardEnquiriesRoute = DashboardEnquiriesRouteImport.update({
   path: '/enquiries',
   getParentRoute: () => DashboardRoute,
 } as any)
+const AdminImportTestRoute = AdminImportTestRouteImport.update({
+  id: '/import-test',
+  path: '/import-test',
+  getParentRoute: () => AdminRoute,
+} as any)
 const DashboardStonesIndexRoute = DashboardStonesIndexRouteImport.update({
   id: '/stones/',
   path: '/stones/',
@@ -246,12 +252,13 @@ const ApiPublicHooksEmailNotifyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/import-test': typeof AdminImportTestRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -286,11 +293,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/import-test': typeof AdminImportTestRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -326,12 +334,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/import-test': typeof AdminImportTestRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/pending-approval'
     | '/sitemap.xml'
+    | '/admin/import-test'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -413,6 +423,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/pending-approval'
     | '/sitemap.xml'
+    | '/admin/import-test'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -453,6 +464,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/pending-approval'
     | '/sitemap.xml'
+    | '/admin/import-test'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -488,7 +500,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
@@ -683,6 +695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardEnquiriesRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/admin/import-test': {
+      id: '/admin/import-test'
+      path: '/import-test'
+      fullPath: '/admin/import-test'
+      preLoaderRoute: typeof AdminImportTestRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/dashboard/stones/': {
       id: '/dashboard/stones/'
       path: '/stones'
@@ -784,6 +803,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminImportTestRoute: typeof AdminImportTestRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminImportTestRoute: AdminImportTestRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface DashboardRouteChildren {
   DashboardEnquiriesRoute: typeof DashboardEnquiriesRoute
   DashboardImportRoute: typeof DashboardImportRoute
@@ -823,7 +852,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
