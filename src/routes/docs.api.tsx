@@ -43,7 +43,9 @@ function CopyBlock({ code }: { code: string }) {
 }
 
 function ApiDocs() {
-  const base = typeof window !== "undefined" ? window.location.origin : "https://chaos.app";
+  // Always show the production URL in snippets so jewellers paste a stable
+  // endpoint into their site, even when viewing docs from preview.
+  const base = "https://project--664931b8-ad5b-4674-aece-47159cf3778c.lovable.app";
   const KEY = "YOUR_API_KEY";
 
   const snippetWidget = `<div id="chaos-feed"></div>
