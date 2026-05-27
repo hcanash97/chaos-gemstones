@@ -1,0 +1,26 @@
+# Chaos
+
+> The global B2B marketplace connecting independent gemstone and diamond dealers with jewellers worldwide via live inventory feeds.
+
+Chaos lets verified dealers in Jaipur, Surat, Bangkok and Colombo upload certified stone inventory once, and lets jewellers pipe that inventory directly into their own websites (Shopify, Wix, Squarespace, Webflow, WordPress, custom) via a single API key.
+
+## Pages
+
+- [Home](/): Overview of the marketplace, featured stones and vendors.
+- [Marketplace](/marketplace): Search and filter the full catalogue of certified available stones.
+- [Vendors](/vendors): Directory of approved independent gemstone and diamond dealers.
+- [About](/about): How the platform works for dealers and jewellers.
+- [API & Embeds](/docs/api): Drop-in widget, iframe, and JSON feed integration guides.
+- [Shipping](/how-it-works/shipping): How dealer-to-jeweller shipping is handled.
+- [Payments](/how-it-works/payments): How payments work between jewellers and dealers.
+
+## Sign up
+
+- [Apply as a dealer](/sign-up/dealer): For independent gemstone and diamond dealers.
+- [Open a jeweller account](/sign-up/jeweller): For jewellers and jewellery businesses.
+
+## Legal
+
+- [Privacy Policy](/legal/privacy): How Chaos handles personal data under UK GDPR.
+- [Dealer Terms](/legal/terms-dealers): Terms of service for dealers.
+- [Jeweller Terms](/legal/terms-jewellers): Terms of service for jewellers.
