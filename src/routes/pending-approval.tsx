@@ -13,7 +13,7 @@ function Pending() {
         <Clock className="mx-auto h-10 w-10 text-[var(--color-gold)]" />
         <h1 className="mt-4 font-serif text-3xl">Account pending approval</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Thanks for joining CHAOS. New accounts are reviewed by our team before dashboard access is granted. You'll receive an email once you're approved.
+          Thanks for joining Chaos. New accounts are reviewed by our team before dashboard access is granted. You'll receive an email once you're approved.
         </p>
         <Link to="/" className="mt-6 inline-block"><Button variant="outline">Back to homepage</Button></Link>
       </div>
