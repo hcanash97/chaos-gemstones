@@ -155,16 +155,33 @@ function StoneDetail() {
             </div>
 
             <div className="mt-6 rounded-md border border-border bg-card p-5">
+              {stone.status !== "available" && (
+                <div
+                  className={`mb-4 rounded-md border px-3 py-2 text-xs font-medium uppercase tracking-wider ${
+                    stone.status === "sold"
+                      ? "border-border bg-muted text-muted-foreground"
+                      : "border-amber-200 bg-amber-50 text-amber-900"
+                  }`}
+                >
+                  {stone.status === "sold" ? "Sold — no longer available" : "Reserved — currently under offer"}
+                </div>
+              )}
               <div className="text-xs uppercase tracking-wider text-muted-foreground">Wholesale price</div>
               <div className="mt-1 font-mono text-3xl font-semibold">
                 {stone.wholesale_price_usd ? `$${Number(stone.wholesale_price_usd).toLocaleString()} USD` : "POA"}
               </div>
               <div className="mt-4">
-                <EnquireDialog
-                  dealerId={stone.dealer_id}
-                  stoneId={stone.id}
-                  context={`${stone.carat_weight ? Number(stone.carat_weight).toFixed(2) + "ct " : ""}${stone.shape || ""} ${stone.stone_type}`}
-                />
+                {stone.status === "available" ? (
+                  <EnquireDialog
+                    dealerId={stone.dealer_id}
+                    stoneId={stone.id}
+                    context={`${stone.carat_weight ? Number(stone.carat_weight).toFixed(2) + "ct " : ""}${stone.shape || ""} ${stone.stone_type}`}
+                  />
+                ) : (
+                  <Button disabled variant="outline" className="w-full">
+                    {stone.status === "sold" ? "Sold" : "Reserved"}
+                  </Button>
+                )}
               </div>
             </div>
 
