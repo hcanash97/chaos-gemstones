@@ -122,7 +122,7 @@ function EditStone() {
       return;
     }
     toast.success("Duplicate created — update the cert number and images before publishing.");
-    navigate({ to: "/dashboard/stones/$id", params: { id: created.id }, search: { duplicated: "1" } as any });
+    navigate({ to: "/dashboard/stones/$id", params: { id: created.id } });
   }
 
   return (
