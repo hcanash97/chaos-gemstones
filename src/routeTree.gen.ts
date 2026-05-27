@@ -36,12 +36,14 @@ import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.sto
 import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
+import { Route as DashboardJewellerSavedSearchesRouteImport } from './routes/dashboard.jeweller.saved-searches'
 import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.jeweller.markup'
 import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
 import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboard.jeweller.enquiries'
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
+import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
 import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
 
@@ -180,6 +182,12 @@ const DashboardStonesIdRoute = DashboardStonesIdRouteImport.update({
   path: '/stones/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardJewellerSavedSearchesRoute =
+  DashboardJewellerSavedSearchesRouteImport.update({
+    id: '/jeweller/saved-searches',
+    path: '/jeweller/saved-searches',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardJewellerMarkupRoute = DashboardJewellerMarkupRouteImport.update({
   id: '/jeweller/markup',
   path: '/jeweller/markup',
@@ -211,6 +219,12 @@ const ApiPublicChaosDotjsRoute = ApiPublicChaosDotjsRouteImport.update({
   path: '/api/public/chaos.js',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronSavedSearchDigestRoute =
+  ApiPublicCronSavedSearchDigestRouteImport.update({
+    id: '/api/public/cron/saved-search-digest',
+    path: '/api/public/cron/saved-search-digest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronDigestRoute = ApiPublicCronDigestRouteImport.update({
   id: '/api/public/cron/digest',
   path: '/api/public/cron/digest',
@@ -253,11 +267,13 @@ export interface FileRoutesByFullPath {
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
+  '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
+  '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
 }
 export interface FileRoutesByTo {
@@ -289,11 +305,13 @@ export interface FileRoutesByTo {
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
+  '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
+  '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
 }
 export interface FileRoutesById {
@@ -327,11 +345,13 @@ export interface FileRoutesById {
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
+  '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
+  '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
 }
 export interface FileRouteTypes {
@@ -366,11 +386,13 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
+    | '/dashboard/jeweller/saved-searches'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
     | '/api/public/cron/digest'
+    | '/api/public/cron/saved-search-digest'
     | '/api/public/hooks/email/notify'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -402,11 +424,13 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
+    | '/dashboard/jeweller/saved-searches'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
     | '/dashboard/jeweller'
     | '/dashboard/stones'
     | '/api/public/cron/digest'
+    | '/api/public/cron/saved-search-digest'
     | '/api/public/hooks/email/notify'
   id:
     | '__root__'
@@ -439,11 +463,13 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
+    | '/dashboard/jeweller/saved-searches'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
     | '/api/public/cron/digest'
+    | '/api/public/cron/saved-search-digest'
     | '/api/public/hooks/email/notify'
   fileRoutesById: FileRoutesById
 }
@@ -471,6 +497,7 @@ export interface RootRouteChildren {
   ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
   ApiPublicCronDigestRoute: typeof ApiPublicCronDigestRoute
+  ApiPublicCronSavedSearchDigestRoute: typeof ApiPublicCronSavedSearchDigestRoute
   ApiPublicHooksEmailNotifyRoute: typeof ApiPublicHooksEmailNotifyRoute
 }
 
@@ -665,6 +692,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardStonesIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/jeweller/saved-searches': {
+      id: '/dashboard/jeweller/saved-searches'
+      path: '/jeweller/saved-searches'
+      fullPath: '/dashboard/jeweller/saved-searches'
+      preLoaderRoute: typeof DashboardJewellerSavedSearchesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/jeweller/markup': {
       id: '/dashboard/jeweller/markup'
       path: '/jeweller/markup'
@@ -707,6 +741,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicChaosDotjsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/saved-search-digest': {
+      id: '/api/public/cron/saved-search-digest'
+      path: '/api/public/cron/saved-search-digest'
+      fullPath: '/api/public/cron/saved-search-digest'
+      preLoaderRoute: typeof ApiPublicCronSavedSearchDigestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/digest': {
       id: '/api/public/cron/digest'
       path: '/api/public/cron/digest'
@@ -732,6 +773,7 @@ interface DashboardRouteChildren {
   DashboardJewellerEnquiriesRoute: typeof DashboardJewellerEnquiriesRoute
   DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
   DashboardJewellerMarkupRoute: typeof DashboardJewellerMarkupRoute
+  DashboardJewellerSavedSearchesRoute: typeof DashboardJewellerSavedSearchesRoute
   DashboardStonesIdRoute: typeof DashboardStonesIdRoute
   DashboardStonesNewRoute: typeof DashboardStonesNewRoute
   DashboardJewellerIndexRoute: typeof DashboardJewellerIndexRoute
@@ -746,6 +788,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardJewellerEnquiriesRoute: DashboardJewellerEnquiriesRoute,
   DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
   DashboardJewellerMarkupRoute: DashboardJewellerMarkupRoute,
+  DashboardJewellerSavedSearchesRoute: DashboardJewellerSavedSearchesRoute,
   DashboardStonesIdRoute: DashboardStonesIdRoute,
   DashboardStonesNewRoute: DashboardStonesNewRoute,
   DashboardJewellerIndexRoute: DashboardJewellerIndexRoute,
@@ -780,6 +823,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
   ApiPublicFeedRoute: ApiPublicFeedRoute,
   ApiPublicCronDigestRoute: ApiPublicCronDigestRoute,
+  ApiPublicCronSavedSearchDigestRoute: ApiPublicCronSavedSearchDigestRoute,
   ApiPublicHooksEmailNotifyRoute: ApiPublicHooksEmailNotifyRoute,
 }
 export const routeTree = rootRouteImport
