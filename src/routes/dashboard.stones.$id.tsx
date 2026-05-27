@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,6 @@ export const Route = createFileRoute("/dashboard/stones/$id")({
 function EditStone() {
   const { id } = Route.useParams();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [values, setValues] = useState<StoneFormValues | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -79,8 +78,6 @@ function EditStone() {
       <div className="rounded-lg border border-border bg-card p-6">
         <StoneForm initial={values} stoneId={id} dealerId={user.id} />
       </div>
-      {/* keep navigate referenced */}
-      <div className="hidden">{navigate ? "" : ""}</div>
     </div>
   );
 }
