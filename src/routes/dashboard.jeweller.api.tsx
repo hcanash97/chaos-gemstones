@@ -156,15 +156,16 @@ function ApiPage() {
       <h1 className="font-serif text-3xl">API Feed</h1>
       <p className="text-sm text-muted-foreground">Stream your curated catalogue into any website.</p>
 
-      <div className="mt-6 rounded-md border border-border bg-card p-5">
+      <div className="relative mt-6 overflow-hidden rounded-md p-5 text-primary-foreground" style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #162347 100%)" }}>
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full" style={{ background: "radial-gradient(circle, rgba(232,201,122,0.25), transparent 70%)" }} />
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Your API key</div>
-            <div className="mt-1 font-mono">
+            <div className="text-xs uppercase tracking-[0.2em] opacity-70">Your API key</div>
+            <div className="mt-1 font-mono text-[var(--color-gold)]">
               {revealed ?? (key ? `${key.key_prefix ?? "chaos_"}${"•".repeat(40)}` : "No key yet")}
             </div>
             {key?.last_used_at && (
-              <div className="mt-1 text-xs text-muted-foreground">
+              <div className="mt-1 text-xs opacity-60">
                 Last used {new Date(key.last_used_at).toLocaleString()}
               </div>
             )}
