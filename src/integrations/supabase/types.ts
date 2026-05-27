@@ -536,6 +536,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      notify_email_event: {
+        Args: { p_record_id: string; p_type: string }
+        Returns: undefined
+      }
     }
     Enums: {
       account_type: "dealer" | "jeweller" | "admin"

@@ -42,6 +42,8 @@ import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboa
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
+import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
+import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -209,6 +211,17 @@ const ApiPublicChaosDotjsRoute = ApiPublicChaosDotjsRouteImport.update({
   path: '/api/public/chaos.js',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronDigestRoute = ApiPublicCronDigestRouteImport.update({
+  id: '/api/public/cron/digest',
+  path: '/api/public/cron/digest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksEmailNotifyRoute =
+  ApiPublicHooksEmailNotifyRouteImport.update({
+    id: '/api/public/hooks/email/notify',
+    path: '/api/public/hooks/email/notify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -244,6 +257,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
+  '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
+  '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -278,6 +293,8 @@ export interface FileRoutesByTo {
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
+  '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
+  '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -314,6 +331,8 @@ export interface FileRoutesById {
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
+  '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
+  '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -351,6 +370,8 @@ export interface FileRouteTypes {
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
+    | '/api/public/cron/digest'
+    | '/api/public/hooks/email/notify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -385,6 +406,8 @@ export interface FileRouteTypes {
     | '/dashboard/stones/new'
     | '/dashboard/jeweller'
     | '/dashboard/stones'
+    | '/api/public/cron/digest'
+    | '/api/public/hooks/email/notify'
   id:
     | '__root__'
     | '/'
@@ -420,6 +443,8 @@ export interface FileRouteTypes {
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
+    | '/api/public/cron/digest'
+    | '/api/public/hooks/email/notify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -445,6 +470,8 @@ export interface RootRouteChildren {
   VendorsIndexRoute: typeof VendorsIndexRoute
   ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
+  ApiPublicCronDigestRoute: typeof ApiPublicCronDigestRoute
+  ApiPublicHooksEmailNotifyRoute: typeof ApiPublicHooksEmailNotifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -680,6 +707,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicChaosDotjsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/digest': {
+      id: '/api/public/cron/digest'
+      path: '/api/public/cron/digest'
+      fullPath: '/api/public/cron/digest'
+      preLoaderRoute: typeof ApiPublicCronDigestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/email/notify': {
+      id: '/api/public/hooks/email/notify'
+      path: '/api/public/hooks/email/notify'
+      fullPath: '/api/public/hooks/email/notify'
+      preLoaderRoute: typeof ApiPublicHooksEmailNotifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -738,6 +779,8 @@ const rootRouteChildren: RootRouteChildren = {
   VendorsIndexRoute: VendorsIndexRoute,
   ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
   ApiPublicFeedRoute: ApiPublicFeedRoute,
+  ApiPublicCronDigestRoute: ApiPublicCronDigestRoute,
+  ApiPublicHooksEmailNotifyRoute: ApiPublicHooksEmailNotifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
