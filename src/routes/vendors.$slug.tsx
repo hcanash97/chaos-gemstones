@@ -11,6 +11,31 @@ import { Mail } from "lucide-react";
 
 export const Route = createFileRoute("/vendors/$slug")({
   component: VendorProfile,
+  loader: async ({ params }) => {
+    const { data } = await supabase
+      .from("dealer_profiles")
+      .select("id, profiles!inner(company_name, city, country, is_approved)")
+      .eq("slug", params.slug)
+      .maybeSingle();
+    return { vendor: data as any };
+  },
+  head: ({ loaderData, params }) => {
+    const v = loaderData?.vendor;
+    const name = v?.profiles?.company_name || "Vendor";
+    const city = v?.profiles?.city || "";
+    const title = `${name}${city ? " — Certified Gemstone Dealer, " + city : ""} — Chaos`;
+    const desc = `Browse the available stone catalogue from ${name}${city ? ", " + city : ""}${v?.profiles?.country ? ", " + v.profiles.country : ""} — verified on Chaos.`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: desc },
+        { property: "og:title", content: title },
+        { property: "og:description", content: desc },
+        { property: "og:url", content: `/vendors/${params.slug}` },
+      ],
+      links: [{ rel: "canonical", href: `/vendors/${params.slug}` }],
+    };
+  },
 });
 
 function VendorProfile() {

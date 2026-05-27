@@ -11,6 +11,36 @@ import { certLink, countryFlag } from "@/lib/countries";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
+  loader: async ({ params }) => {
+    const { data } = await supabase
+      .from("stones")
+      .select("id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cert_lab, stone_images(storage_url), profiles:dealer_id(company_name, city, country)")
+      .eq("id", params.id)
+      .maybeSingle();
+    return { stone: data as any };
+  },
+  head: ({ loaderData, params }) => {
+    const s = loaderData?.stone;
+    if (!s) return { meta: [{ title: "Stone — Chaos" }] };
+    const carat = s.carat_weight ? `${Number(s.carat_weight).toFixed(2)}ct ` : "";
+    const shape = s.shape ? `${s.shape} ` : "";
+    const title = `${carat}${shape}${s.stone_type} — ${s.cert_lab || "Uncertified"} — Chaos`;
+    const desc = `${carat}${s.colour_grade ? s.colour_grade + " " : ""}${shape}${s.stone_type}${s.clarity_grade ? ", " + s.clarity_grade : ""}${s.cert_lab ? ", certified by " + s.cert_lab : ""}${s.profiles?.company_name ? ", sourced from " + s.profiles.company_name : ""}${s.profiles?.city ? " in " + s.profiles.city + (s.profiles.country ? ", " + s.profiles.country : "") : ""}.`;
+    const img = s.stone_images?.[0]?.storage_url;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: desc },
+        { property: "og:title", content: title },
+        { property: "og:description", content: desc },
+        { property: "og:type", content: "product" },
+        { property: "og:url", content: `/stone/${params.id}` },
+        ...(img ? [{ property: "og:image", content: img }, { name: "twitter:image", content: img }] : []),
+        { name: "twitter:card", content: "summary_large_image" },
+      ],
+      links: [{ rel: "canonical", href: `/stone/${params.id}` }],
+    };
+  },
 });
 
 function StoneDetail() {
