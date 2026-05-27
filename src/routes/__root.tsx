@@ -16,7 +16,7 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <div className="font-serif text-xs uppercase tracking-[0.3em] text-[var(--color-gold)]">CHAOS</div>
+        <div className="font-serif italic text-xs uppercase tracking-[0.3em] text-[var(--color-gold)]">Chaos</div>
         <h1 className="mt-4 font-serif text-7xl text-foreground">404</h1>
         <h2 className="mt-3 font-serif text-2xl text-foreground">This page is off the cutting wheel</h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -81,10 +81,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CHAOS — B2B Gemstone & Diamond Marketplace" },
-      { name: "description", content: "Verified diamonds and coloured stones from trusted dealers worldwide. Built for the jewellery trade." },
-      { property: "og:title", content: "CHAOS — B2B Gemstone & Diamond Marketplace" },
-      { property: "og:description", content: "Verified diamonds and coloured stones from trusted dealers worldwide." },
+      { title: "Chaos — The global marketplace for independent gemstone dealers" },
+      { name: "description", content: "The global marketplace for independent gemstone dealers." },
+      { property: "og:site_name", content: "Chaos" },
+      { property: "og:title", content: "Chaos — Gemstone & Diamond Marketplace" },
+      { property: "og:description", content: "The global marketplace for independent gemstone dealers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

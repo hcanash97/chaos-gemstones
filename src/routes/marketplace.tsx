@@ -22,6 +22,16 @@ import { StaggerGroup } from "@/components/anim/Motion";
 
 export const Route = createFileRoute("/marketplace")({
   component: Marketplace,
+  head: () => ({
+    meta: [
+      { title: "Browse Certified Gemstones & Diamonds — Chaos" },
+      { name: "description", content: "Search certified natural and lab-grown diamonds, sapphires, rubies, emeralds and rare coloured gemstones from verified dealers worldwide." },
+      { property: "og:title", content: "Browse Certified Gemstones & Diamonds — Chaos" },
+      { property: "og:description", content: "Search certified natural and lab-grown diamonds and coloured gemstones from verified dealers worldwide." },
+      { property: "og:url", content: "/marketplace" },
+    ],
+    links: [{ rel: "canonical", href: "/marketplace" }],
+  }),
 });
 
 const STONE_TYPES = ["diamond", "ruby", "sapphire", "emerald", "spinel", "tourmaline", "tanzanite", "garnet", "aquamarine", "morganite"];

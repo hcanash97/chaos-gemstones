@@ -11,6 +11,16 @@ import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Mot
 
 export const Route = createFileRoute("/")({
   component: Home,
+  head: () => ({
+    meta: [
+      { title: "B2B Gemstone & Diamond Marketplace — Chaos" },
+      { name: "description", content: "Connect with verified independent gemstone and diamond dealers from Jaipur, Surat, Colombo and beyond. Browse certified stones and integrate live inventory feeds into your jewellery website." },
+      { property: "og:title", content: "B2B Gemstone & Diamond Marketplace — Chaos" },
+      { property: "og:description", content: "Connect with verified independent gemstone and diamond dealers worldwide." },
+      { property: "og:url", content: "/" },
+    ],
+    links: [{ rel: "canonical", href: "/" }],
+  }),
 });
 
 function Home() {
@@ -78,7 +88,7 @@ function Home() {
             animate={{ opacity: 0.8, y: 0 }}
             transition={{ duration: 0.55, delay: 0.6 }}
           >
-            CHAOS connects independent gemstone dealers in Jaipur, Surat, Bangkok and Colombo with jewellers in the UK, US, Europe and Australia. Browse the marketplace, follow vendors, pull live inventory into your own site.
+            The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.
           </motion.p>
           <motion.div
             className="mt-8 flex flex-wrap gap-3"

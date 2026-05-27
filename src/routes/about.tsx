@@ -11,13 +11,13 @@ function About() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <section className="mx-auto max-w-3xl px-6 py-20">
-        <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">About CHAOS</div>
+        <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">About Chaos</div>
         <h1 className="mt-3 font-serif text-5xl leading-tight">
           A B2B marketplace built around the way the trade actually works.
         </h1>
         <div className="mt-8 space-y-4 text-foreground">
           <p className="text-lg text-muted-foreground">
-            CHAOS connects independent gemstone and diamond dealers — primarily in Jaipur, Surat, Bangkok and Colombo — with jewellers and jewellery businesses in the UK, US, Europe and Australia.
+            Chaos connects independent gemstone and diamond dealers — primarily in Jaipur, Surat, Bangkok and Colombo — with jewellers and jewellery businesses in the UK, US, Europe and Australia.
           </p>
           <p className="text-muted-foreground">
             We're both a searchable directory of verified stones and a live API feed layer. Dealers upload inventory once. Jewellers follow the dealers they trust and pipe that inventory straight into their own websites. When a stone sells, it disappears from every connected feed within 60 seconds.

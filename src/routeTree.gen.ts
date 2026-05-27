@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as LoginRouteImport } from './routes/login'
@@ -34,6 +35,11 @@ import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboa
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PendingApprovalRoute = PendingApprovalRouteImport.update({
   id: '/pending-approval',
   path: '/pending-approval',
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/sign-up/dealer'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/sign-up/dealer'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/sign-up/dealer'
@@ -322,6 +334,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
   PendingApprovalRoute: typeof PendingApprovalRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SignUpDealerRoute: typeof SignUpDealerRoute
   SignUpJewellerRoute: typeof SignUpJewellerRoute
   StoneIdRoute: typeof StoneIdRoute
@@ -332,6 +345,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pending-approval': {
       id: '/pending-approval'
       path: '/pending-approval'
@@ -543,6 +563,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
   PendingApprovalRoute: PendingApprovalRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SignUpDealerRoute: SignUpDealerRoute,
   SignUpJewellerRoute: SignUpJewellerRoute,
   StoneIdRoute: StoneIdRoute,
