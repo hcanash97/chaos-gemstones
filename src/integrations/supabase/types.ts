@@ -21,6 +21,7 @@ export type Database = {
           is_active: boolean
           jeweller_id: string
           key_hash: string
+          key_prefix: string | null
           label: string | null
           last_used_at: string | null
         }
@@ -30,6 +31,7 @@ export type Database = {
           is_active?: boolean
           jeweller_id: string
           key_hash: string
+          key_prefix?: string | null
           label?: string | null
           last_used_at?: string | null
         }
@@ -39,6 +41,7 @@ export type Database = {
           is_active?: boolean
           jeweller_id?: string
           key_hash?: string
+          key_prefix?: string | null
           label?: string | null
           last_used_at?: string | null
         }

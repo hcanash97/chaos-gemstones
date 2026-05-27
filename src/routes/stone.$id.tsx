@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mail, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { EnquireDialog } from "@/components/site/EnquireDialog";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -112,15 +113,13 @@ function StoneDetail() {
               <div className="mt-1 font-mono text-3xl font-semibold">
                 {stone.wholesale_price_usd ? `$${Number(stone.wholesale_price_usd).toLocaleString()} USD` : "POA"}
               </div>
-              <Button
-                size="lg"
-                disabled
-                title="Enquiries open in the next phase"
-                className="mt-4 w-full bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
-              >
-                <Mail className="mr-2 h-4 w-4" /> Enquire about this stone
-              </Button>
-              <p className="mt-2 text-[11px] text-muted-foreground">Enquiries open in the next release.</p>
+              <div className="mt-4">
+                <EnquireDialog
+                  dealerId={stone.dealer_id}
+                  stoneId={stone.id}
+                  context={`${stone.carat_weight ? Number(stone.carat_weight).toFixed(2) + "ct " : ""}${stone.shape || ""} ${stone.stone_type}`}
+                />
+              </div>
             </div>
 
             {/* Vendor card */}

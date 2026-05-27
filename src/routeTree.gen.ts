@@ -22,9 +22,17 @@ import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
+import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
+import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
+import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
+import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.jeweller.markup'
+import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
+import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboard.jeweller.enquiries'
+import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
+import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 
 const PendingApprovalRoute = PendingApprovalRouteImport.update({
   id: '/pending-approval',
@@ -91,9 +99,24 @@ const SignUpDealerRoute = SignUpDealerRouteImport.update({
   path: '/sign-up/dealer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardImportRoute = DashboardImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardEnquiriesRoute = DashboardEnquiriesRouteImport.update({
+  id: '/enquiries',
+  path: '/enquiries',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardStonesIndexRoute = DashboardStonesIndexRouteImport.update({
   id: '/stones/',
   path: '/stones/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardJewellerIndexRoute = DashboardJewellerIndexRouteImport.update({
+  id: '/jeweller/',
+  path: '/jeweller/',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardStonesNewRoute = DashboardStonesNewRouteImport.update({
@@ -106,6 +129,32 @@ const DashboardStonesIdRoute = DashboardStonesIdRouteImport.update({
   path: '/stones/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardJewellerMarkupRoute = DashboardJewellerMarkupRouteImport.update({
+  id: '/jeweller/markup',
+  path: '/jeweller/markup',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardJewellerFeedsRoute = DashboardJewellerFeedsRouteImport.update({
+  id: '/jeweller/feeds',
+  path: '/jeweller/feeds',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardJewellerEnquiriesRoute =
+  DashboardJewellerEnquiriesRouteImport.update({
+    id: '/jeweller/enquiries',
+    path: '/jeweller/enquiries',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardJewellerApiRoute = DashboardJewellerApiRouteImport.update({
+  id: '/jeweller/api',
+  path: '/jeweller/api',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const ApiPublicFeedRoute = ApiPublicFeedRouteImport.update({
+  id: '/api/public/feed',
+  path: '/api/public/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,14 +164,22 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/dashboard/enquiries': typeof DashboardEnquiriesRoute
+  '/dashboard/import': typeof DashboardImportRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
+  '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
+  '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
+  '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -132,14 +189,22 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/dashboard/enquiries': typeof DashboardEnquiriesRoute
+  '/dashboard/import': typeof DashboardImportRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard': typeof DashboardIndexRoute
   '/vendors': typeof VendorsIndexRoute
+  '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
+  '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
+  '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
+  '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesById {
@@ -151,14 +216,22 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/dashboard/enquiries': typeof DashboardEnquiriesRoute
+  '/dashboard/import': typeof DashboardImportRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
+  '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
+  '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
+  '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRouteTypes {
@@ -171,14 +244,22 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/dashboard/enquiries'
+    | '/dashboard/import'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/api/public/feed'
+    | '/dashboard/jeweller/api'
+    | '/dashboard/jeweller/enquiries'
+    | '/dashboard/jeweller/feeds'
+    | '/dashboard/jeweller/markup'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/dashboard/jeweller/'
     | '/dashboard/stones/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -188,14 +269,22 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/dashboard/enquiries'
+    | '/dashboard/import'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard'
     | '/vendors'
+    | '/api/public/feed'
+    | '/dashboard/jeweller/api'
+    | '/dashboard/jeweller/enquiries'
+    | '/dashboard/jeweller/feeds'
+    | '/dashboard/jeweller/markup'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/dashboard/jeweller'
     | '/dashboard/stones'
   id:
     | '__root__'
@@ -206,14 +295,22 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/dashboard/enquiries'
+    | '/dashboard/import'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/api/public/feed'
+    | '/dashboard/jeweller/api'
+    | '/dashboard/jeweller/enquiries'
+    | '/dashboard/jeweller/feeds'
+    | '/dashboard/jeweller/markup'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/dashboard/jeweller/'
     | '/dashboard/stones/'
   fileRoutesById: FileRoutesById
 }
@@ -230,6 +327,7 @@ export interface RootRouteChildren {
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
   VendorsIndexRoute: typeof VendorsIndexRoute
+  ApiPublicFeedRoute: typeof ApiPublicFeedRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -325,11 +423,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpDealerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/import': {
+      id: '/dashboard/import'
+      path: '/import'
+      fullPath: '/dashboard/import'
+      preLoaderRoute: typeof DashboardImportRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/enquiries': {
+      id: '/dashboard/enquiries'
+      path: '/enquiries'
+      fullPath: '/dashboard/enquiries'
+      preLoaderRoute: typeof DashboardEnquiriesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/stones/': {
       id: '/dashboard/stones/'
       path: '/stones'
       fullPath: '/dashboard/stones/'
       preLoaderRoute: typeof DashboardStonesIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/jeweller/': {
+      id: '/dashboard/jeweller/'
+      path: '/jeweller'
+      fullPath: '/dashboard/jeweller/'
+      preLoaderRoute: typeof DashboardJewellerIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/stones/new': {
@@ -346,20 +465,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardStonesIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/jeweller/markup': {
+      id: '/dashboard/jeweller/markup'
+      path: '/jeweller/markup'
+      fullPath: '/dashboard/jeweller/markup'
+      preLoaderRoute: typeof DashboardJewellerMarkupRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/jeweller/feeds': {
+      id: '/dashboard/jeweller/feeds'
+      path: '/jeweller/feeds'
+      fullPath: '/dashboard/jeweller/feeds'
+      preLoaderRoute: typeof DashboardJewellerFeedsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/jeweller/enquiries': {
+      id: '/dashboard/jeweller/enquiries'
+      path: '/jeweller/enquiries'
+      fullPath: '/dashboard/jeweller/enquiries'
+      preLoaderRoute: typeof DashboardJewellerEnquiriesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/jeweller/api': {
+      id: '/dashboard/jeweller/api'
+      path: '/jeweller/api'
+      fullPath: '/dashboard/jeweller/api'
+      preLoaderRoute: typeof DashboardJewellerApiRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/api/public/feed': {
+      id: '/api/public/feed'
+      path: '/api/public/feed'
+      fullPath: '/api/public/feed'
+      preLoaderRoute: typeof ApiPublicFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface DashboardRouteChildren {
+  DashboardEnquiriesRoute: typeof DashboardEnquiriesRoute
+  DashboardImportRoute: typeof DashboardImportRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardJewellerApiRoute: typeof DashboardJewellerApiRoute
+  DashboardJewellerEnquiriesRoute: typeof DashboardJewellerEnquiriesRoute
+  DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
+  DashboardJewellerMarkupRoute: typeof DashboardJewellerMarkupRoute
   DashboardStonesIdRoute: typeof DashboardStonesIdRoute
   DashboardStonesNewRoute: typeof DashboardStonesNewRoute
+  DashboardJewellerIndexRoute: typeof DashboardJewellerIndexRoute
   DashboardStonesIndexRoute: typeof DashboardStonesIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardEnquiriesRoute: DashboardEnquiriesRoute,
+  DashboardImportRoute: DashboardImportRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardJewellerApiRoute: DashboardJewellerApiRoute,
+  DashboardJewellerEnquiriesRoute: DashboardJewellerEnquiriesRoute,
+  DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
+  DashboardJewellerMarkupRoute: DashboardJewellerMarkupRoute,
   DashboardStonesIdRoute: DashboardStonesIdRoute,
   DashboardStonesNewRoute: DashboardStonesNewRoute,
+  DashboardJewellerIndexRoute: DashboardJewellerIndexRoute,
   DashboardStonesIndexRoute: DashboardStonesIndexRoute,
 }
 
@@ -380,6 +548,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
   VendorsIndexRoute: VendorsIndexRoute,
+  ApiPublicFeedRoute: ApiPublicFeedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
