@@ -171,7 +171,7 @@ export const toggleFeedSelection = createServerFn({ method: "POST" })
       throw new Error("Your account is pending approval.");
     }
 
-    const { data: activeKey } = await supabase
+    let { data: activeKey } = await supabase
       .from("api_keys")
       .select("id")
       .eq("jeweller_id", userId)
@@ -181,7 +181,26 @@ export const toggleFeedSelection = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (!activeKey?.id) {
-      throw new Error("Generate an API key before following dealers or pinning stones.");
+      const raw = generateApiKey();
+      const hash = await sha256(raw);
+      const prefix = raw.slice(0, 12);
+      const { data: created, error: createdError } = await supabase
+        .from("api_keys")
+        .insert({
+          jeweller_id: userId,
+          key_hash: hash,
+          key_prefix: prefix,
+          label: "Live feed",
+          is_active: true,
+        })
+        .select("id")
+        .single();
+
+      if (createdError || !created) {
+        throw new Error(createdError?.message ?? "Could not prepare an API key for this feed.");
+      }
+
+      activeKey = created;
     }
 
     const column = data.selectionType === "dealer_follow" ? "dealer_id" : "stone_id";
