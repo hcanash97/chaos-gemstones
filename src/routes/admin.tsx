@@ -96,6 +96,9 @@ function AdminPage() {
             <p className="text-sm text-muted-foreground">
               Approve new dealers and jewellers so they can access their dashboards.
             </p>
+            <Link to="/admin/import-test" className="mt-2 inline-block text-xs text-primary underline">
+              → CSV import sandbox (dry run)
+            </Link>
           </div>
           <div className="flex gap-1 rounded-md border border-border p-1 text-sm">
             <button
