@@ -22,6 +22,7 @@ import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
+import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 
 const PendingApprovalRoute = PendingApprovalRouteImport.update({
   id: '/pending-approval',
@@ -88,6 +89,11 @@ const DashboardStonesIndexRoute = DashboardStonesIndexRouteImport.update({
   path: '/stones/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardStonesNewRoute = DashboardStonesNewRouteImport.update({
+  id: '/stones/new',
+  path: '/stones/new',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard': typeof DashboardIndexRoute
   '/vendors': typeof VendorsIndexRoute
+  '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesById {
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRouteTypes {
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/dashboard/stones/new'
     | '/dashboard/stones/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/vendors/$slug'
     | '/dashboard'
     | '/vendors'
+    | '/dashboard/stones/new'
     | '/dashboard/stones'
   id:
     | '__root__'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/dashboard/stones/new'
     | '/dashboard/stones/'
   fileRoutesById: FileRoutesById
 }
@@ -288,16 +300,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardStonesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/stones/new': {
+      id: '/dashboard/stones/new'
+      path: '/stones/new'
+      fullPath: '/dashboard/stones/new'
+      preLoaderRoute: typeof DashboardStonesNewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
 interface DashboardRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardStonesNewRoute: typeof DashboardStonesNewRoute
   DashboardStonesIndexRoute: typeof DashboardStonesIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardStonesNewRoute: DashboardStonesNewRoute,
   DashboardStonesIndexRoute: DashboardStonesIndexRoute,
 }
 
