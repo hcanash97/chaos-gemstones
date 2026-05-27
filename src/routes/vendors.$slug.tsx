@@ -184,3 +184,38 @@ function VendorProfile() {
     </div>
   );
 }
+
+function VerifyItem({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
+  return (
+    <div
+      className="rounded-md border border-border bg-card p-4"
+      title={tooltip}
+    >
+      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-medium text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function VerifyLink({ label, href, text }: { label: string; href: string; text: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block rounded-md border border-border bg-card p-4 transition-colors hover:border-[var(--color-gold)]"
+    >
+      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-sm font-medium text-[var(--color-gold)]">{text} ↗</div>
+    </a>
+  );
+}
+
+function prettyUrl(u: string) {
+  try {
+    const url = new URL(u.startsWith("http") ? u : `https://${u}`);
+    return url.hostname.replace(/^www\./, "");
+  } catch {
+    return u;
+  }
+}
