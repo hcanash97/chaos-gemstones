@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck } from "lucide-react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
+import { certLink, countryFlag } from "@/lib/countries";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -47,7 +48,7 @@ function StoneDetail() {
   const specs: Array<[string, any]> = [
     ["Stone type", stone.stone_type],
     ["Origin", stone.origin],
-    ["Country of origin", stone.country_of_origin],
+    ["Country of origin", stone.country_of_origin ? `${countryFlag(stone.country_of_origin)} ${stone.country_of_origin}` : null],
     ["Treatment", stone.treatment],
     ["Shape", stone.shape],
     ["Carat weight", stone.carat_weight ? `${Number(stone.carat_weight).toFixed(2)} ct` : null],
@@ -61,11 +62,12 @@ function StoneDetail() {
     ["Colour tone", stone.colour_tone],
     ["Colour saturation", stone.colour_saturation],
     ["Cert lab", stone.cert_lab],
-    ["Cert number", stone.cert_number],
     ["Report date", stone.report_date],
     ["Lead time", stone.lead_time_days ? `${stone.lead_time_days} days` : null],
     ["Available qty", stone.available_qty],
   ];
+
+  const certHref = certLink(stone.cert_lab, stone.cert_number);
 
   return (
     <div className="min-h-screen bg-background">
@@ -146,6 +148,25 @@ function StoneDetail() {
                       <dd className="font-mono capitalize">{String(v)}</dd>
                     </div>
                   ))}
+              {stone.cert_number && (
+                <div className="grid grid-cols-2 py-2.5">
+                  <dt className="text-muted-foreground">Cert number</dt>
+                  <dd className="font-mono">
+                    {certHref ? (
+                      <a
+                        href={certHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[var(--color-gold)] underline-offset-2 hover:underline"
+                      >
+                        {stone.cert_number} ↗
+                      </a>
+                    ) : (
+                      stone.cert_number
+                    )}
+                  </dd>
+                </div>
+              )}
               </dl>
             </div>
           </div>

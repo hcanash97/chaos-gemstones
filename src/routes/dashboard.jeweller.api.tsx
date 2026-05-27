@@ -113,7 +113,43 @@ function ApiPage() {
     toast.success("API key generated. Copy it now — it will not be shown again.");
   }
 
-  const feedUrl = typeof window !== "undefined" ? `${window.location.origin}/api/public/feed?key=${revealed ?? "YOUR_API_KEY"}` : "";
+  const keyForSnippet = revealed ?? (key?.key_prefix ? `${key.key_prefix}…YOUR_FULL_KEY` : "YOUR_API_KEY");
+  const feedUrl = typeof window !== "undefined" ? `${window.location.origin}/api/public/feed?key=${keyForSnippet}` : `/api/public/feed?key=${keyForSnippet}`;
+
+  const shopifyEmbed = `<div id="chaos-feed" class="chaos-grid"></div>
+<style>
+  .chaos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+  .chaos-card { border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; background: #fff; }
+  .chaos-card img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+  .chaos-body { padding: 0.75rem 1rem 1rem; }
+  .chaos-title { font-family: serif; font-size: 1rem; margin: 0 0 0.25rem; text-transform: capitalize; }
+  .chaos-meta { color: #777; font-size: 0.75rem; }
+  .chaos-price { margin-top: 0.5rem; font-weight: 600; font-family: ui-monospace, monospace; }
+</style>
+<script>
+(async function() {
+  const res = await fetch("${feedUrl}");
+  const { stones } = await res.json();
+  const root = document.getElementById('chaos-feed');
+  root.innerHTML = stones.map(function(s) {
+    var img = (s.stone_images && s.stone_images[0] && s.stone_images[0].storage_url) || '';
+    var ct = s.carat_weight ? (Number(s.carat_weight).toFixed(2) + 'ct ') : '';
+    return '<div class="chaos-card">' +
+      (img ? '<img src="' + img + '" alt="">' : '') +
+      '<div class="chaos-body">' +
+        '<div class="chaos-title">' + ct + (s.shape || '') + ' ' + s.stone_type + '</div>' +
+        '<div class="chaos-meta">' + (s.cert_lab || '') + (s.country_of_origin ? ' · ' + s.country_of_origin : '') + '</div>' +
+        '<div class="chaos-price">$' + Number(s.retail_price || 0).toLocaleString() + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+})();
+</script>`;
+
+  function copyEmbed() {
+    navigator.clipboard.writeText(shopifyEmbed);
+    toast.success("Embed code copied to clipboard");
+  }
 
   return (
     <div>
@@ -170,6 +206,18 @@ function ApiPage() {
       </div>
 
       <h2 className="mt-8 font-serif text-xl">Integration snippets</h2>
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {revealed
+            ? "Snippets use your live API key — copy now, it won't be shown again."
+            : key
+            ? "Snippets show your key prefix. Regenerate above to reveal the full key."
+            : "Generate an API key to populate the snippets below."}
+        </p>
+        <Button size="sm" variant="outline" onClick={copyEmbed}>
+          <Copy className="mr-1 h-3 w-3" /> Copy embed code
+        </Button>
+      </div>
       <Tabs defaultValue="js" className="mt-3">
         <TabsList>
           <TabsTrigger value="js">JavaScript</TabsTrigger>

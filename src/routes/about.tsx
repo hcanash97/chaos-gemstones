@@ -15,22 +15,49 @@ function About() {
         <h1 className="mt-3 font-serif text-5xl leading-tight">
           A B2B marketplace built around the way the trade actually works.
         </h1>
-        <div className="prose prose-neutral mt-8 max-w-none text-foreground">
+        <div className="mt-8 space-y-4 text-foreground">
           <p className="text-lg text-muted-foreground">
             CHAOS connects independent gemstone and diamond dealers — primarily in Jaipur, Surat, Bangkok and Colombo — with jewellers and jewellery businesses in the UK, US, Europe and Australia.
           </p>
-          <h2 className="mt-10 font-serif text-2xl">Two functions, one dataset</h2>
           <p className="text-muted-foreground">
-            The platform is both a searchable directory of verified stones and a live API feed layer. Western jewellers browse the marketplace to discover stones and vendors, then follow specific suppliers to receive their inventory as a JSON feed they can embed in their own websites. Dealers upload once; their stones appear on multiple jeweller websites automatically.
-          </p>
-          <h2 className="mt-10 font-serif text-2xl">Built for the trade</h2>
-          <p className="text-muted-foreground">
-            Every dealer is reviewed and approved before listing. Sold stones drop out of every connected feed within 60 seconds. Markup multipliers are set per vendor, retail prices calculated automatically.
+            We're both a searchable directory of verified stones and a live API feed layer. Dealers upload inventory once. Jewellers follow the dealers they trust and pipe that inventory straight into their own websites. When a stone sells, it disappears from every connected feed within 60 seconds.
           </p>
         </div>
-        <div className="mt-10 flex gap-3">
-          <Link to="/sign-up/jeweller"><Button>I'm a jeweller</Button></Link>
-          <Link to="/sign-up/dealer"><Button variant="outline">I'm a dealer</Button></Link>
+
+        <div className="mt-14 grid gap-6 md:grid-cols-2">
+          <div className="rounded-md border border-border bg-card p-7">
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Dealers</div>
+            <h2 className="mt-2 font-serif text-2xl">Sell to the world, not just the bourse</h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Upload stones one at a time or in bulk by CSV. Every dealer is reviewed before listing. Your inventory appears across dozens of jeweller storefronts automatically — when you mark a stone sold, it drops from every shop within a minute.
+            </p>
+            <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
+              <li>· Manual entry or CSV import</li>
+              <li>· Direct enquiries from approved jewellers</li>
+              <li>· One inventory, many storefronts</li>
+            </ul>
+            <Link to="/sign-up/dealer" className="mt-5 inline-block"><Button>Apply as a dealer</Button></Link>
+          </div>
+          <div className="rounded-md border border-border bg-card p-7">
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
+            <h2 className="mt-2 font-serif text-2xl">Source verified stones. Sell them as your own.</h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Browse certified stones from approved dealers. Follow the vendors you trust and pull their live inventory into your Shopify store, WordPress site or custom build via a single API endpoint. Set a global markup, override per vendor, and we'll do the maths.
+            </p>
+            <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
+              <li>· Live JSON feed — one URL, ready to embed</li>
+              <li>· Global + per-vendor markup multipliers</li>
+              <li>· Sold stones drop out within 60 seconds</li>
+            </ul>
+            <Link to="/sign-up/jeweller" className="mt-5 inline-block"><Button>Open a jeweller account</Button></Link>
+          </div>
+        </div>
+
+        <div className="mt-14 rounded-md border border-border bg-secondary/30 p-7">
+          <h2 className="font-serif text-xl">How the API feed works</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Once approved, a jeweller generates a single API key from their dashboard. That key returns a JSON list of every stone in their curated feed, with retail prices already calculated using their markup. Paste a few lines of JavaScript, PHP or Shopify Liquid into your site and the stones render — refreshed every time the page loads.
+          </p>
         </div>
       </section>
       <SiteFooter />

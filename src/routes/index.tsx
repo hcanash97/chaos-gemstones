@@ -12,6 +12,23 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const { data: stats } = useQuery({
+    queryKey: ["home-stats"],
+    queryFn: async () => {
+      const [dealers, stones, countries] = await Promise.all([
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "dealer").eq("is_approved", true),
+        supabase.from("stones").select("id", { count: "exact", head: true }).eq("status", "available"),
+        supabase.from("profiles").select("country").eq("account_type", "dealer").eq("is_approved", true),
+      ]);
+      const distinctCountries = new Set((countries.data ?? []).map((r: any) => r.country).filter(Boolean));
+      return {
+        dealers: dealers.count ?? 0,
+        stones: stones.count ?? 0,
+        countries: distinctCountries.size,
+      };
+    },
+  });
+
   const { data: featuredStones } = useQuery({
     queryKey: ["featured-stones"],
     queryFn: async () => {
@@ -159,7 +176,12 @@ function Home() {
 
       {/* Trust strip */}
       <section className="border-t border-border bg-secondary/30 py-16">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 md:grid-cols-3">
+        <div className="mx-auto grid max-w-7xl gap-8 px-6 md:grid-cols-3 md:divide-x md:divide-border">
+          <StatBig label="Approved dealers" value={stats?.dealers ?? "—"} />
+          <StatBig label="Stones available" value={stats?.stones ?? "—"} />
+          <StatBig label="Sourcing countries" value={stats?.countries ?? "—"} />
+        </div>
+        <div className="mx-auto mt-10 grid max-w-7xl gap-8 px-6 md:grid-cols-3">
           <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Verified dealers" desc="Every supplier reviewed and approved before listing." />
           <Feature icon={<Globe2 className="h-5 w-5" />} title="Global sourcing" desc="Direct access to Jaipur, Surat, Bangkok, Colombo and beyond." />
           <Feature icon={<Boxes className="h-5 w-5" />} title="Live inventory sync" desc="Sold stones drop out of every jeweller's feed within 60 seconds." />
@@ -167,6 +189,17 @@ function Home() {
       </section>
 
       <SiteFooter />
+    </div>
+  );
+}
+
+function StatBig({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="text-center md:px-6">
+      <div className="font-serif text-5xl text-[var(--color-gold)]">
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </div>
+      <div className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
+import { countryFlag } from "@/lib/countries";
 
 export type StoneCardData = {
   id: string;
@@ -13,6 +14,7 @@ export type StoneCardData = {
   colour_grade: string | null;
   clarity_grade: string | null;
   image?: string | null;
+  dealer_country?: string | null;
 };
 
 export function StoneCard({ stone }: { stone: StoneCardData }) {
@@ -39,9 +41,15 @@ export function StoneCard({ stone }: { stone: StoneCardData }) {
           <span className="uppercase tracking-wider text-muted-foreground">
             {stone.origin === "lab-grown" ? "Lab Grown" : "Natural"} · {stone.cert_lab || "—"}
           </span>
-          {stone.country_of_origin && (
-            <span className="text-muted-foreground">{stone.country_of_origin}</span>
-          )}
+          {stone.dealer_country ? (
+            <span className="text-muted-foreground">
+              {countryFlag(stone.dealer_country)} {stone.dealer_country}
+            </span>
+          ) : stone.country_of_origin ? (
+            <span className="text-muted-foreground">
+              {countryFlag(stone.country_of_origin)} {stone.country_of_origin}
+            </span>
+          ) : null}
         </div>
         <h3 className="mt-1 font-serif text-lg leading-tight">
           {stone.carat_weight ? `${Number(stone.carat_weight).toFixed(2)}ct ` : ""}
