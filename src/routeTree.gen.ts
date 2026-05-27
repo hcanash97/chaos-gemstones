@@ -24,6 +24,7 @@ import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
+import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
@@ -112,6 +113,11 @@ const EmbedKeyRoute = EmbedKeyRouteImport.update({
   path: '/embed/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsApiRoute = DocsApiRouteImport.update({
+  id: '/docs/api',
+  path: '/docs/api',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardImportRoute = DashboardImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
@@ -213,6 +220,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
@@ -243,6 +251,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/docs/api'
     | '/embed/$key'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/docs/api'
     | '/embed/$key'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/docs/api'
     | '/embed/$key'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
@@ -359,6 +371,7 @@ export interface RootRouteChildren {
   MarketplaceRoute: typeof MarketplaceRoute
   PendingApprovalRoute: typeof PendingApprovalRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  DocsApiRoute: typeof DocsApiRoute
   EmbedKeyRoute: typeof EmbedKeyRoute
   SignUpDealerRoute: typeof SignUpDealerRoute
   SignUpJewellerRoute: typeof SignUpJewellerRoute
@@ -474,6 +487,13 @@ declare module '@tanstack/react-router' {
       path: '/embed/$key'
       fullPath: '/embed/$key'
       preLoaderRoute: typeof EmbedKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/api': {
+      id: '/docs/api'
+      path: '/docs/api'
+      fullPath: '/docs/api'
+      preLoaderRoute: typeof DocsApiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/import': {
@@ -604,6 +624,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceRoute: MarketplaceRoute,
   PendingApprovalRoute: PendingApprovalRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  DocsApiRoute: DocsApiRoute,
   EmbedKeyRoute: EmbedKeyRoute,
   SignUpDealerRoute: SignUpDealerRoute,
   SignUpJewellerRoute: SignUpJewellerRoute,
