@@ -15,12 +15,39 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "B2B Gemstone & Diamond Marketplace — Chaos" },
-      { name: "description", content: "Connect with verified independent gemstone and diamond dealers from Jaipur, Surat, Colombo and beyond. Browse certified stones and integrate live inventory feeds into your jewellery website." },
+      { name: "description", content: "Connect with verified independent gemstone and diamond dealers in Jaipur, Surat, Bangkok and Colombo. Certified stones, live inventory feeds." },
       { property: "og:title", content: "B2B Gemstone & Diamond Marketplace — Chaos" },
       { property: "og:description", content: "Connect with verified independent gemstone and diamond dealers worldwide." },
       { property: "og:url", content: "/" },
     ],
     links: [{ rel: "canonical", href: "/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "Organization",
+              name: "Chaos",
+              url: "https://chaosgemstones.com",
+              logo: "https://chaosgemstones.com/icons/icon-192.png",
+              description: "B2B marketplace connecting independent gemstone and diamond dealers with jewellers worldwide.",
+            },
+            {
+              "@type": "WebSite",
+              name: "Chaos",
+              url: "https://chaosgemstones.com",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: "https://chaosgemstones.com/marketplace?q={search_term_string}",
+                "query-input": "required name=search_term_string",
+              },
+            },
+          ],
+        }),
+      },
+    ],
   }),
 });
 
