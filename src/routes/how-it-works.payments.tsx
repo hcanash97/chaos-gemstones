@@ -11,10 +11,10 @@ export const Route = createFileRoute("/how-it-works/payments")({
       {
         name: "description",
         content:
-          "How payments work on Chaos: direct dealer–jeweller settlement, recommended methods (Bank/Wise/PayPal), and our 2% platform fee.",
+          "Payments on Chaos: direct dealer-to-jeweller settlement, recommended methods (Bank/Wise/PayPal). Free during launch beta — no fees, no subscriptions.",
       },
       { property: "og:title", content: "How payments work — Chaos" },
-      { property: "og:description", content: "Direct dealer-to-jeweller payments, low platform fees, Stripe Connect coming soon." },
+      { property: "og:description", content: "Direct dealer-to-jeweller payments. Free during launch beta." },
       { property: "og:url", content: "/how-it-works/payments" },
     ],
     links: [{ rel: "canonical", href: "/how-it-works/payments" }],
