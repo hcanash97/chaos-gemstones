@@ -3,6 +3,14 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 type Row = {
   id: string;
@@ -44,6 +52,24 @@ function StonesList() {
     const { error } = await supabase.from("stones").delete().eq("id", id);
     if (error) { alert(error.message); return; }
     setRows((r) => r.filter((x) => x.id !== id));
+  }
+
+  async function updateStatus(id: string, status: string) {
+    const prev = rows;
+    setRows((r) => r.map((x) => (x.id === id ? { ...x, status } : x)));
+    const { error } = await supabase.from("stones").update({ status }).eq("id", id);
+    if (error) {
+      setRows(prev);
+      toast.error(error.message);
+      return;
+    }
+    toast.success(
+      status === "available"
+        ? "Re-listed — visible in feeds again"
+        : status === "reserved"
+        ? "Reserved — hidden from public feeds"
+        : "Marked sold — removed from public feeds",
+    );
   }
 
   return (
@@ -92,11 +118,24 @@ function StonesList() {
                   <td className="px-4 py-3 text-muted-foreground">{r.origin || "—"}</td>
                   <td className="px-4 py-3">{r.wholesale_price_usd ? `$${Number(r.wholesale_price_usd).toLocaleString()}` : "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${
-                      r.status === "available" ? "bg-green-100 text-green-800" :
-                      r.status === "sold" ? "bg-gray-200 text-gray-700" :
-                      "bg-amber-100 text-amber-800"
-                    }`}>{r.status}</span>
+                    <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
+                      <SelectTrigger
+                        className={`h-7 w-[120px] border-0 px-2 text-xs font-medium ${
+                          r.status === "available"
+                            ? "bg-green-100 text-green-800"
+                            : r.status === "sold"
+                            ? "bg-gray-200 text-gray-700"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="reserved">Reserved</SelectItem>
+                        <SelectItem value="sold">Sold</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link to="/dashboard/stones/$id" params={{ id: r.id }}>
