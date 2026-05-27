@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { StoneForm, emptyStone, type StoneFormValues } from "@/components/dashboard/StoneForm";
 import { StoneImages } from "@/components/dashboard/StoneImages";
+import { CertUpload } from "@/components/dashboard/CertUpload";
 
 export const Route = createFileRoute("/dashboard/stones/$id")({
   component: EditStone,
@@ -74,6 +75,9 @@ function EditStone() {
       </div>
       <div className="rounded-lg border border-border bg-card p-6">
         <StoneImages stoneId={id} dealerId={user.id} />
+      </div>
+      <div className="rounded-lg border border-border bg-card p-6">
+        <CertUpload stoneId={id} dealerId={user.id} />
       </div>
       <div className="rounded-lg border border-border bg-card p-6">
         <StoneForm initial={values} stoneId={id} dealerId={user.id} />
