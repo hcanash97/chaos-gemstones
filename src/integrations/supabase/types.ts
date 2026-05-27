@@ -508,6 +508,7 @@ export type Database = {
           has_360: boolean
           has_video: boolean
           id: string
+          is_test: boolean
           lead_time_days: number | null
           listing_type: string
           lw_ratio: number | null
@@ -567,6 +568,7 @@ export type Database = {
           has_360?: boolean
           has_video?: boolean
           id?: string
+          is_test?: boolean
           lead_time_days?: number | null
           listing_type?: string
           lw_ratio?: number | null
@@ -626,6 +628,7 @@ export type Database = {
           has_360?: boolean
           has_video?: boolean
           id?: string
+          is_test?: boolean
           lead_time_days?: number | null
           listing_type?: string
           lw_ratio?: number | null
