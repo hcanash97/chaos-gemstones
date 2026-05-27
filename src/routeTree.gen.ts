@@ -12,13 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorsIndexRouteImport } from './routes/vendors.index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
+import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
+import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
+import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
 
 const PendingApprovalRoute = PendingApprovalRouteImport.update({
   id: '/pending-approval',
@@ -35,6 +40,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -49,6 +59,11 @@ const VendorsIndexRoute = VendorsIndexRouteImport.update({
   id: '/vendors/',
   path: '/vendors/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const VendorsSlugRoute = VendorsSlugRouteImport.update({
   id: '/vendors/$slug',
@@ -70,10 +85,26 @@ const SignUpDealerRoute = SignUpDealerRouteImport.update({
   path: '/sign-up/dealer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardStonesIndexRoute = DashboardStonesIndexRouteImport.update({
+  id: '/stones/',
+  path: '/stones/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardStonesNewRoute = DashboardStonesNewRouteImport.update({
+  id: '/stones/new',
+  path: '/stones/new',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardStonesIdRoute = DashboardStonesIdRouteImport.update({
+  id: '/stones/$id',
+  path: '/stones/$id',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
@@ -81,7 +112,11 @@ export interface FileRoutesByFullPath {
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/dashboard/stones/$id': typeof DashboardStonesIdRoute
+  '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,12 +128,17 @@ export interface FileRoutesByTo {
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
+  '/dashboard': typeof DashboardIndexRoute
   '/vendors': typeof VendorsIndexRoute
+  '/dashboard/stones/$id': typeof DashboardStonesIdRoute
+  '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/stones': typeof DashboardStonesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
@@ -106,13 +146,18 @@ export interface FileRoutesById {
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
+  '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/dashboard/stones/$id': typeof DashboardStonesIdRoute
+  '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/dashboard/stones/': typeof DashboardStonesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/about'
+    | '/dashboard'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
@@ -120,7 +165,11 @@ export interface FileRouteTypes {
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
+    | '/dashboard/'
     | '/vendors/'
+    | '/dashboard/stones/$id'
+    | '/dashboard/stones/new'
+    | '/dashboard/stones/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,11 +181,16 @@ export interface FileRouteTypes {
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
+    | '/dashboard'
     | '/vendors'
+    | '/dashboard/stones/$id'
+    | '/dashboard/stones/new'
+    | '/dashboard/stones'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/dashboard'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
@@ -144,12 +198,17 @@ export interface FileRouteTypes {
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
+    | '/dashboard/'
     | '/vendors/'
+    | '/dashboard/stones/$id'
+    | '/dashboard/stones/new'
+    | '/dashboard/stones/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
   PendingApprovalRoute: typeof PendingApprovalRoute
@@ -183,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -203,6 +269,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/vendors/'
       preLoaderRoute: typeof VendorsIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/vendors/$slug': {
       id: '/vendors/$slug'
@@ -232,12 +305,52 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpDealerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/stones/': {
+      id: '/dashboard/stones/'
+      path: '/stones'
+      fullPath: '/dashboard/stones/'
+      preLoaderRoute: typeof DashboardStonesIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/stones/new': {
+      id: '/dashboard/stones/new'
+      path: '/stones/new'
+      fullPath: '/dashboard/stones/new'
+      preLoaderRoute: typeof DashboardStonesNewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/stones/$id': {
+      id: '/dashboard/stones/$id'
+      path: '/stones/$id'
+      fullPath: '/dashboard/stones/$id'
+      preLoaderRoute: typeof DashboardStonesIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
+
+interface DashboardRouteChildren {
+  DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardStonesIdRoute: typeof DashboardStonesIdRoute
+  DashboardStonesNewRoute: typeof DashboardStonesNewRoute
+  DashboardStonesIndexRoute: typeof DashboardStonesIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardIndexRoute: DashboardIndexRoute,
+  DashboardStonesIdRoute: DashboardStonesIdRoute,
+  DashboardStonesNewRoute: DashboardStonesNewRoute,
+  DashboardStonesIndexRoute: DashboardStonesIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
   PendingApprovalRoute: PendingApprovalRoute,
