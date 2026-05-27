@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check } from "lucide-react";
@@ -62,7 +63,7 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<any>({
     email: "", password: "", full_name: "", company_name: "", country: "", city: "",
-    phone: "", website: "", bio: "", specialities: [] as string[],
+    phone: "", website: "", bio: "", specialities: [] as string[], terms_accepted: false,
   });
 
   const labels = isDealer
@@ -75,6 +76,7 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
       if (!form.full_name) return "Please enter your full name";
       if (!form.email) return "Please enter your email";
       if (form.password.length < 8) return "Password must be at least 8 characters";
+      if (!form.terms_accepted) return "You must agree to the Terms of Service and Privacy Policy";
     }
     if (step === 1) {
       if (!form.company_name) return "Company name is required";
@@ -106,6 +108,7 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
         city: form.city || null,
         phone: form.phone || null,
         website: form.website || null,
+        terms_accepted_at: new Date().toISOString(),
       }).eq("id", uid);
       if (isDealer) {
         await supabase.from("dealer_profiles").update({
@@ -198,11 +201,27 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
 }
 
 function StepAccount({ form, setForm }: StepProps) {
+  const linkClass = "text-[var(--color-gold)] underline-offset-4 hover:underline";
   return (
     <>
       <div><Label>Full name</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="mt-1.5" /></div>
       <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1.5" /></div>
       <div><Label>Password</Label><Input type="password" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-1.5" /><p className="mt-1 text-[11px] text-muted-foreground">At least 8 characters.</p></div>
+      <label className="flex cursor-pointer items-start gap-2.5 pt-1 text-xs text-muted-foreground">
+        <Checkbox
+          checked={!!form.terms_accepted}
+          onCheckedChange={(v) => setForm({ ...form, terms_accepted: !!v })}
+          className="mt-0.5"
+        />
+        <span>
+          I agree to the{" "}
+          <Link to="/legal/terms-dealers" target="_blank" className={linkClass}>Dealer Terms</Link>
+          {" / "}
+          <Link to="/legal/terms-jewellers" target="_blank" className={linkClass}>Jeweller Terms</Link>
+          {" "}and the{" "}
+          <Link to="/legal/privacy" target="_blank" className={linkClass}>Privacy Policy</Link>.
+        </span>
+      </label>
     </>
   );
 }
