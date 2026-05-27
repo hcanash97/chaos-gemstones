@@ -25,6 +25,40 @@ export type StoneFormValues = {
   minimum_order_qty: string;
   bulk_pricing_available: boolean;
   notes_for_buyers: string;
+  // Gemological
+  polish: string;
+  symmetry: string;
+  fluorescence: string;
+  fluorescence_colour: string;
+  // Colour (coloured stones)
+  colour_hue: string;
+  colour_tone: string;
+  colour_saturation: string;
+  phenomenon: string;
+  // Measurements
+  measurements_length: string;
+  measurements_width: string;
+  measurements_height: string;
+  lw_ratio: string;
+  depth_pct: string;
+  table_pct: string;
+  // Inclusions / finish
+  girdle: string;
+  culet_size: string;
+  culet_condition: string;
+  shade: string;
+  milky: string;
+  eye_clean: string;
+  black_inclusion: string;
+  enhancement: string;
+  // Commercial
+  listing_type: "single" | "parcel";
+  parcel_quantity: string;
+  matching_pair: boolean;
+  // Media / provenance
+  has_video: boolean;
+  has_360: boolean;
+  provenance_report: string;
 };
 
 export const emptyStone: StoneFormValues = {
@@ -46,6 +80,34 @@ export const emptyStone: StoneFormValues = {
   minimum_order_qty: "1",
   bulk_pricing_available: false,
   notes_for_buyers: "",
+  polish: "",
+  symmetry: "",
+  fluorescence: "",
+  fluorescence_colour: "",
+  colour_hue: "",
+  colour_tone: "",
+  colour_saturation: "",
+  phenomenon: "",
+  measurements_length: "",
+  measurements_width: "",
+  measurements_height: "",
+  lw_ratio: "",
+  depth_pct: "",
+  table_pct: "",
+  girdle: "",
+  culet_size: "",
+  culet_condition: "",
+  shade: "",
+  milky: "",
+  eye_clean: "",
+  black_inclusion: "",
+  enhancement: "",
+  listing_type: "single",
+  parcel_quantity: "",
+  matching_pair: false,
+  has_video: false,
+  has_360: false,
+  provenance_report: "",
 };
 
 type Props = {
@@ -88,6 +150,34 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
       minimum_order_qty: values.minimum_order_qty ? Number(values.minimum_order_qty) : 1,
       bulk_pricing_available: values.bulk_pricing_available,
       notes_for_buyers: values.notes_for_buyers.trim() || null,
+      polish: values.polish.trim() || null,
+      symmetry: values.symmetry.trim() || null,
+      fluorescence: values.fluorescence.trim() || null,
+      fluorescence_colour: values.fluorescence_colour.trim() || null,
+      colour_hue: values.colour_hue.trim() || null,
+      colour_tone: values.colour_tone.trim() || null,
+      colour_saturation: values.colour_saturation.trim() || null,
+      phenomenon: values.phenomenon.trim() || null,
+      measurements_length: values.measurements_length ? Number(values.measurements_length) : null,
+      measurements_width: values.measurements_width ? Number(values.measurements_width) : null,
+      measurements_height: values.measurements_height ? Number(values.measurements_height) : null,
+      lw_ratio: values.lw_ratio ? Number(values.lw_ratio) : null,
+      depth_pct: values.depth_pct ? Number(values.depth_pct) : null,
+      table_pct: values.table_pct ? Number(values.table_pct) : null,
+      girdle: values.girdle.trim() || null,
+      culet_size: values.culet_size.trim() || null,
+      culet_condition: values.culet_condition.trim() || null,
+      shade: values.shade.trim() || null,
+      milky: values.milky.trim() || null,
+      eye_clean: values.eye_clean.trim() || null,
+      black_inclusion: values.black_inclusion.trim() || null,
+      enhancement: values.enhancement.trim() || null,
+      listing_type: values.listing_type,
+      parcel_quantity: values.parcel_quantity ? Number(values.parcel_quantity) : null,
+      matching_pair: values.matching_pair,
+      has_video: values.has_video,
+      has_360: values.has_360,
+      provenance_report: values.provenance_report.trim() || null,
     };
     let resultId = stoneId;
     if (stoneId) {
@@ -110,6 +200,7 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
           {error}
         </div>
       )}
+      <Section title="Identity">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className={field}>
           <Label>Stone type *</Label>
@@ -190,6 +281,87 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
           </select>
         </div>
       </div>
+      </Section>
+
+      <Section title="Gemological grades (diamonds)">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField label="Polish" v={values.polish} on={(x) => set("polish", x)} placeholder="Excellent, Very Good…" />
+          <TextField label="Symmetry" v={values.symmetry} on={(x) => set("symmetry", x)} placeholder="Excellent, Very Good…" />
+          <TextField label="Fluorescence intensity" v={values.fluorescence} on={(x) => set("fluorescence", x)} placeholder="None, Faint, Medium…" />
+          <TextField label="Fluorescence colour" v={values.fluorescence_colour} on={(x) => set("fluorescence_colour", x)} placeholder="Blue, Yellow…" />
+        </div>
+      </Section>
+
+      <Section title="Colour (coloured stones)">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField label="Primary hue" v={values.colour_hue} on={(x) => set("colour_hue", x)} placeholder="Royal Blue, Pigeon Blood…" />
+          <TextField label="Tone" v={values.colour_tone} on={(x) => set("colour_tone", x)} placeholder="Medium, Dark…" />
+          <TextField label="Saturation" v={values.colour_saturation} on={(x) => set("colour_saturation", x)} placeholder="Vivid, Strong…" />
+          <TextField label="Phenomenon" v={values.phenomenon} on={(x) => set("phenomenon", x)} placeholder="Asterism, Colour change…" />
+        </div>
+      </Section>
+
+      <Section title="Clarity & inclusions">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField label="Shade / tinge" v={values.shade} on={(x) => set("shade", x)} placeholder="No BGM, No Brown…" />
+          <TextField label="Milky" v={values.milky} on={(x) => set("milky", x)} placeholder="None, Light…" />
+          <TextField label="Eye clean" v={values.eye_clean} on={(x) => set("eye_clean", x)} placeholder="Yes / Borderline / No" />
+          <TextField label="Black inclusion" v={values.black_inclusion} on={(x) => set("black_inclusion", x)} placeholder="None, Light…" />
+          <TextField label="Enhancement" v={values.enhancement} on={(x) => set("enhancement", x)} placeholder="None, Laser drilling…" />
+        </div>
+      </Section>
+
+      <Section title="Measurements">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <NumField label="Length (mm)" v={values.measurements_length} on={(x) => set("measurements_length", x)} />
+          <NumField label="Width (mm)" v={values.measurements_width} on={(x) => set("measurements_width", x)} />
+          <NumField label="Height (mm)" v={values.measurements_height} on={(x) => set("measurements_height", x)} />
+          <NumField label="L/W ratio" v={values.lw_ratio} on={(x) => set("lw_ratio", x)} />
+          <NumField label="Depth %" v={values.depth_pct} on={(x) => set("depth_pct", x)} />
+          <NumField label="Table %" v={values.table_pct} on={(x) => set("table_pct", x)} />
+          <TextField label="Girdle" v={values.girdle} on={(x) => set("girdle", x)} placeholder="Thin, Medium…" />
+          <TextField label="Culet size" v={values.culet_size} on={(x) => set("culet_size", x)} placeholder="None, Small…" />
+          <TextField label="Culet condition" v={values.culet_condition} on={(x) => set("culet_condition", x)} placeholder="Pointed, Polished…" />
+        </div>
+      </Section>
+
+      <Section title="Commercial">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label>Listing type</Label>
+            <select
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={values.listing_type}
+              onChange={(e) => set("listing_type", e.target.value as "single" | "parcel")}
+            >
+              <option value="single">Single stone</option>
+              <option value="parcel">Parcel / lot</option>
+            </select>
+          </div>
+          {values.listing_type === "parcel" && (
+            <NumField label="Parcel quantity" v={values.parcel_quantity} on={(x) => set("parcel_quantity", x)} />
+          )}
+        </div>
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={values.matching_pair} onChange={(e) => set("matching_pair", e.target.checked)} />
+          Matching pair available
+        </label>
+      </Section>
+
+      <Section title="Media & provenance">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={values.has_video} onChange={(e) => set("has_video", e.target.checked)} />
+            Video available
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={values.has_360} onChange={(e) => set("has_360", e.target.checked)} />
+            360° view available
+          </label>
+          <TextField label="Provenance / traceability" v={values.provenance_report} on={(x) => set("provenance_report", x)} placeholder="GIA DOR, Tracr, Sarine Journey…" />
+        </div>
+      </Section>
+
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={values.featured} onChange={(e) => set("featured", e.target.checked)} />
         Feature this stone on the homepage and vendor page
@@ -237,5 +409,32 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
         </Button>
       </div>
     </form>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-5">
+      <div className="mb-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function TextField({ label, v, on, placeholder }: { label: string; v: string; on: (x: string) => void; placeholder?: string }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input className="mt-1" value={v} onChange={(e) => on(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+function NumField({ label, v, on }: { label: string; v: string; on: (x: string) => void }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input className="mt-1" type="number" step="0.01" value={v} onChange={(e) => on(e.target.value)} />
+    </div>
   );
 }
