@@ -9,16 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorsIndexRouteImport } from './routes/vendors.index'
 import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
+import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
+import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
 
+const PendingApprovalRoute = PendingApprovalRouteImport.update({
+  id: '/pending-approval',
+  path: '/pending-approval',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketplaceRoute = MarketplaceRouteImport.update({
   id: '/marketplace',
   path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -46,11 +60,25 @@ const StoneIdRoute = StoneIdRouteImport.update({
   path: '/stone/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignUpJewellerRoute = SignUpJewellerRouteImport.update({
+  id: '/sign-up/jeweller',
+  path: '/sign-up/jeweller',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpDealerRoute = SignUpDealerRouteImport.update({
+  id: '/sign-up/dealer',
+  path: '/sign-up/dealer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
+  '/pending-approval': typeof PendingApprovalRoute
+  '/sign-up/dealer': typeof SignUpDealerRoute
+  '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/vendors/': typeof VendorsIndexRoute
@@ -58,7 +86,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
+  '/pending-approval': typeof PendingApprovalRoute
+  '/sign-up/dealer': typeof SignUpDealerRoute
+  '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/vendors': typeof VendorsIndexRoute
@@ -67,7 +99,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
+  '/pending-approval': typeof PendingApprovalRoute
+  '/sign-up/dealer': typeof SignUpDealerRoute
+  '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/vendors/': typeof VendorsIndexRoute
@@ -77,7 +113,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/login'
     | '/marketplace'
+    | '/pending-approval'
+    | '/sign-up/dealer'
+    | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/vendors/'
@@ -85,7 +125,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/login'
     | '/marketplace'
+    | '/pending-approval'
+    | '/sign-up/dealer'
+    | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/vendors'
@@ -93,7 +137,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/login'
     | '/marketplace'
+    | '/pending-approval'
+    | '/sign-up/dealer'
+    | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/vendors/'
@@ -102,7 +150,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
+  PendingApprovalRoute: typeof PendingApprovalRoute
+  SignUpDealerRoute: typeof SignUpDealerRoute
+  SignUpJewellerRoute: typeof SignUpJewellerRoute
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
   VendorsIndexRoute: typeof VendorsIndexRoute
@@ -110,11 +162,25 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/pending-approval': {
+      id: '/pending-approval'
+      path: '/pending-approval'
+      fullPath: '/pending-approval'
+      preLoaderRoute: typeof PendingApprovalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/marketplace': {
       id: '/marketplace'
       path: '/marketplace'
       fullPath: '/marketplace'
       preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -152,13 +218,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoneIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sign-up/jeweller': {
+      id: '/sign-up/jeweller'
+      path: '/sign-up/jeweller'
+      fullPath: '/sign-up/jeweller'
+      preLoaderRoute: typeof SignUpJewellerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up/dealer': {
+      id: '/sign-up/dealer'
+      path: '/sign-up/dealer'
+      fullPath: '/sign-up/dealer'
+      preLoaderRoute: typeof SignUpDealerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
+  PendingApprovalRoute: PendingApprovalRoute,
+  SignUpDealerRoute: SignUpDealerRoute,
+  SignUpJewellerRoute: SignUpJewellerRoute,
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
   VendorsIndexRoute: VendorsIndexRoute,
