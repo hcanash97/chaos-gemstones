@@ -81,6 +81,7 @@ export type Database = {
           bio: string | null
           created_at: string
           directory_url: string | null
+          external_feed_url: string | null
           featured: boolean
           gia_member: boolean | null
           id: string
@@ -96,6 +97,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           directory_url?: string | null
+          external_feed_url?: string | null
           featured?: boolean
           gia_member?: boolean | null
           id: string
@@ -111,6 +113,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           directory_url?: string | null
+          external_feed_url?: string | null
           featured?: boolean
           gia_member?: boolean | null
           id?: string
@@ -498,6 +501,7 @@ export type Database = {
           enhancement: string | null
           eye_clean: string | null
           featured: boolean
+          feed_inactive: boolean
           fluorescence: string | null
           fluorescence_colour: string | null
           girdle: string | null
@@ -522,6 +526,7 @@ export type Database = {
           report_date: string | null
           shade: string | null
           shape: string | null
+          share_count: number
           status: Database["public"]["Enums"]["stone_status"]
           stone_type: string
           symmetry: string | null
@@ -555,6 +560,7 @@ export type Database = {
           enhancement?: string | null
           eye_clean?: string | null
           featured?: boolean
+          feed_inactive?: boolean
           fluorescence?: string | null
           fluorescence_colour?: string | null
           girdle?: string | null
@@ -579,6 +585,7 @@ export type Database = {
           report_date?: string | null
           shade?: string | null
           shape?: string | null
+          share_count?: number
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type: string
           symmetry?: string | null
@@ -612,6 +619,7 @@ export type Database = {
           enhancement?: string | null
           eye_clean?: string | null
           featured?: boolean
+          feed_inactive?: boolean
           fluorescence?: string | null
           fluorescence_colour?: string | null
           girdle?: string | null
@@ -636,6 +644,7 @@ export type Database = {
           report_date?: string | null
           shade?: string | null
           shape?: string | null
+          share_count?: number
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type?: string
           symmetry?: string | null
@@ -686,6 +695,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_stone_share: { Args: { _stone_id: string }; Returns: undefined }
       increment_stone_view: { Args: { _stone_id: string }; Returns: undefined }
       notify_email_event: {
         Args: { p_record_id: string; p_type: string }
