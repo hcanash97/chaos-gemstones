@@ -5,6 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 type Side = "dealer" | "jeweller";
@@ -48,6 +52,10 @@ function Thread({ enquiry, side }: { enquiry: any; side: Side }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [reply, setReply] = useState("");
+  const [soldOpen, setSoldOpen] = useState(false);
+  const [salePrice, setSalePrice] = useState("");
+  const [saleNotes, setSaleNotes] = useState("");
+  const [savingSale, setSavingSale] = useState(false);
 
   const { data: messages, refetch } = useQuery({
     queryKey: ["enquiry-messages", enquiry.id],
@@ -78,6 +86,33 @@ function Thread({ enquiry, side }: { enquiry: any; side: Side }) {
     qc.invalidateQueries({ queryKey: [side === "dealer" ? "my-enquiries-dealer" : "my-enquiries-jeweller"] });
   }
 
+  async function markAsSold() {
+    if (!user) return;
+    const price = salePrice.trim() ? Number(salePrice) : null;
+    if (price !== null && (isNaN(price) || price < 1 || price > 5_000_000)) {
+      toast.error("Sale price must be a number between 1 and 5,000,000");
+      return;
+    }
+    setSavingSale(true);
+    const { error } = await supabase.from("orders").insert({
+      enquiry_id: enquiry.id,
+      dealer_id: user.id,
+      jeweller_id: enquiry.from_jeweller_id,
+      stone_id: enquiry.stone_id,
+      wholesale_price_usd: price,
+      notes: saleNotes.trim() || null,
+    });
+    setSavingSale(false);
+    if (error) return toast.error(error.message);
+    await supabase.from("enquiries").update({ status: "closed" }).eq("id", enquiry.id);
+    toast.success("Marked as sold");
+    setSoldOpen(false);
+    setSalePrice("");
+    setSaleNotes("");
+    qc.invalidateQueries({ queryKey: ["my-enquiries-dealer"] });
+    qc.invalidateQueries({ queryKey: ["dealer-sales"] });
+  }
+
   return (
     <div className="border-t border-border p-4">
       <div className="space-y-2">
@@ -97,6 +132,45 @@ function Thread({ enquiry, side }: { enquiry: any; side: Side }) {
             )}
             {enquiry.status === "closed" && (
               <Button variant="outline" size="sm" onClick={() => updateStatus("open")}>Reopen</Button>
+            )}
+            {side === "dealer" && (
+              <Dialog open={soldOpen} onOpenChange={setSoldOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">Mark as sold</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Record sale</DialogTitle>
+                    <DialogDescription>
+                      Records the sale, marks the stone as sold, and closes this enquiry. The jeweller will be notified by email.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium">Sale price (USD) <span className="text-muted-foreground font-normal">— optional</span></label>
+                      <Input
+                        type="number" min={1} max={5_000_000} step="0.01" inputMode="decimal"
+                        value={salePrice} onChange={(e) => setSalePrice(e.target.value)}
+                        placeholder="e.g. 4200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Notes <span className="text-muted-foreground font-normal">— optional</span></label>
+                      <Textarea
+                        rows={3} value={saleNotes} onChange={(e) => setSaleNotes(e.target.value)}
+                        placeholder="Reference, shipping notes…"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setSoldOpen(false)}>Cancel</Button>
+                    <Button onClick={markAsSold} disabled={savingSale}
+                      className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+                      {savingSale ? "Saving…" : "Confirm sale"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
           <Button size="sm" onClick={send} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">

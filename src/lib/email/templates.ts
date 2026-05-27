@@ -65,6 +65,8 @@ export async function buildEmail(
       return await buildEnquiryNewDealer(recordId, sb);
     case "enquiry_reply_jeweller":
       return await buildEnquiryReplyJeweller(recordId, sb);
+    case "order_marked_fulfilled":
+      return await buildOrderMarkedFulfilled(recordId, sb);
     default:
       console.warn("[email] unknown template type", type);
       return null;
@@ -200,6 +202,50 @@ async function buildEnquiryReplyJeweller(messageId: string, sb: SupabaseClient):
     html: shell(`
       <p style="margin:0 0 16px;">Hi ${esc(jeweller.full_name || "there")},</p>
       <p style="margin:0 0 16px;">${gold(dName)} has replied to your enquiry.</p>
+      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/jeweller/enquiries", "View conversation")}</p>
+      <p style="margin:0;">— The Chaos team</p>
+    `),
+  };
+}
+
+async function buildOrderMarkedFulfilled(orderId: string, sb: SupabaseClient): Promise<EmailPayload> {
+  const { data: order } = await sb
+    .from("orders")
+    .select("jeweller_id, dealer_id, stone_id, wholesale_price_usd, notes")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) return null;
+
+  const [{ data: jeweller }, { data: dealer }, stoneRes] = await Promise.all([
+    sb.from("profiles").select("email, full_name").eq("id", order.jeweller_id).maybeSingle(),
+    sb.from("profiles").select("full_name, company_name").eq("id", order.dealer_id).maybeSingle(),
+    order.stone_id
+      ? sb.from("stones").select("stone_type, shape, carat_weight").eq("id", order.stone_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!jeweller?.email) return null;
+
+  const dName = dealer?.company_name || dealer?.full_name || "The dealer";
+  const stone = stoneRes.data;
+  const stoneLine = stone
+    ? `<p style="margin:0 0 16px;">Stone: ${esc(String(stone.carat_weight ?? ""))}ct ${esc(stone.shape ?? "")} ${esc(stone.stone_type)}.</p>`
+    : "";
+  const priceLine = order.wholesale_price_usd
+    ? `<p style="margin:0 0 16px;">Agreed price: ${gold("$" + Number(order.wholesale_price_usd).toLocaleString())}</p>`
+    : "";
+  const notesLine = order.notes
+    ? `<p style="margin:0 0 16px;color:${MUTED};">Dealer note: ${esc(order.notes)}</p>`
+    : "";
+
+  return {
+    to: jeweller.email,
+    subject: `Sale confirmed by ${dName} — Chaos`,
+    html: shell(`
+      <p style="margin:0 0 16px;">Hi ${esc(jeweller.full_name || "there")},</p>
+      <p style="margin:0 0 16px;">${gold(dName)} has marked your enquiry as sold.</p>
+      ${stoneLine}
+      ${priceLine}
+      ${notesLine}
       <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/jeweller/enquiries", "View conversation")}</p>
       <p style="margin:0;">— The Chaos team</p>
     `),

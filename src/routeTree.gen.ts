@@ -30,6 +30,7 @@ import { Route as HowItWorksShippingRouteImport } from './routes/how-it-works.sh
 import { Route as HowItWorksPaymentsRouteImport } from './routes/how-it-works.payments'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
 import { Route as DocsApiRouteImport } from './routes/docs.api'
+import { Route as DashboardSalesRouteImport } from './routes/dashboard.sales'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
@@ -152,6 +153,11 @@ const DocsApiRoute = DocsApiRouteImport.update({
   path: '/docs/api',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardSalesRoute = DashboardSalesRouteImport.update({
+  id: '/sales',
+  path: '/sales',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardImportRoute = DashboardImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -248,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
@@ -286,6 +293,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
@@ -326,6 +334,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
@@ -367,6 +376,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/dashboard/sales'
     | '/docs/api'
     | '/embed/$key'
     | '/how-it-works/payments'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/dashboard/sales'
     | '/docs/api'
     | '/embed/$key'
     | '/how-it-works/payments'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/dashboard/sales'
     | '/docs/api'
     | '/embed/$key'
     | '/how-it-works/payments'
@@ -650,6 +662,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsApiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/sales': {
+      id: '/dashboard/sales'
+      path: '/sales'
+      fullPath: '/dashboard/sales'
+      preLoaderRoute: typeof DashboardSalesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/import': {
       id: '/dashboard/import'
       path: '/import'
@@ -768,6 +787,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardEnquiriesRoute: typeof DashboardEnquiriesRoute
   DashboardImportRoute: typeof DashboardImportRoute
+  DashboardSalesRoute: typeof DashboardSalesRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardJewellerApiRoute: typeof DashboardJewellerApiRoute
   DashboardJewellerEnquiriesRoute: typeof DashboardJewellerEnquiriesRoute
@@ -783,6 +803,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardEnquiriesRoute: DashboardEnquiriesRoute,
   DashboardImportRoute: DashboardImportRoute,
+  DashboardSalesRoute: DashboardSalesRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardJewellerApiRoute: DashboardJewellerApiRoute,
   DashboardJewellerEnquiriesRoute: DashboardJewellerEnquiriesRoute,
