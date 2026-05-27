@@ -23,6 +23,8 @@ import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
+import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
+import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
@@ -34,6 +36,7 @@ import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.j
 import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboard.jeweller.enquiries'
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
+import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -105,6 +108,16 @@ const SignUpDealerRoute = SignUpDealerRouteImport.update({
   path: '/sign-up/dealer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmbedKeyRoute = EmbedKeyRouteImport.update({
+  id: '/embed/$key',
+  path: '/embed/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsApiRoute = DocsApiRouteImport.update({
+  id: '/docs/api',
+  path: '/docs/api',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardImportRoute = DashboardImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -161,6 +174,11 @@ const ApiPublicFeedRoute = ApiPublicFeedRouteImport.update({
   path: '/api/public/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicChaosDotjsRoute = ApiPublicChaosDotjsRouteImport.update({
+  id: '/api/public/chaos.js',
+  path: '/api/public/chaos.js',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -173,12 +191,15 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/docs/api': typeof DocsApiRoute
+  '/embed/$key': typeof EmbedKeyRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
@@ -199,12 +220,15 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/docs/api': typeof DocsApiRoute
+  '/embed/$key': typeof EmbedKeyRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard': typeof DashboardIndexRoute
   '/vendors': typeof VendorsIndexRoute
+  '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
@@ -227,12 +251,15 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/docs/api': typeof DocsApiRoute
+  '/embed/$key': typeof EmbedKeyRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
@@ -256,12 +283,15 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/docs/api'
+    | '/embed/$key'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
@@ -282,12 +312,15 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/docs/api'
+    | '/embed/$key'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard'
     | '/vendors'
+    | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
@@ -309,12 +342,15 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/docs/api'
+    | '/embed/$key'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
     | '/vendors/'
+    | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
@@ -335,11 +371,14 @@ export interface RootRouteChildren {
   MarketplaceRoute: typeof MarketplaceRoute
   PendingApprovalRoute: typeof PendingApprovalRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  DocsApiRoute: typeof DocsApiRoute
+  EmbedKeyRoute: typeof EmbedKeyRoute
   SignUpDealerRoute: typeof SignUpDealerRoute
   SignUpJewellerRoute: typeof SignUpJewellerRoute
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
   VendorsIndexRoute: typeof VendorsIndexRoute
+  ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
 }
 
@@ -443,6 +482,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpDealerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/embed/$key': {
+      id: '/embed/$key'
+      path: '/embed/$key'
+      fullPath: '/embed/$key'
+      preLoaderRoute: typeof EmbedKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/api': {
+      id: '/docs/api'
+      path: '/docs/api'
+      fullPath: '/docs/api'
+      preLoaderRoute: typeof DocsApiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/import': {
       id: '/dashboard/import'
       path: '/import'
@@ -520,6 +573,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFeedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/chaos.js': {
+      id: '/api/public/chaos.js'
+      path: '/api/public/chaos.js'
+      fullPath: '/api/public/chaos.js'
+      preLoaderRoute: typeof ApiPublicChaosDotjsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -564,11 +624,14 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceRoute: MarketplaceRoute,
   PendingApprovalRoute: PendingApprovalRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  DocsApiRoute: DocsApiRoute,
+  EmbedKeyRoute: EmbedKeyRoute,
   SignUpDealerRoute: SignUpDealerRoute,
   SignUpJewellerRoute: SignUpJewellerRoute,
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
   VendorsIndexRoute: VendorsIndexRoute,
+  ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
   ApiPublicFeedRoute: ApiPublicFeedRoute,
 }
 export const routeTree = rootRouteImport

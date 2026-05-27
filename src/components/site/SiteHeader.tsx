@@ -87,6 +87,7 @@ export function SiteFooter() {
               <li><Link to="/marketplace" className="opacity-80 hover:opacity-100">Marketplace</Link></li>
               <li><Link to="/vendors" className="opacity-80 hover:opacity-100">Vendors</Link></li>
               <li><Link to="/about" className="opacity-80 hover:opacity-100">About</Link></li>
+              <li><Link to="/docs/api" className="opacity-80 hover:opacity-100">API &amp; Embeds</Link></li>
             </ul>
           </div>
           <div>

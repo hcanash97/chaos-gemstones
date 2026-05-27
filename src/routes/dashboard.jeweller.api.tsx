@@ -17,7 +17,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Copy, Eye, EyeOff, RefreshCw, BookOpen } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
 
 export const Route = createFileRoute("/dashboard/jeweller/api")({
@@ -155,6 +156,13 @@ function ApiPage() {
     <div>
       <h1 className="font-serif text-3xl">API Feed</h1>
       <p className="text-sm text-muted-foreground">Stream your curated catalogue into any website.</p>
+      <Link
+        to="/docs/api"
+        className="mt-3 inline-flex items-center gap-2 text-xs text-[var(--color-gold)] hover:underline"
+      >
+        <BookOpen className="h-3.5 w-3.5" />
+        Full embed guide — Shopify, Wix, Squarespace, Webflow, WordPress
+      </Link>
 
       <div className="relative mt-6 overflow-hidden rounded-md p-5 text-primary-foreground" style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #162347 100%)" }}>
         <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full" style={{ background: "radial-gradient(circle, rgba(232,201,122,0.25), transparent 70%)" }} />
