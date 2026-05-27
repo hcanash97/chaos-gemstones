@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/public/hooks/email/notify")({
           });
         } catch (e) {
           console.error("[email/notify] error", e);
-          return new Response(JSON.stringify({ error: String(e) }), {
+          return new Response(JSON.stringify({ error: "Internal server error" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });
