@@ -77,7 +77,7 @@ export const Route = createFileRoute("/api/public/cron/digest")({
           });
         } catch (e) {
           console.error("[cron/digest] error", e);
-          return new Response(JSON.stringify({ error: String(e) }), {
+          return new Response(JSON.stringify({ error: "Internal server error" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });
