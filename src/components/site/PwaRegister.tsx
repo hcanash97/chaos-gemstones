@@ -77,7 +77,7 @@ export function PwaRegister() {
     <div
       role="dialog"
       aria-label="Install Chaos"
-      className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-lg border border-[var(--color-gold)]/30 bg-[var(--color-emerald)] p-3 text-[#F5F0E0] shadow-2xl md:left-1/2 md:right-auto md:-translate-x-1/2"
+      className="fixed inset-x-3 bottom-3 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-lg border border-[var(--color-gold)]/30 bg-[#1B3A2D] p-3 text-[#F5F0E0] shadow-2xl md:left-1/2 md:right-auto md:-translate-x-1/2"
     >
       <div className="flex-1 text-sm">
         <div className="font-medium">Add Chaos to your home screen</div>
