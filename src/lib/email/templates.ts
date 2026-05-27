@@ -2,8 +2,7 @@
 // and returns { to, subject, html } — or null to skip sending.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const BASE_URL =
-  "https://project--664931b8-ad5b-4674-aece-47159cf3778c.lovable.app";
+export const BASE_URL = "https://chaosgemstones.com";
 
 const BRAND_EMERALD = "#1B3A2D";
 const BRAND_GOLD = "#D4AF6A";

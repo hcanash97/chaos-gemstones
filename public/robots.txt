@@ -3,3 +3,5 @@ Allow: /
 Disallow: /dashboard
 Disallow: /admin
 Disallow: /api
+
+Sitemap: https://chaosgemstones.com/sitemap.xml

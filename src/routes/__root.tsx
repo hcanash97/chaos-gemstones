@@ -88,6 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Chaos — Gemstone & Diamond Marketplace" },
       { property: "og:description", content: "The global marketplace for independent gemstone dealers." },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://chaosgemstones.com" },
       { name: "twitter:card", content: "summary" },
       { name: "theme-color", content: "#1B3A2D" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
