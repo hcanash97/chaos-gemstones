@@ -43,6 +43,7 @@ function DashboardLayout() {
         { to: "/dashboard/jeweller/markup", label: "Markup", exact: false },
         { to: "/dashboard/jeweller/api", label: "API Feed", exact: false },
         { to: "/dashboard/jeweller/enquiries", label: "My Enquiries", exact: false },
+        { to: "/dashboard/jeweller/saved-searches", label: "Saved Searches", exact: false },
       ]
     : [
         { to: "/dashboard", label: "Overview", exact: true },
