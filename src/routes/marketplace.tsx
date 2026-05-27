@@ -15,6 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { SlidersHorizontal } from "lucide-react";
 
 export const Route = createFileRoute("/marketplace")({
   component: Marketplace,
@@ -33,21 +36,41 @@ function Marketplace() {
   const [price, setPrice] = useState<[number, number]>([0, 100000]);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  const [dealerId, setDealerId] = useState<string>("all");
 
   const { data: stones, isLoading } = useQuery({
     queryKey: ["marketplace-stones"],
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, created_at, stone_images(storage_url, is_primary)")
+        .select("id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, created_at, stone_images(storage_url, is_primary), profiles:dealer_id(country)")
         .eq("status", "available")
         .limit(500);
-      return (data ?? []).map((s: any) => ({ ...s, image: s.stone_images?.[0]?.storage_url ?? null }));
+      return (data ?? []).map((s: any) => ({
+        ...s,
+        image: s.stone_images?.[0]?.storage_url ?? null,
+        dealer_country: s.profiles?.country ?? null,
+      }));
+    },
+  });
+
+  const { data: dealers } = useQuery({
+    queryKey: ["marketplace-dealers"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("dealer_profiles")
+        .select("id, profiles!inner(company_name, is_approved)")
+        .filter("profiles.is_approved", "eq", true);
+      return (data ?? [])
+        .map((d: any) => ({ id: d.id, name: d.profiles?.company_name as string }))
+        .filter((d) => d.name)
+        .sort((a, b) => a.name.localeCompare(b.name));
     },
   });
 
   const filtered = useMemo(() => {
     let list = stones ?? [];
+    if (dealerId !== "all") list = list.filter((s) => s.dealer_id === dealerId);
     if (types.length) list = list.filter((s) => types.includes(s.stone_type));
     if (shapes.length) list = list.filter((s) => s.shape && shapes.includes(s.shape));
     if (labs.length) list = list.filter((s) => s.cert_lab && labs.includes(s.cert_lab));
@@ -76,78 +99,105 @@ function Marketplace() {
       default: list = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
     return list;
-  }, [stones, types, shapes, labs, origin, carat, price, search, sort]);
+  }, [stones, types, shapes, labs, origin, carat, price, search, sort, dealerId]);
 
   const toggle = (arr: string[], setter: (v: string[]) => void, v: string) =>
     setter(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
+  const Filters = (
+    <div className="space-y-7">
+      <div>
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Search</Label>
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ruby, oval, Sri Lanka…" className="mt-2" />
+      </div>
+      <FilterGroup label="Dealer">
+        <Select value={dealerId} onValueChange={setDealerId}>
+          <SelectTrigger><SelectValue placeholder="All dealers" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All dealers</SelectItem>
+            {(dealers ?? []).map((d) => (
+              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FilterGroup>
+      <FilterGroup label="Stone type">
+        {STONE_TYPES.map((t) => (
+          <CheckRow key={t} label={t} checked={types.includes(t)} onChange={() => toggle(types, setTypes, t)} />
+        ))}
+      </FilterGroup>
+      <FilterGroup label="Shape">
+        {SHAPES.map((t) => (
+          <CheckRow key={t} label={t} checked={shapes.includes(t)} onChange={() => toggle(shapes, setShapes, t)} />
+        ))}
+      </FilterGroup>
+      <FilterGroup label="Origin">
+        <div className="flex gap-2 text-xs">
+          {(["all", "natural", "lab-grown"] as const).map((o) => (
+            <button
+              key={o}
+              onClick={() => setOrigin(o)}
+              className={`rounded-md border px-3 py-1.5 capitalize ${origin === o ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10" : "border-border"}`}
+            >
+              {o.replace("-", " ")}
+            </button>
+          ))}
+        </div>
+      </FilterGroup>
+      <FilterGroup label={`Carat: ${carat[0]} – ${carat[1]}`}>
+        <Slider min={0.1} max={20} step={0.1} value={carat} onValueChange={(v) => setCarat(v as [number, number])} />
+      </FilterGroup>
+      <FilterGroup label={`Price USD: $${price[0].toLocaleString()} – $${price[1].toLocaleString()}`}>
+        <Slider min={0} max={100000} step={500} value={price} onValueChange={(v) => setPrice(v as [number, number])} />
+      </FilterGroup>
+      <FilterGroup label="Cert lab">
+        {CERT_LABS.map((t) => (
+          <CheckRow key={t} label={t} checked={labs.includes(t)} onChange={() => toggle(labs, setLabs, t)} />
+        ))}
+      </FilterGroup>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <div className="mx-auto max-w-7xl px-6 py-10">
-        <div className="flex items-baseline justify-between">
+      <div className="mx-auto max-w-7xl px-4 py-10 md:px-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-serif text-4xl">Marketplace</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {isLoading ? "Loading…" : `${filtered.length} stones available`}
             </p>
           </div>
-          <Select value={sort} onValueChange={setSort}>
-            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="price-asc">Price: low to high</SelectItem>
-              <SelectItem value="price-desc">Price: high to low</SelectItem>
-              <SelectItem value="carat">Carat: high to low</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="lg:hidden">
+                  <SlidersHorizontal className="mr-2 h-4 w-4" /> Filters
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+                <SheetHeader><SheetTitle>Filters</SheetTitle></SheetHeader>
+                <div className="mt-4">{Filters}</div>
+              </SheetContent>
+            </Sheet>
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="price-asc">Price: low to high</SelectItem>
+                <SelectItem value="price-desc">Price: high to low</SelectItem>
+                <SelectItem value="carat">Carat: high to low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[260px_1fr]">
-          {/* Filters */}
-          <aside className="space-y-7">
-            <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Search</Label>
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ruby, oval, Sri Lanka…" className="mt-2" />
-            </div>
-            <FilterGroup label="Stone type">
-              {STONE_TYPES.map((t) => (
-                <CheckRow key={t} label={t} checked={types.includes(t)} onChange={() => toggle(types, setTypes, t)} />
-              ))}
-            </FilterGroup>
-            <FilterGroup label="Shape">
-              {SHAPES.map((t) => (
-                <CheckRow key={t} label={t} checked={shapes.includes(t)} onChange={() => toggle(shapes, setShapes, t)} />
-              ))}
-            </FilterGroup>
-            <FilterGroup label="Origin">
-              <div className="flex gap-2 text-xs">
-                {(["all", "natural", "lab-grown"] as const).map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => setOrigin(o)}
-                    className={`rounded-md border px-3 py-1.5 capitalize ${origin === o ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10" : "border-border"}`}
-                  >
-                    {o.replace("-", " ")}
-                  </button>
-                ))}
-              </div>
-            </FilterGroup>
-            <FilterGroup label={`Carat: ${carat[0]} – ${carat[1]}`}>
-              <Slider min={0.1} max={20} step={0.1} value={carat} onValueChange={(v) => setCarat(v as [number, number])} />
-            </FilterGroup>
-            <FilterGroup label={`Price USD: $${price[0].toLocaleString()} – $${price[1].toLocaleString()}`}>
-              <Slider min={0} max={100000} step={500} value={price} onValueChange={(v) => setPrice(v as [number, number])} />
-            </FilterGroup>
-            <FilterGroup label="Cert lab">
-              {CERT_LABS.map((t) => (
-                <CheckRow key={t} label={t} checked={labs.includes(t)} onChange={() => toggle(labs, setLabs, t)} />
-              ))}
-            </FilterGroup>
-          </aside>
+          <aside className="hidden lg:block">{Filters}</aside>
 
           <div>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((s) => <StoneCard key={s.id} stone={s} />)}
             </div>
             {!isLoading && filtered.length === 0 && (
