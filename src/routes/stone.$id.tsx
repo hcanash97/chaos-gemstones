@@ -1,13 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, FileText } from "lucide-react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { certLink, countryFlag } from "@/lib/countries";
+import { getCertSignedUrl } from "@/lib/cert.functions";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -55,6 +57,13 @@ function StoneDetail() {
         .maybeSingle();
       return data;
     },
+  });
+  const fetchCert = useServerFn(getCertSignedUrl);
+  const { data: certData } = useQuery({
+    queryKey: ["cert-url", id],
+    queryFn: () => fetchCert({ data: { stoneId: id } }),
+    enabled: !!data?.cert_url,
+    staleTime: 5 * 60 * 1000,
   });
 
   if (isLoading) return <div className="min-h-screen bg-background"><SiteHeader /><div className="mx-auto max-w-7xl px-6 py-20 text-center text-sm text-muted-foreground">Loading…</div></div>;
@@ -235,6 +244,17 @@ function StoneDetail() {
                 </div>
               )}
               </dl>
+              {certData?.url && (
+                <a
+                  href={certData.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 rounded-md border border-[var(--color-gold)]/50 bg-[var(--color-gold)]/5 px-3 py-2 text-sm text-foreground hover:bg-[var(--color-gold)]/10"
+                >
+                  <FileText className="h-4 w-4 text-[var(--color-gold)]" />
+                  View certificate PDF
+                </a>
+              )}
             </div>
           </div>
         </div>

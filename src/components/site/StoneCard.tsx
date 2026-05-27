@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { countryFlag } from "@/lib/countries";
 import { fadeUp } from "@/components/anim/Motion";
+import { ShieldCheck } from "lucide-react";
 
 export type StoneCardData = {
   id: string;
@@ -17,6 +18,7 @@ export type StoneCardData = {
   clarity_grade: string | null;
   image?: string | null;
   dealer_country?: string | null;
+  dealer_verified?: boolean | null;
 };
 
 export function StoneCard({ stone }: { stone: StoneCardData }) {
@@ -42,8 +44,11 @@ export function StoneCard({ stone }: { stone: StoneCardData }) {
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between text-xs">
-          <span className="uppercase tracking-wider text-muted-foreground">
+          <span className="flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
             {stone.origin === "lab-grown" ? "Lab Grown" : "Natural"} · {stone.cert_lab || "—"}
+            {stone.dealer_verified && (
+              <ShieldCheck className="h-3.5 w-3.5 text-[var(--color-gold)]" aria-label="Verified dealer" />
+            )}
           </span>
           {stone.dealer_country ? (
             <span className="text-muted-foreground">

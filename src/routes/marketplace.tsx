@@ -54,13 +54,14 @@ function Marketplace() {
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")
-        .select("id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, created_at, stone_images(storage_url, is_primary), profiles:dealer_id(country)")
+        .select("id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, created_at, stone_images(storage_url, is_primary), profiles:dealer_id(country, is_verified)")
         .eq("status", "available")
         .limit(500);
       return (data ?? []).map((s: any) => ({
         ...s,
         image: s.stone_images?.[0]?.storage_url ?? null,
         dealer_country: s.profiles?.country ?? null,
+        dealer_verified: !!s.profiles?.is_verified,
       }));
     },
   });

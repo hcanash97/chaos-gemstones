@@ -56,7 +56,11 @@ function VendorProfile() {
         .eq("status", "available");
       return {
         vendor,
-        stones: (stones ?? []).map((s: any) => ({ ...s, image: s.stone_images?.[0]?.storage_url ?? null })),
+        stones: (stones ?? []).map((s: any) => ({
+          ...s,
+          image: s.stone_images?.[0]?.storage_url ?? null,
+          dealer_verified: !!vendor.profiles?.is_verified,
+        })),
       };
     },
   });
