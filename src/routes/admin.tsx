@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 type ProfileRow = {
   id: string;
@@ -27,6 +28,8 @@ function AdminPage() {
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [testCount, setTestCount] = useState<number | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -48,6 +51,68 @@ function AdminPage() {
   }, [isAdmin, tab]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadTestCount = useCallback(async () => {
+    if (!isAdmin) return;
+    const { count } = await supabase
+      .from("stones")
+      .select("id", { count: "exact", head: true })
+      .eq("is_test", true);
+    setTestCount(count ?? 0);
+  }, [isAdmin]);
+
+  useEffect(() => { loadTestCount(); }, [loadTestCount]);
+
+  async function seedTestInventory() {
+    if (!user) return;
+    setSeeding(true);
+    const sample = [
+      {
+        dealer_id: user.id, is_test: true, stone_type: "Diamond", shape: "Round",
+        carat_weight: 1.02, colour_grade: "F", clarity_grade: "VS1", cut_grade: "Excellent",
+        polish: "Excellent", symmetry: "Excellent", fluorescence: "None",
+        cert_lab: "GIA", cert_number: "TEST-1001", wholesale_price_usd: 6800,
+        country_of_origin: "Botswana", status: "available" as const, available_qty: 1,
+        notes_for_buyers: "Sample test stone — visible to admin only.",
+      },
+      {
+        dealer_id: user.id, is_test: true, stone_type: "Diamond", shape: "Oval",
+        carat_weight: 1.51, colour_grade: "G", clarity_grade: "VVS2", cut_grade: "Excellent",
+        polish: "Excellent", symmetry: "Very Good", fluorescence: "Faint",
+        cert_lab: "GIA", cert_number: "TEST-1002", wholesale_price_usd: 11200,
+        country_of_origin: "Canada", status: "available" as const, available_qty: 1,
+      },
+      {
+        dealer_id: user.id, is_test: true, stone_type: "Sapphire", shape: "Cushion",
+        carat_weight: 2.34, colour_hue: "Blue", colour_tone: "Medium", colour_saturation: "Vivid",
+        treatment: "Heated", cert_lab: "GRS", cert_number: "TEST-2001",
+        country_of_origin: "Sri Lanka", wholesale_price_usd: 4500,
+        status: "available" as const, available_qty: 1,
+      },
+      {
+        dealer_id: user.id, is_test: true, stone_type: "Emerald", shape: "Emerald",
+        carat_weight: 1.87, colour_hue: "Green", colour_tone: "Medium Dark", colour_saturation: "Strong",
+        treatment: "Minor oil", cert_lab: "GUBELIN", cert_number: "TEST-3001",
+        country_of_origin: "Colombia", wholesale_price_usd: 9800,
+        status: "available" as const, available_qty: 1,
+      },
+    ];
+    const { error } = await supabase.from("stones").insert(sample as any);
+    setSeeding(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Seeded ${sample.length} test stones`);
+    loadTestCount();
+  }
+
+  async function wipeTestInventory() {
+    if (!confirm("Delete all test stones? This cannot be undone.")) return;
+    setSeeding(true);
+    const { error } = await supabase.from("stones").delete().eq("is_test", true);
+    setSeeding(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Test stones wiped");
+    loadTestCount();
+  }
 
   async function setApproval(id: string, value: boolean) {
     setBusy(id);
@@ -113,6 +178,28 @@ function AdminPage() {
             >
               All accounts
             </button>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="font-medium text-sm">Test inventory</div>
+              <p className="text-xs text-muted-foreground">
+                Seed sample stones owned by you, flagged <code>is_test=true</code>. Hidden from the public marketplace — only admins see them. Use for Shopify/API trials.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Current test stones in DB: <strong>{testCount ?? "…"}</strong>
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" disabled={seeding} onClick={seedTestInventory}>
+                {seeding ? "Working…" : "Seed test inventory"}
+              </Button>
+              <Button size="sm" variant="outline" disabled={seeding || !testCount} onClick={wipeTestInventory}>
+                Wipe test data
+              </Button>
+            </div>
           </div>
         </div>
 
