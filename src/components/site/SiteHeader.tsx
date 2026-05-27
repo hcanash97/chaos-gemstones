@@ -1,11 +1,25 @@
 import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
-    <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-40">
+    <header
+      className={`sticky top-0 z-40 transition-all duration-300 ${
+        scrolled
+          ? "glass-light border-b border-[var(--gold-border)] shadow-[0_8px_30px_-12px_rgba(15,27,61,0.15)]"
+          : "border-b border-transparent bg-background/60 backdrop-blur-sm"
+      }`}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-2">
           <span className="font-serif text-2xl font-semibold tracking-tight text-primary">CHAOS</span>
