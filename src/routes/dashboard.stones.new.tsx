@@ -18,7 +18,7 @@ function NewStone() {
       <p className="mb-6 text-sm text-muted-foreground">
         Create the listing now — you can upload photos after saving.
       </p>
-      <StoneForm initial={emptyStone} dealerId={user.id} />
+      <StoneForm initial={emptyStone} dealerId={user.id} draftKey={`chaos-stone-draft:${user.id}`} />
     </div>
   );
 }
