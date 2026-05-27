@@ -1,8 +1,8 @@
 // Resend API client for transactional email.
-// Sending domain: mail.chaosgemstones.com (verified in Resend).
+// Sending domain: chaosgemstones.com (verified in Resend).
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
-const CHAOS_FROM = "Chaos <noreply@mail.chaosgemstones.com>";
+const CHAOS_FROM = "Chaos <noreply@chaosgemstones.com>";
 
 export async function sendEmail(to: string, subject: string, html: string) {
   const key = process.env.RESEND_API_KEY;
