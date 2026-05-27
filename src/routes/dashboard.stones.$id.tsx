@@ -43,6 +43,9 @@ function EditStone() {
         cert_lab: data.cert_lab ?? "",
         cert_number: data.cert_number ?? "",
         featured: !!data.featured,
+        minimum_order_qty: (data as any).minimum_order_qty?.toString() ?? "1",
+        bulk_pricing_available: !!(data as any).bulk_pricing_available,
+        notes_for_buyers: (data as any).notes_for_buyers ?? "",
       });
     })();
   }, [id, user]);

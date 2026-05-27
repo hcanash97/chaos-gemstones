@@ -45,7 +45,7 @@ function VendorProfile() {
     queryFn: async () => {
       const { data: vendor } = await supabase
         .from("dealer_profiles")
-        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, profiles!inner(company_name, city, country, website, is_verified)")
+        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
       if (!vendor) return { vendor: null, stones: [] };
@@ -54,6 +54,25 @@ function VendorProfile() {
         .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, stone_images(storage_url, is_primary)")
         .eq("dealer_id", vendor.id)
         .eq("status", "available");
+      // Response rate: % of enquiries with at least one dealer reply within 48h.
+      const { data: enquiries } = await supabase
+        .from("enquiries")
+        .select("id, created_at, enquiry_messages(sender_id, created_at)")
+        .eq("to_dealer_id", vendor.id);
+      let total = 0;
+      let responded = 0;
+      for (const e of enquiries ?? []) {
+        total += 1;
+        const replies = (e as any).enquiry_messages?.filter(
+          (m: any) => m.sender_id === vendor.id,
+        ) ?? [];
+        const enqAt = new Date((e as any).created_at).getTime();
+        const within = replies.some(
+          (m: any) => new Date(m.created_at).getTime() - enqAt < 48 * 3600 * 1000,
+        );
+        if (within) responded += 1;
+      }
+      const responseRate = total === 0 ? null : Math.round((responded / total) * 100);
       return {
         vendor,
         stones: (stones ?? []).map((s: any) => ({
@@ -61,6 +80,8 @@ function VendorProfile() {
           image: s.stone_images?.[0]?.storage_url ?? null,
           dealer_verified: !!vendor.profiles?.is_verified,
         })),
+        responseRate,
+        enquiryCount: total,
       };
     },
   });
@@ -81,6 +102,9 @@ function VendorProfile() {
   }
 
   const v: any = data.vendor;
+  const memberSince = v.profiles?.created_at
+    ? new Date(v.profiles.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    : null;
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -115,6 +139,40 @@ function VendorProfile() {
           </div>
         </div>
       </section>
+      {/* Verification */}
+      <section className="border-b border-border bg-secondary/30">
+        <div className="mx-auto max-w-7xl px-6 py-10">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-[var(--color-gold)]" /> Verification
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {v.profiles?.is_verified && (
+              <VerifyItem
+                label="Chaos verified"
+                value="Reviewed & approved"
+                tooltip="This dealer has been reviewed and approved by the Chaos team"
+              />
+            )}
+            {memberSince && <VerifyItem label="Member since" value={memberSince} />}
+            {data.responseRate !== null && data.responseRate !== undefined && (
+              <VerifyItem
+                label="Response rate (48h)"
+                value={`${data.responseRate}% of ${data.enquiryCount} enquiries`}
+              />
+            )}
+            {v.profiles?.website && (
+              <VerifyLink label="Website" href={v.profiles.website} text={prettyUrl(v.profiles.website)} />
+            )}
+            {v.directory_url && (
+              <VerifyLink label="Directory profile" href={v.directory_url} text={prettyUrl(v.directory_url)} />
+            )}
+          </div>
+          <p className="mt-6 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+            All dealers on Chaos are manually reviewed before approval. We recommend starting with a small
+            order to establish trust before committing to larger transactions.
+          </p>
+        </div>
+      </section>
       <section className="mx-auto max-w-7xl px-6 py-16">
         <h2 className="font-serif text-3xl">Catalogue</h2>
         <p className="mt-1 text-sm text-muted-foreground">{data.stones.length} stones available</p>
@@ -125,4 +183,39 @@ function VendorProfile() {
       <SiteFooter />
     </div>
   );
+}
+
+function VerifyItem({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
+  return (
+    <div
+      className="rounded-md border border-border bg-card p-4"
+      title={tooltip}
+    >
+      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-medium text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function VerifyLink({ label, href, text }: { label: string; href: string; text: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block rounded-md border border-border bg-card p-4 transition-colors hover:border-[var(--color-gold)]"
+    >
+      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-sm font-medium text-[var(--color-gold)]">{text} ↗</div>
+    </a>
+  );
+}
+
+function prettyUrl(u: string) {
+  try {
+    const url = new URL(u.startsWith("http") ? u : `https://${u}`);
+    return url.hostname.replace(/^www\./, "");
+  } catch {
+    return u;
+  }
 }

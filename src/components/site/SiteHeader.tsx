@@ -88,6 +88,8 @@ export function SiteFooter() {
               <li><Link to="/vendors" className="opacity-80 hover:opacity-100">Vendors</Link></li>
               <li><Link to="/about" className="opacity-80 hover:opacity-100">About</Link></li>
               <li><Link to="/docs/api" className="opacity-80 hover:opacity-100">API &amp; Embeds</Link></li>
+              <li><Link to="/how-it-works/payments" className="opacity-80 hover:opacity-100">Payments</Link></li>
+              <li><Link to="/how-it-works/shipping" className="opacity-80 hover:opacity-100">Shipping</Link></li>
             </ul>
           </div>
           <div>

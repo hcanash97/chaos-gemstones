@@ -26,6 +26,8 @@ import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
 import { Route as LegalTermsJewellersRouteImport } from './routes/legal.terms-jewellers'
 import { Route as LegalTermsDealersRouteImport } from './routes/legal.terms-dealers'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as HowItWorksShippingRouteImport } from './routes/how-it-works.shipping'
+import { Route as HowItWorksPaymentsRouteImport } from './routes/how-it-works.payments'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
 import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
@@ -126,6 +128,16 @@ const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
   path: '/legal/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HowItWorksShippingRoute = HowItWorksShippingRouteImport.update({
+  id: '/how-it-works/shipping',
+  path: '/how-it-works/shipping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksPaymentsRoute = HowItWorksPaymentsRouteImport.update({
+  id: '/how-it-works/payments',
+  path: '/how-it-works/payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmbedKeyRoute = EmbedKeyRouteImport.update({
   id: '/embed/$key',
   path: '/embed/$key',
@@ -211,6 +223,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/import': typeof DashboardImportRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
+  '/how-it-works/payments': typeof HowItWorksPaymentsRoute
+  '/how-it-works/shipping': typeof HowItWorksShippingRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -243,6 +257,8 @@ export interface FileRoutesByTo {
   '/dashboard/import': typeof DashboardImportRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
+  '/how-it-works/payments': typeof HowItWorksPaymentsRoute
+  '/how-it-works/shipping': typeof HowItWorksShippingRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -277,6 +293,8 @@ export interface FileRoutesById {
   '/dashboard/import': typeof DashboardImportRoute
   '/docs/api': typeof DocsApiRoute
   '/embed/$key': typeof EmbedKeyRoute
+  '/how-it-works/payments': typeof HowItWorksPaymentsRoute
+  '/how-it-works/shipping': typeof HowItWorksShippingRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -312,6 +330,8 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/docs/api'
     | '/embed/$key'
+    | '/how-it-works/payments'
+    | '/how-it-works/shipping'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -344,6 +364,8 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/docs/api'
     | '/embed/$key'
+    | '/how-it-works/payments'
+    | '/how-it-works/shipping'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -377,6 +399,8 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/docs/api'
     | '/embed/$key'
+    | '/how-it-works/payments'
+    | '/how-it-works/shipping'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -409,6 +433,8 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
   EmbedKeyRoute: typeof EmbedKeyRoute
+  HowItWorksPaymentsRoute: typeof HowItWorksPaymentsRoute
+  HowItWorksShippingRoute: typeof HowItWorksShippingRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsDealersRoute: typeof LegalTermsDealersRoute
   LegalTermsJewellersRoute: typeof LegalTermsJewellersRoute
@@ -540,6 +566,20 @@ declare module '@tanstack/react-router' {
       path: '/legal/privacy'
       fullPath: '/legal/privacy'
       preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works/shipping': {
+      id: '/how-it-works/shipping'
+      path: '/how-it-works/shipping'
+      fullPath: '/how-it-works/shipping'
+      preLoaderRoute: typeof HowItWorksShippingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works/payments': {
+      id: '/how-it-works/payments'
+      path: '/how-it-works/payments'
+      fullPath: '/how-it-works/payments'
+      preLoaderRoute: typeof HowItWorksPaymentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/embed/$key': {
@@ -686,6 +726,8 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
   EmbedKeyRoute: EmbedKeyRoute,
+  HowItWorksPaymentsRoute: HowItWorksPaymentsRoute,
+  HowItWorksShippingRoute: HowItWorksShippingRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsDealersRoute: LegalTermsDealersRoute,
   LegalTermsJewellersRoute: LegalTermsJewellersRoute,

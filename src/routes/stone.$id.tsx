@@ -105,6 +105,8 @@ function StoneDetail() {
     ["Report date", stone.report_date],
     ["Lead time", stone.lead_time_days ? `${stone.lead_time_days} days` : null],
     ["Available qty", stone.available_qty],
+    ["Minimum order qty", stone.minimum_order_qty && stone.minimum_order_qty > 1 ? stone.minimum_order_qty : null],
+    ["Bulk pricing", stone.bulk_pricing_available ? "Available on request" : null],
   ];
 
   const certHref = certLink(stone.cert_lab, stone.cert_number);
@@ -244,6 +246,12 @@ function StoneDetail() {
                 </div>
               )}
               </dl>
+              {stone.notes_for_buyers && (
+                <div className="mt-4 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-4">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--color-gold)]">Notes from the dealer</div>
+                  <p className="mt-2 whitespace-pre-line text-sm text-foreground/85">{stone.notes_for_buyers}</p>
+                </div>
+              )}
               {certData?.url && (
                 <a
                   href={certData.url}

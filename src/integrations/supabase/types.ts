@@ -80,6 +80,7 @@ export type Database = {
         Row: {
           bio: string | null
           created_at: string
+          directory_url: string | null
           featured: boolean
           gia_member: boolean | null
           id: string
@@ -94,6 +95,7 @@ export type Database = {
         Insert: {
           bio?: string | null
           created_at?: string
+          directory_url?: string | null
           featured?: boolean
           gia_member?: boolean | null
           id: string
@@ -108,6 +110,7 @@ export type Database = {
         Update: {
           bio?: string | null
           created_at?: string
+          directory_url?: string | null
           featured?: boolean
           gia_member?: boolean | null
           id?: string
@@ -393,6 +396,7 @@ export type Database = {
       stones: {
         Row: {
           available_qty: number
+          bulk_pricing_available: boolean
           carat_weight: number | null
           cert_lab: string | null
           cert_number: string | null
@@ -410,6 +414,8 @@ export type Database = {
           fluorescence: string | null
           id: string
           lead_time_days: number | null
+          minimum_order_qty: number
+          notes_for_buyers: string | null
           origin: string | null
           polish: string | null
           report_date: string | null
@@ -424,6 +430,7 @@ export type Database = {
         }
         Insert: {
           available_qty?: number
+          bulk_pricing_available?: boolean
           carat_weight?: number | null
           cert_lab?: string | null
           cert_number?: string | null
@@ -441,6 +448,8 @@ export type Database = {
           fluorescence?: string | null
           id?: string
           lead_time_days?: number | null
+          minimum_order_qty?: number
+          notes_for_buyers?: string | null
           origin?: string | null
           polish?: string | null
           report_date?: string | null
@@ -455,6 +464,7 @@ export type Database = {
         }
         Update: {
           available_qty?: number
+          bulk_pricing_available?: boolean
           carat_weight?: number | null
           cert_lab?: string | null
           cert_number?: string | null
@@ -472,6 +482,8 @@ export type Database = {
           fluorescence?: string | null
           id?: string
           lead_time_days?: number | null
+          minimum_order_qty?: number
+          notes_for_buyers?: string | null
           origin?: string | null
           polish?: string | null
           report_date?: string | null
