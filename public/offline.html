@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Offline — Chaos</title>
+  <style>
+    html, body { margin:0; padding:0; height:100%; background:#1B3A2D; color:#F5F0E0; font-family: 'Inter', system-ui, sans-serif; }
+    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { max-width:420px; text-align:center; }
+    .brand { font-family: 'Cormorant Garamond', Georgia, serif; font-size:40px; color:#D4AF6A; letter-spacing:1px; }
+    h1 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight:500; font-size:22px; margin:18px 0 8px; }
+    p { opacity:.75; line-height:1.6; font-size:14px; margin:0 0 24px; }
+    button { background:#D4AF6A; color:#0F1B3D; border:0; border-radius:6px; padding:12px 22px; font-weight:600; font-size:14px; cursor:pointer; }
+    button:hover { opacity:.9; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="brand">Chaos</div>
+      <h1>You're offline</h1>
+      <p>Connect to the internet to browse Chaos.</p>
+      <button onclick="location.reload()">Retry</button>
+    </div>
+  </div>
+</body>
+</html>

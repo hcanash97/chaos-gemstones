@@ -11,6 +11,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 
 import appCss from "../styles.css?url";
+import { PwaRegister } from "@/components/site/PwaRegister";
 
 function NotFoundComponent() {
   return (
@@ -88,12 +89,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "The global marketplace for independent gemstone dealers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "theme-color", content: "#1B3A2D" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Chaos" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -139,6 +146,7 @@ function RootComponent() {
           <Outlet />
         </motion.div>
       </AnimatePresence>
+      <PwaRegister />
     </QueryClientProvider>
   );
 }

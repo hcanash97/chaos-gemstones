@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-// TODO: replace with the project URL once a custom domain is set.
-const BASE_URL = "";
+// Stable production URL — flip to a custom domain when one is set.
+const BASE_URL = "https://project--664931b8-ad5b-4674-aece-47159cf3778c.lovable.app";
 
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
