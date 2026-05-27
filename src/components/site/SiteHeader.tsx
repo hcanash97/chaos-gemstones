@@ -24,6 +24,11 @@ export function SiteHeader() {
               <span className="hidden text-xs text-muted-foreground sm:inline">
                 {profile?.company_name || profile?.full_name || user.email}
               </span>
+              {(profile?.account_type === "dealer" || profile?.account_type === "admin") && (
+                <Link to="/dashboard">
+                  <Button variant="outline" size="sm">Dashboard</Button>
+                </Link>
+              )}
               <Button variant="ghost" size="sm" onClick={() => signOut()}>Sign out</Button>
             </>
           ) : (
