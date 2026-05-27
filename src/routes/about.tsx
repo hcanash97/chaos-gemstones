@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/about")({
   component: About,
+  head: () => ({
+    meta: [
+      { title: "About Chaos — B2B Gemstone Marketplace" },
+      { name: "description", content: "Chaos connects independent gemstone and diamond dealers in Jaipur, Surat, Bangkok and Colombo with jewellers worldwide via live inventory feeds." },
+      { property: "og:title", content: "About Chaos — B2B Gemstone Marketplace" },
+      { property: "og:description", content: "How the Chaos marketplace and live API feeds work for dealers and jewellers." },
+      { property: "og:url", content: "/about" },
+    ],
+    links: [{ rel: "canonical", href: "/about" }],
+  }),
 });
 
 function About() {
