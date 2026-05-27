@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -12,34 +12,80 @@ export const Route = createFileRoute("/dashboard/jeweller/markup")({
   component: MarkupPage,
 });
 
+const MIN_MARKUP = 1.0;
+const MAX_MARKUP = 10.0;
+
+function validateMarkup(value: string): { ok: true; value: number } | { ok: false; error: string } {
+  const n = parseFloat(value);
+  if (!isFinite(n)) return { ok: false, error: "Enter a number." };
+  if (n < MIN_MARKUP) return { ok: false, error: `Markup must be at least ${MIN_MARKUP.toFixed(1)} (below this you'd sell at a loss).` };
+  if (n > MAX_MARKUP) return { ok: false, error: `Markup cannot exceed ${MAX_MARKUP.toFixed(1)}.` };
+  return { ok: true, value: n };
+}
+
 function MarkupPage() {
   const { user, profile } = useAuth();
   const [global, setGlobal] = useState("2.0");
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  if (profile?.account_type !== "jeweller") return <div>Jewellers only.</div>;
+  const isJeweller = profile?.account_type === "jeweller";
 
   const { data, refetch } = useQuery({
     queryKey: ["markup-data", user?.id],
-    enabled: !!user?.id,
+    enabled: !!user?.id && isJeweller,
     queryFn: async () => {
-      const [j, sels] = await Promise.all([
-        supabase.from("jeweller_profiles").select("markup_global").eq("id", user!.id).maybeSingle(),
-        supabase.from("feed_selections").select("id, dealer_id, markup_override").eq("selection_type", "dealer_follow"),
-      ]);
-      const dealerIds = (sels.data ?? []).map((s: any) => s.dealer_id).filter(Boolean);
-      const { data: dealers } = dealerIds.length
-        ? await supabase.from("profiles").select("id, company_name").in("id", dealerIds)
-        : { data: [] as any };
+      // Active API key — required for per-vendor overrides
+      const { data: key } = await supabase
+        .from("api_keys")
+        .select("id")
+        .eq("jeweller_id", user!.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+        // Global markup — upsert default if row missing
+      let { data: jp } = await supabase
+        .from("jeweller_profiles")
+        .select("markup_global")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (!jp) {
+        const { data: created } = await supabase
+          .from("jeweller_profiles")
+          .upsert({ id: user!.id, markup_global: 2.0 }, { onConflict: "id" })
+          .select("markup_global")
+          .maybeSingle();
+        jp = created ?? { markup_global: 2.0 };
+      }
+
+      // Approved dealers (publicly readable)
+      const { data: dealers } = await supabase
+        .from("profiles")
+        .select("id, company_name, country")
+        .eq("account_type", "dealer")
+        .eq("is_approved", true)
+        .order("company_name", { ascending: true });
+
+      // Existing per-vendor overrides scoped to this jeweller's active key
+      let selections: Array<{ id: string; dealer_id: string | null; markup_override: number | null }> = [];
+      if (key?.id) {
+        const { data: sels } = await supabase
+          .from("feed_selections")
+          .select("id, dealer_id, markup_override")
+          .eq("api_key_id", key.id)
+          .eq("selection_type", "dealer_follow");
+        selections = (sels ?? []) as any;
+      }
+
       return {
-        global: j.data?.markup_global ?? 2,
-        followed: (sels.data ?? []).map((s: any) => ({
-          selectionId: s.id,
-          dealerId: s.dealer_id,
-          name: dealers?.find((d: any) => d.id === s.dealer_id)?.company_name ?? "Unknown",
-          markup_override: s.markup_override,
-        })),
+        apiKeyId: key?.id ?? null,
+        global: Number(jp?.markup_global ?? 2),
+        dealers: dealers ?? [],
+        selections,
       };
     },
   });
@@ -48,77 +94,167 @@ function MarkupPage() {
     if (!data) return;
     setGlobal(String(data.global));
     const o: Record<string, string> = {};
-    data.followed.forEach((f: any) => {
-      o[f.selectionId] = f.markup_override != null ? String(f.markup_override) : "";
+    data.selections.forEach((s) => {
+      if (s.dealer_id) o[s.dealer_id] = s.markup_override != null ? String(s.markup_override) : "";
     });
     setOverrides(o);
   }, [data]);
 
+  const globalValidation = useMemo(() => validateMarkup(global), [global]);
+
   async function save() {
     if (!user) return;
-    setSaving(true);
-    const g = parseFloat(global);
-    if (!isFinite(g) || g <= 0) {
-      toast.error("Global markup must be a positive number");
-      setSaving(false);
+    setSaveError(null);
+    setSavedAt(null);
+
+    const v = validateMarkup(global);
+    if (!v.ok) {
+      setSaveError(v.error);
       return;
     }
-    await supabase.from("jeweller_profiles").update({ markup_global: g }).eq("id", user.id);
-    for (const [selId, val] of Object.entries(overrides)) {
-      const num = val.trim() === "" ? null : parseFloat(val);
-      await supabase.from("feed_selections").update({ markup_override: num }).eq("id", selId);
+
+    setSaving(true);
+    try {
+      // Upsert so the row is created if it doesn't exist yet
+      const { error: jpError } = await supabase
+        .from("jeweller_profiles")
+        .upsert({ id: user.id, markup_global: v.value }, { onConflict: "id" });
+      if (jpError) throw new Error(jpError.message);
+
+      // Per-vendor overrides — only when an active API key exists
+      if (data?.apiKeyId) {
+        for (const [dealerId, raw] of Object.entries(overrides)) {
+          const trimmed = raw.trim();
+          let value: number | null = null;
+          if (trimmed !== "") {
+            const vv = validateMarkup(trimmed);
+            if (!vv.ok) throw new Error(`Override for one dealer is invalid: ${vv.error}`);
+            value = vv.value;
+          }
+          const existing = data.selections.find((s) => s.dealer_id === dealerId);
+          if (existing) {
+            const { error } = await supabase
+              .from("feed_selections")
+              .update({ markup_override: value })
+              .eq("id", existing.id);
+            if (error) throw new Error(error.message);
+          } else if (value != null) {
+            const { error } = await supabase.from("feed_selections").insert({
+              api_key_id: data.apiKeyId,
+              selection_type: "dealer_follow",
+              dealer_id: dealerId,
+              markup_override: value,
+            });
+            if (error) throw new Error(error.message);
+          }
+        }
+      }
+
+      setSavedAt(Date.now());
+      toast.success("Markup saved");
+      refetch();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not save markup.";
+      setSaveError(msg);
+      toast.error(msg);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    toast.success("Markup saved");
-    refetch();
   }
 
+  // Auto-dismiss the green "Saved" pill after 3s
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setTimeout(() => setSavedAt(null), 3000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
+
+  if (!isJeweller) return <div className="text-sm text-muted-foreground">Jewellers only.</div>;
+
   return (
-    <div>
+    <div className="max-w-3xl">
       <h1 className="font-serif text-3xl">Markup Settings</h1>
-      <p className="text-sm text-muted-foreground">Retail price = wholesale × multiplier.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        A markup of 2.5 means a stone priced at $1,000 wholesale will appear as $2,500 on your website.
+        This is applied automatically by the API feed — your wholesale costs are never exposed to your customers.
+      </p>
 
       <div className="mt-6 max-w-md rounded-md border border-border bg-card p-5">
         <Label>Global multiplier</Label>
         <Input
           type="number"
           step="0.01"
-          min="0.1"
+          min={MIN_MARKUP}
+          max={MAX_MARKUP}
           value={global}
           onChange={(e) => setGlobal(e.target.value)}
           className="mt-1 font-mono"
+          aria-invalid={!globalValidation.ok}
         />
-        <p className="mt-1 text-xs text-muted-foreground">e.g. 2.5 means retail = 2.5× wholesale</p>
-      </div>
-
-      <h2 className="mt-8 font-serif text-xl">Per-vendor override</h2>
-      <p className="text-xs text-muted-foreground">Leave blank to use the global multiplier.</p>
-      <div className="mt-3 space-y-2">
-        {(data?.followed ?? []).map((f: any) => (
-          <div key={f.selectionId} className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3">
-            <span>{f.name}</span>
-            <Input
-              type="number"
-              step="0.01"
-              placeholder={`Default (${global})`}
-              value={overrides[f.selectionId] ?? ""}
-              onChange={(e) => setOverrides({ ...overrides, [f.selectionId]: e.target.value })}
-              className="w-32 font-mono"
-            />
-          </div>
-        ))}
-        {!data?.followed.length && (
-          <div className="text-sm text-muted-foreground">Follow vendors first to set per-vendor markups.</div>
+        {!globalValidation.ok ? (
+          <p className="mt-1 text-xs text-destructive">{globalValidation.error}</p>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Allowed range {MIN_MARKUP.toFixed(1)}–{MAX_MARKUP.toFixed(1)}. e.g. 2.5 means retail = 2.5× wholesale.
+          </p>
         )}
       </div>
 
-      <Button
-        onClick={save}
-        disabled={saving}
-        className="mt-6 bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
-      >
-        {saving ? "Saving…" : "Save markup settings"}
-      </Button>
+      <h2 className="mt-8 font-serif text-xl">Per-vendor override</h2>
+      <p className="text-xs text-muted-foreground">Leave a field blank to use the global multiplier.</p>
+
+      {!data?.apiKeyId ? (
+        <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+          Generate an API key first to set per-vendor markup overrides.{" "}
+          <Link to="/dashboard/jeweller/api" className="font-medium text-[var(--color-gold)] underline">
+            Go to API page →
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {(data?.dealers ?? []).length === 0 && (
+            <div className="text-sm text-muted-foreground">No approved dealers are listed yet.</div>
+          )}
+          {(data?.dealers ?? []).map((d: any) => (
+            <div key={d.id} className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3">
+              <div>
+                <div className="text-sm font-medium">{d.company_name ?? "Unnamed dealer"}</div>
+                {d.country && <div className="text-xs text-muted-foreground">{d.country}</div>}
+              </div>
+              <Input
+                type="number"
+                step="0.01"
+                min={MIN_MARKUP}
+                max={MAX_MARKUP}
+                placeholder={`Default (${global})`}
+                value={overrides[d.id] ?? ""}
+                onChange={(e) => setOverrides({ ...overrides, [d.id]: e.target.value })}
+                className="w-32 font-mono"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6 flex items-center gap-3">
+        <Button
+          onClick={save}
+          disabled={saving || !globalValidation.ok}
+          className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+        >
+          {saving ? "Saving…" : "Save markup settings"}
+        </Button>
+        {savedAt && (
+          <span className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            Saved
+          </span>
+        )}
+        {saveError && (
+          <span className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive">
+            {saveError}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
