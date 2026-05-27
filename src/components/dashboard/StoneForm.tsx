@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -114,13 +114,43 @@ type Props = {
   initial: StoneFormValues;
   stoneId?: string;
   dealerId: string;
+  draftKey?: string;
 };
 
-export function StoneForm({ initial, stoneId, dealerId }: Props) {
+export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
   const [values, setValues] = useState<StoneFormValues>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftRestorable, setDraftRestorable] = useState<{ when: string; values: StoneFormValues } | null>(null);
+  const submittedRef = useRef(false);
   const navigate = useNavigate();
+
+  // Detect existing draft on mount (only on new-stone form).
+  useEffect(() => {
+    if (!draftKey || typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { savedAt: string; values: StoneFormValues };
+      if (parsed?.values) {
+        const when = new Date(parsed.savedAt).toLocaleString();
+        setDraftRestorable({ when, values: parsed.values });
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosave draft every 30s.
+  useEffect(() => {
+    if (!draftKey || typeof window === "undefined") return;
+    const t = window.setInterval(() => {
+      if (submittedRef.current) return;
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({ savedAt: new Date().toISOString(), values }));
+      } catch { /* quota */ }
+    }, 30_000);
+    return () => window.clearInterval(t);
+  }, [draftKey, values]);
 
   function set<K extends keyof StoneFormValues>(key: K, v: StoneFormValues[K]) {
     setValues((s) => ({ ...s, [key]: v }));
@@ -189,12 +219,31 @@ export function StoneForm({ initial, stoneId, dealerId }: Props) {
       resultId = data.id;
     }
     setSaving(false);
+    if (draftKey && typeof window !== "undefined") {
+      submittedRef.current = true;
+      localStorage.removeItem(draftKey);
+    }
     navigate({ to: "/dashboard/stones/$id", params: { id: resultId! } });
   }
 
   const field = "block";
   return (
     <form onSubmit={onSubmit} className="space-y-6">
+      {draftRestorable && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 px-3 py-2 text-sm">
+          <span>You have an unsaved draft from {draftRestorable.when}.</span>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => {
+              setValues(draftRestorable.values);
+              setDraftRestorable(null);
+            }}>Restore</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => {
+              if (draftKey) localStorage.removeItem(draftKey);
+              setDraftRestorable(null);
+            }}>Discard</Button>
+          </div>
+        </div>
+      )}
       {error && (
         <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}

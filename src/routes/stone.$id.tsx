@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, FileText } from "lucide-react";
+import { ShieldCheck, FileText, Share2, Check } from "lucide-react";
+import { useState } from "react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { certLink, countryFlag } from "@/lib/countries";
 import { getCertSignedUrl } from "@/lib/cert.functions";
@@ -63,9 +64,27 @@ export const Route = createFileRoute("/stone/$id")({
 
 function StoneDetail() {
   const { id } = Route.useParams();
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `stone-viewed:${id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
     supabase.rpc("increment_stone_view", { _stone_id: id }).then(() => {});
   }, [id]);
+
+  async function onShare() {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/stone/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // ignore — clipboard might be unavailable
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+    supabase.rpc("increment_stone_share", { _stone_id: id }).then(() => {});
+  }
   const { data, isLoading } = useQuery({
     queryKey: ["stone", id],
     queryFn: async () => {
@@ -198,10 +217,20 @@ function StoneDetail() {
               {stone.carat_weight ? `${Number(stone.carat_weight).toFixed(2)}ct ` : ""}
               {stone.shape} {stone.stone_type}
             </h1>
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 flex items-center gap-2">
               {stone.colour_grade && <Badge variant="outline" className="font-mono">{stone.colour_grade}</Badge>}
               {stone.clarity_grade && <Badge variant="outline" className="font-mono">{stone.clarity_grade}</Badge>}
               {stone.cut_grade && <Badge variant="outline" className="font-mono">{stone.cut_grade}</Badge>}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onShare}
+                className="ml-auto h-7 gap-1.5 px-2 text-xs"
+              >
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+                {copied ? "Link copied" : "Share"}
+              </Button>
             </div>
 
             <div className="mt-6 rounded-md border border-border bg-card p-5">

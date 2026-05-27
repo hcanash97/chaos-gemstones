@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { optimiseImage, formatBytes } from "@/lib/image-optimise";
 
 type Img = { id: string; storage_url: string; is_primary: boolean; sort_order: number };
 
@@ -8,6 +9,7 @@ export function StoneImages({ stoneId, dealerId }: { stoneId: string; dealerId: 
   const [images, setImages] = useState<Img[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -25,13 +27,16 @@ export function StoneImages({ stoneId, dealerId }: { stoneId: string; dealerId: 
     if (!files.length) return;
     setUploading(true);
     setError(null);
+    setProgress([]);
     try {
       for (const file of files) {
-        const ext = file.name.split(".").pop() || "jpg";
-        const path = `${dealerId}/${stoneId}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("stone-images").upload(path, file, {
+        const opt = await optimiseImage(file);
+        setProgress((p) => [...p, `${file.name}: ${formatBytes(opt.originalBytes)} → ${formatBytes(opt.finalBytes)}`]);
+        const path = `${dealerId}/${stoneId}/${crypto.randomUUID()}.webp`;
+        const { error: upErr } = await supabase.storage.from("stone-images").upload(path, opt.blob, {
           cacheControl: "3600",
           upsert: false,
+          contentType: "image/webp",
         });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("stone-images").getPublicUrl(path);
@@ -84,6 +89,11 @@ export function StoneImages({ stoneId, dealerId }: { stoneId: string; dealerId: 
         </label>
       </div>
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+      {progress.length > 0 && (
+        <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
+          {progress.map((p, i) => (<li key={i}>Optimised: {p}</li>))}
+        </ul>
+      )}
       {images.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">No images yet.</p>
       ) : (
