@@ -11,10 +11,10 @@ export const Route = createFileRoute("/how-it-works/payments")({
       {
         name: "description",
         content:
-          "How payments work on Chaos: direct dealer–jeweller settlement, recommended methods (Bank/Wise/PayPal), and our 2% platform fee.",
+          "Payments on Chaos: direct dealer-to-jeweller settlement, recommended methods (Bank/Wise/PayPal). Free during launch beta — no fees, no subscriptions.",
       },
       { property: "og:title", content: "How payments work — Chaos" },
-      { property: "og:description", content: "Direct dealer-to-jeweller payments, low platform fees, Stripe Connect coming soon." },
+      { property: "og:description", content: "Direct dealer-to-jeweller payments. Free during launch beta." },
       { property: "og:url", content: "/how-it-works/payments" },
     ],
     links: [{ rel: "canonical", href: "/how-it-works/payments" }],
@@ -68,31 +68,18 @@ function PaymentsPage() {
           </div>
         </section>
 
-        <section className="mt-12">
-          <h2 className="font-serif text-2xl">3. Transaction fees</h2>
-          <p className="mt-3 text-sm leading-relaxed text-foreground/85">
-            Chaos charges a small platform fee on completed transactions. This is invoiced monthly to the
-            jeweller based on self-reported completed orders. It covers platform running costs and is
-            significantly lower than any existing trade platform.
-          </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <FeeBox label="Rate" value="2%" sub="of wholesale value" />
-            <FeeBox label="Minimum" value="£5" sub="per transaction" />
-            <FeeBox label="Maximum" value="£150" sub="per transaction" />
-          </div>
-        </section>
-
-        <section className="mt-12 rounded-md border border-border bg-card p-6">
+        <section className="mt-12 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-6">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-[var(--color-gold)]" />
-            <h2 className="font-serif text-2xl">4. Coming soon — Stripe Connect</h2>
+            <h2 className="font-serif text-2xl">3. Fees</h2>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-foreground/85">
-            On-platform payment processing via Stripe Connect is in development. This will automate fee
-            collection, support card payments in your local currency, and add structured buyer/seller
-            protection for stones shipped through Chaos.
+            Chaos is completely free during our launch beta. There are no listing fees, no subscription fees,
+            and no transaction fees. We will introduce a small platform fee in the future — dealers and jewellers
+            will receive at least 30 days notice before any fees apply, and the fee structure will always be
+            transparent and performance-based. We only earn when you do.
           </p>
-          <Badge className="mt-4 bg-[var(--color-gold)]/15 text-[var(--color-gold)]">In development</Badge>
+          <Badge className="mt-4 bg-[var(--color-gold)]/15 text-[var(--color-gold)]">Free during launch beta</Badge>
         </section>
 
         <div className="mt-12 text-sm text-muted-foreground">
@@ -113,16 +100,6 @@ function Method({ icon, title, note, tag }: { icon: React.ReactNode; title: stri
       <div className="flex items-center gap-2 text-[var(--color-gold)]">{icon}<span className="font-serif text-lg text-foreground">{title}</span></div>
       {tag && <Badge className="mt-2 bg-[var(--color-gold)]/15 text-[var(--color-gold)] text-[10px]">{tag}</Badge>}
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{note}</p>
-    </div>
-  );
-}
-
-function FeeBox({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div className="rounded-md border border-border bg-card p-5 text-center">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
-      <div className="mt-1 font-serif text-3xl text-[var(--color-gold)]">{value}</div>
-      <div className="text-[11px] text-muted-foreground">{sub}</div>
     </div>
   );
 }

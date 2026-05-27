@@ -310,6 +310,57 @@ export type Database = {
           },
         ]
       }
+      orders: {
+        Row: {
+          created_at: string
+          dealer_id: string
+          enquiry_id: string | null
+          id: string
+          jeweller_id: string
+          notes: string | null
+          sale_date: string
+          stone_id: string | null
+          wholesale_price_usd: number | null
+        }
+        Insert: {
+          created_at?: string
+          dealer_id: string
+          enquiry_id?: string | null
+          id?: string
+          jeweller_id: string
+          notes?: string | null
+          sale_date?: string
+          stone_id?: string | null
+          wholesale_price_usd?: number | null
+        }
+        Update: {
+          created_at?: string
+          dealer_id?: string
+          enquiry_id?: string | null
+          id?: string
+          jeweller_id?: string
+          notes?: string | null
+          sale_date?: string
+          stone_id?: string | null
+          wholesale_price_usd?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_stone_id_fkey"
+            columns: ["stone_id"]
+            isOneToOne: false
+            referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"]

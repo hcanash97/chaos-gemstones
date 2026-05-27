@@ -8,9 +8,8 @@ export function LaunchBanner({ className = "" }: { className?: string }) {
       <div className="flex items-start gap-2.5">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-gold)]" />
         <p className="leading-relaxed">
-          <span className="font-medium">Chaos is free to join and free to list during our launch period.</span>{" "}
-          No subscription fees, no listing fees. A small transaction fee (2%) applies only when a sale completes —
-          meaning we only earn when you do.
+          <span className="font-medium">Free during launch beta — no fees, no subscriptions, no catch.</span>{" "}
+          We&rsquo;ll give at least 30 days notice before any fees ever apply.
         </p>
       </div>
     </div>
