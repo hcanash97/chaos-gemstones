@@ -361,6 +361,36 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_searches: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          jeweller_id: string
+          last_notified_at: string | null
+          name: string
+          notify_daily: boolean
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          jeweller_id: string
+          last_notified_at?: string | null
+          name: string
+          notify_daily?: boolean
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          jeweller_id?: string
+          last_notified_at?: string | null
+          name?: string
+          notify_daily?: boolean
+        }
+        Relationships: []
+      }
       stone_images: {
         Row: {
           id: string
@@ -396,6 +426,7 @@ export type Database = {
       stones: {
         Row: {
           available_qty: number
+          black_inclusion: string | null
           bulk_pricing_available: boolean
           carat_weight: number | null
           cert_lab: string | null
@@ -408,28 +439,51 @@ export type Database = {
           colour_tone: string | null
           country_of_origin: string | null
           created_at: string
+          culet_condition: string | null
+          culet_size: string | null
           cut_grade: string | null
           dealer_id: string
+          depth_pct: number | null
+          enhancement: string | null
+          eye_clean: string | null
           featured: boolean
           fluorescence: string | null
+          fluorescence_colour: string | null
+          girdle: string | null
+          has_360: boolean
+          has_video: boolean
           id: string
           lead_time_days: number | null
+          listing_type: string
+          lw_ratio: number | null
+          matching_pair: boolean
+          measurements_height: number | null
+          measurements_length: number | null
+          measurements_width: number | null
+          milky: string | null
           minimum_order_qty: number
           notes_for_buyers: string | null
           origin: string | null
+          parcel_quantity: number | null
+          phenomenon: string | null
           polish: string | null
+          provenance_report: string | null
           report_date: string | null
+          shade: string | null
           shape: string | null
           status: Database["public"]["Enums"]["stone_status"]
           stone_type: string
           symmetry: string | null
+          table_pct: number | null
           treatment: string | null
           updated_at: string
           video_url: string | null
+          view_count: number
           wholesale_price_usd: number | null
         }
         Insert: {
           available_qty?: number
+          black_inclusion?: string | null
           bulk_pricing_available?: boolean
           carat_weight?: number | null
           cert_lab?: string | null
@@ -442,28 +496,51 @@ export type Database = {
           colour_tone?: string | null
           country_of_origin?: string | null
           created_at?: string
+          culet_condition?: string | null
+          culet_size?: string | null
           cut_grade?: string | null
           dealer_id: string
+          depth_pct?: number | null
+          enhancement?: string | null
+          eye_clean?: string | null
           featured?: boolean
           fluorescence?: string | null
+          fluorescence_colour?: string | null
+          girdle?: string | null
+          has_360?: boolean
+          has_video?: boolean
           id?: string
           lead_time_days?: number | null
+          listing_type?: string
+          lw_ratio?: number | null
+          matching_pair?: boolean
+          measurements_height?: number | null
+          measurements_length?: number | null
+          measurements_width?: number | null
+          milky?: string | null
           minimum_order_qty?: number
           notes_for_buyers?: string | null
           origin?: string | null
+          parcel_quantity?: number | null
+          phenomenon?: string | null
           polish?: string | null
+          provenance_report?: string | null
           report_date?: string | null
+          shade?: string | null
           shape?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type: string
           symmetry?: string | null
+          table_pct?: number | null
           treatment?: string | null
           updated_at?: string
           video_url?: string | null
+          view_count?: number
           wholesale_price_usd?: number | null
         }
         Update: {
           available_qty?: number
+          black_inclusion?: string | null
           bulk_pricing_available?: boolean
           carat_weight?: number | null
           cert_lab?: string | null
@@ -476,24 +553,46 @@ export type Database = {
           colour_tone?: string | null
           country_of_origin?: string | null
           created_at?: string
+          culet_condition?: string | null
+          culet_size?: string | null
           cut_grade?: string | null
           dealer_id?: string
+          depth_pct?: number | null
+          enhancement?: string | null
+          eye_clean?: string | null
           featured?: boolean
           fluorescence?: string | null
+          fluorescence_colour?: string | null
+          girdle?: string | null
+          has_360?: boolean
+          has_video?: boolean
           id?: string
           lead_time_days?: number | null
+          listing_type?: string
+          lw_ratio?: number | null
+          matching_pair?: boolean
+          measurements_height?: number | null
+          measurements_length?: number | null
+          measurements_width?: number | null
+          milky?: string | null
           minimum_order_qty?: number
           notes_for_buyers?: string | null
           origin?: string | null
+          parcel_quantity?: number | null
+          phenomenon?: string | null
           polish?: string | null
+          provenance_report?: string | null
           report_date?: string | null
+          shade?: string | null
           shape?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type?: string
           symmetry?: string | null
+          table_pct?: number | null
           treatment?: string | null
           updated_at?: string
           video_url?: string | null
+          view_count?: number
           wholesale_price_usd?: number | null
         }
         Relationships: [
@@ -536,6 +635,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_stone_view: { Args: { _stone_id: string }; Returns: undefined }
       notify_email_event: {
         Args: { p_record_id: string; p_type: string }
         Returns: undefined

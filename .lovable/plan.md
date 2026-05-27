@@ -1,62 +1,64 @@
+# Comprehensive Marketplace Filter Rebuild
 
-# CHAOS — Foundation Build
+A large, multi-part change. I'll ship it in 5 phases so each piece is reviewable.
 
-Scope: auth + full DB schema + RLS + storage + public browse pages. Dealer/jeweller dashboards, CSV import, API feed, enquiries, and admin tooling come in later phases.
+## Phase 1 — Database migration
 
-## 1. Enable Lovable Cloud
-Provision backend (Postgres, Auth, Storage, Edge Functions).
+Add ~25 columns to `stones`:
 
-## 2. Database schema (one migration)
-All tables from the brief:
-- `profiles` (linked to `auth.users`, `account_type` enum dealer/jeweller/admin, `is_approved` default false)
-- `dealer_profiles` (slug, bio, specialities[], languages[], featured, etc.)
-- `jeweller_profiles` (markup_global)
-- `stones` (all gemological + commercial fields, status enum)
-- `stone_images`
-- `api_keys`, `feed_selections` (created now, used in later phase)
-- `enquiries`, `enquiry_messages` (created now, used in later phase)
-- `user_roles` table + `app_role` enum + `has_role()` security-definer function (admin role separation, per security rules — admin is NOT stored on profiles)
-- Trigger `handle_new_user()` to auto-create a `profiles` row on signup with `is_approved = false`
-- Explicit `GRANT`s on every public table; `anon` SELECT only on `stones` (available), `dealer_profiles`, and the public view of `profiles` needed for vendor cards
+- Colour: `colour_hue`, `colour_tone`, `colour_saturation`, `fluorescence_colour`
+- Measurements: `measurements_length/width/height`, `lw_ratio`, `depth_pct`, `table_pct`
+- Finish: `girdle`, `culet_size`, `culet_condition`
+- Inclusions: `shade`, `milky`, `eye_clean`, `black_inclusion`, `enhancement`
+- Coloured-stone: `phenomenon`, `matching_pair`
+- Media flags: `has_video`, `has_360`
+- Trade: `provenance_report`, `listing_type` (`single`|`parcel`, default `single`), `parcel_quantity`
 
-## 3. RLS policies
-- `profiles`: user reads own row; admin reads all via `has_role`
-- `stones`: public reads where `status = 'available'`; dealers full CRUD on own; admin all
-- `stone_images`: public read for images of available stones; dealer manage own
-- `dealer_profiles`: public read; owner update
-- `jeweller_profiles`, `api_keys`, `feed_selections`: owner-only
-- `enquiries` / `enquiry_messages`: participants only
+Add `saved_searches` table for jewellers:
+- `id`, `jeweller_id`, `name`, `filters` (jsonb), `notify_daily` (bool), `last_notified_at`, `created_at`
+- RLS: jewellers manage their own; service_role for digest job.
 
-## 4. Storage buckets
-- `stone-images` (public)
-- `cert-scans` (private)
-- Upload policies restricted to authenticated dealers
+## Phase 2 — Marketplace filter UI (`/marketplace`)
 
-## 5. Auth
-- Email/password + Google sign-in
-- Signup forms at `/sign-up/dealer` and `/sign-up/jeweller` set `account_type` accordingly
-- **Approval gate**: login succeeds but if `is_approved = false`, user is redirected to a `/pending-approval` page; dashboards blocked by route guard
-- `/login`, password reset page
+Replace current sidebar entirely. Build composable filter primitives:
 
-## 6. Public pages
-- `/` — hero, two-sided explainer, featured vendors, featured stones, dual CTAs
-- `/marketplace` — stone grid with basic filters (stone type, shape, carat range, price range, natural/lab, cert lab) and sort; reads from `stones` where available
-- `/vendors` — dealer directory with search
-- `/vendors/[slug]` — vendor profile + their available catalogue
-- `/stone/[id]` — image gallery, full spec table, vendor card, "Enquire" CTA (CTA disabled with tooltip "Coming soon" this phase)
-- `/about`
+- Collapsible section component (header + +/− toggle, persisted open state).
+- Active-filter chips bar above results.
+- Universal sections: Stone Type, Shape (icon grid), Carat (slider + preset pills), Price (slider + pills + per-stone/per-carat toggle), Origin (Natural/Lab/Both), Cert Lab, Cert Number, Country of Origin, Availability, Listing Type, Bulk pricing, Dealer, New listings.
+- Diamond-only sections (conditional on diamond selection): Colour (D–Z), Fancy Colour (hue + intensity + treated toggle), Clarity, Cut, Polish, Symmetry, Fluorescence (intensity + colour), Measurements, Depth %, Table %, Girdle, Culet, Shade, Milky, Eye Clean, Black Inclusion, Enhancement, Media, Provenance.
+- Coloured-stone sections (conditional): Primary Colour (context-aware swatch grid per stone type), Tone, Saturation, Treatment (with unheated-premium note), Clarity Type, Phenomenon, Premium origins toggle, Matching pairs, Parcel.
+- Results header: count, Sort dropdown (Newest / Price asc/desc / Carat / Most viewed / Updated), Grid/List view toggle.
+- Mobile: existing Sheet drawer reused.
+- Save Search button (jeweller only) → dialog → POST to `saved_searches`.
 
-## 7. Design
-Dark navy / deep teal primary, gold accent (#C9A84C), serif headings (e.g. Cormorant/Playfair) + sans body (Inter), restrained motion, data-dense but clean. Tokens in `index.css` + `tailwind.config.ts`. Mobile responsive.
+Filter state lives in a single `useReducer` keyed object so URL sync + chips + saving are trivial.
 
-## 8. Seed data
-Insert ~6 sample dealers and ~30 sample stones (mixed diamonds + coloured) so the marketplace, vendor pages, and homepage have content immediately.
+## Phase 3 — Dealer stone form
 
-## Out of scope this phase
-Dealer/jeweller/admin dashboards, CSV import, API feed edge function, enquiries flow, markup tool, admin approval UI (approval will be done via the Cloud table editor for now — I'll note this for the user).
+Expand `StoneForm.tsx` with the new fields, grouped:
+Identity • Gemological Grades • Colour • Clarity & Inclusions • Measurements • Certification • Commercial • Media. Keep existing UX; add fields only.
+
+## Phase 4 — Stone detail page
+
+Update `/stone/$id` spec table to render all new fields, hiding empty rows. Group under the same section headers as the form.
+
+## Phase 5 — Saved searches (jeweller)
+
+- New route `/dashboard/jeweller/saved-searches` listing saved searches with run/delete actions.
+- Server route `/api/public/cron/saved-search-digest` (signed) iterates saved searches, finds new stones since `last_notified_at`, emails the jeweller, updates timestamp. Reuses existing Resend setup. (User schedules pg_cron separately, same pattern as existing digest.)
 
 ## Technical notes
-- Stack: React + TS + Tailwind + shadcn (Lovable defaults) + Lovable Cloud
-- Single initial migration creates all tables so later phases don't need schema changes
-- Edge functions (`feed`, `process-csv`) are deferred to phase 2
-- Filtering on `/marketplace` is client-side over a paginated server query for MVP simplicity
+
+- New columns are all nullable / have safe defaults — no backfill needed.
+- Filter logic stays client-side over the existing `stones` query (already capped at 500); if listings grow, we'll move to server-side filtering later.
+- "Most viewed" sort needs a view counter — I'll add a `view_count` column + RPC increment in Phase 1 and wire incrementing on `/stone/$id`.
+- Fancy-colour vs white-colour are mutually exclusive in the UI (toggle swaps the pill grid).
+- Coloured-stone primary-colour swatches are driven by a config map keyed by stone type, with a generic hue/tone/saturation fallback.
+
+## What I'd like to confirm before starting
+
+1. **Saved-search email digest**: OK to add a new public cron endpoint + a pg_cron schedule (you'll need to enable it), or do you want me to skip the email side and just save/recall searches for now?
+2. **View counter** for "Most viewed" sort — add it, or drop that sort option?
+3. **URL sync** of filter state (shareable filtered links) — nice-to-have, want it included?
+
+Once you answer (or say "all yes, proceed"), I'll start with the migration and work straight through phases 1–5.
