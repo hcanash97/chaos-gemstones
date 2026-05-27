@@ -3,7 +3,7 @@ import type {} from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // Stable production URL — flip to a custom domain when one is set.
-const BASE_URL = "https://project--664931b8-ad5b-4674-aece-47159cf3778c.lovable.app";
+const BASE_URL = "https://chaosgemstones.com";
 
 export const Route = createFileRoute("/sitemap.xml")({
   server: {

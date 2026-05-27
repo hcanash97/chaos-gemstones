@@ -1,12 +1,8 @@
 // Resend API client for transactional email.
-// Until a verified Chaos sending domain is added at resend.com, FROM stays as
-// `onboarding@resend.dev` and Resend test-mode will only deliver to the email
-// address you signed up to Resend with. Swap CHAOS_FROM below the moment your
-// domain is verified — that's the only change required.
+// Sending domain: mail.chaosgemstones.com (verified in Resend).
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
-// TODO: change to `Chaos <noreply@your-verified-domain.tld>` after Resend DNS is green
-const CHAOS_FROM = "Chaos <onboarding@resend.dev>";
+const CHAOS_FROM = "Chaos <noreply@mail.chaosgemstones.com>";
 
 export async function sendEmail(to: string, subject: string, html: string) {
   const key = process.env.RESEND_API_KEY;
