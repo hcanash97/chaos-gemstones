@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ShieldCheck, Globe2, Boxes } from "lucide-react";
 import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Motion";
+import { LaunchBanner } from "@/components/site/LaunchBanner";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -112,6 +113,9 @@ function Home() {
 
       {/* Two-sided explainer */}
       <section className="mx-auto max-w-7xl px-6 py-20">
+        <FadeUp className="mb-10">
+          <LaunchBanner />
+        </FadeUp>
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-md border border-border bg-card p-8">
             <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
