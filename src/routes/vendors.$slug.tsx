@@ -5,6 +5,9 @@ import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck } from "lucide-react";
+import { EnquireDialog } from "@/components/site/EnquireDialog";
+import { Button } from "@/components/ui/button";
+import { Mail } from "lucide-react";
 
 export const Route = createFileRoute("/vendors/$slug")({
   component: VendorProfile,
@@ -69,6 +72,17 @@ function VendorProfile() {
             ))}
             {v.gia_member && <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">GIA Member</Badge>}
             {v.igi_member && <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">IGI Member</Badge>}
+          </div>
+          <div className="mt-6 max-w-xs">
+            <EnquireDialog
+              dealerId={v.id}
+              context={`Enquiry for ${v.profiles.company_name}`}
+              trigger={
+                <Button className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+                  <Mail className="mr-2 h-4 w-4" /> Enquire with this vendor
+                </Button>
+              }
+            />
           </div>
         </div>
       </section>
