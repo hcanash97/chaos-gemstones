@@ -55,6 +55,27 @@ export type Database = {
           },
         ]
       }
+      dealer_follows: {
+        Row: {
+          created_at: string
+          dealer_id: string
+          id: string
+          jeweller_id: string
+        }
+        Insert: {
+          created_at?: string
+          dealer_id: string
+          id?: string
+          jeweller_id: string
+        }
+        Update: {
+          created_at?: string
+          dealer_id?: string
+          id?: string
+          jeweller_id?: string
+        }
+        Relationships: []
+      }
       dealer_profiles: {
         Row: {
           bio: string | null
@@ -299,6 +320,8 @@ export type Database = {
           is_approved: boolean
           is_verified: boolean
           phone: string | null
+          terms_accepted_at: string | null
+          terms_accepted_ip: string | null
           website: string | null
         }
         Insert: {
@@ -313,6 +336,8 @@ export type Database = {
           is_approved?: boolean
           is_verified?: boolean
           phone?: string | null
+          terms_accepted_at?: string | null
+          terms_accepted_ip?: string | null
           website?: string | null
         }
         Update: {
@@ -327,6 +352,8 @@ export type Database = {
           is_approved?: boolean
           is_verified?: boolean
           phone?: string | null
+          terms_accepted_at?: string | null
+          terms_accepted_ip?: string | null
           website?: string | null
         }
         Relationships: []
