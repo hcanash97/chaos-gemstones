@@ -55,7 +55,7 @@ function DashboardLayout() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-primary text-primary-foreground">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link to="/" className="font-serif text-2xl font-semibold">CHAOS</Link>
+          <Link to="/" className="font-serif text-2xl italic font-medium tracking-tight">Chaos</Link>
           <div className="flex items-center gap-3 text-sm">
             <span className="hidden opacity-80 sm:inline">
               {profile.company_name || profile.full_name || user.email}

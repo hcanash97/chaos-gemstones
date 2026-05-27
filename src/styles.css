@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* CHAOS — dark navy / deep teal base with gold accent (#C9A84C). */
+/* Chaos — premium navy + champagne gold. */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);

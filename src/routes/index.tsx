@@ -78,7 +78,7 @@ function Home() {
             animate={{ opacity: 0.8, y: 0 }}
             transition={{ duration: 0.55, delay: 0.6 }}
           >
-            CHAOS connects independent gemstone dealers in Jaipur, Surat, Bangkok and Colombo with jewellers in the UK, US, Europe and Australia. Browse the marketplace, follow vendors, pull live inventory into your own site.
+            The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.
           </motion.p>
           <motion.div
             className="mt-8 flex flex-wrap gap-3"

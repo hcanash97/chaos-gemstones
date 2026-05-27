@@ -36,7 +36,7 @@ function Login() {
       <SiteHeader />
       <div className="mx-auto max-w-md px-6 py-16">
         <h1 className="font-serif text-4xl">Log in</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Welcome back to CHAOS.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Welcome back to Chaos.</p>
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           <div><Label>Email</Label><Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" /></div>
           <div><Label>Password</Label><Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5" /></div>
@@ -47,7 +47,7 @@ function Login() {
         </div>
         <Button variant="outline" className="w-full" onClick={google}>Continue with Google</Button>
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          New to CHAOS?{" "}
+          New to Chaos?{" "}
           <Link to="/sign-up/jeweller" className="text-foreground hover:text-[var(--color-gold)]">Jeweller sign up</Link>
           {" · "}
           <Link to="/sign-up/dealer" className="text-foreground hover:text-[var(--color-gold)]">Dealer sign up</Link>
