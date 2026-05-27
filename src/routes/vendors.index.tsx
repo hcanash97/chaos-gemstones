@@ -24,6 +24,22 @@ function Vendors() {
     },
   });
 
+  const { data: stoneCounts } = useQuery({
+    queryKey: ["vendor-stone-counts"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("stones")
+        .select("dealer_id")
+        .eq("status", "available")
+        .limit(1000);
+      const counts: Record<string, number> = {};
+      (data ?? []).forEach((s: any) => {
+        counts[s.dealer_id] = (counts[s.dealer_id] ?? 0) + 1;
+      });
+      return counts;
+    },
+  });
+
   const filtered = (vendors ?? []).filter((v: any) => {
     if (!q.trim()) return true;
     const s = q.toLowerCase();
@@ -56,6 +72,9 @@ function Vendors() {
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
+              </div>
+              <div className="mt-1 text-xs font-mono text-[var(--color-gold)]">
+                {stoneCounts?.[v.id] ?? 0} stones available
               </div>
               <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
               <div className="mt-4 flex flex-wrap gap-1.5">
