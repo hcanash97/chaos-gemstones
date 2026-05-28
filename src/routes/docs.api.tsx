@@ -250,6 +250,7 @@ export function ChaosFeed({ apiKey }) {
           <li>• Stones marked sold or reserved are removed automatically.</li>
           <li>• The feed is rate-limited and cached for 5 minutes at the edge.</li>
           <li>• Treat your API key like a password. Rotate it from the API dashboard if it's exposed.</li>
+          <li>• Are you a dealer? See the <Link to="/docs/dealer-api" className="text-foreground underline">Dealer Write API</Link> for programmatic inventory management.</li>
         </ul>
       </section>
 
