@@ -67,6 +67,33 @@ function DealerApiDocs() {
           embed stone feeds into your website, see the <Link to="/docs/api" className="underline">Jeweller API docs</Link>.
         </div>
 
+        <h2 className="mt-12 font-serif text-3xl">Connecting your existing inventory system</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Many dealers already have their inventory in another platform (Kodllin, RapNet exports,
+          custom in-house tools). You can connect that inventory to Chaos in two ways:
+        </p>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm">
+          <li>
+            <strong>Paste a feed URL</strong> into the Sync URL field on your{" "}
+            <Link to="/dashboard/dealer/api" className="underline">Developer API dashboard</Link>.
+            Chaos will fetch your feed (GET or POST), parse it, and upsert stones automatically —
+            optionally every 24 hours. Most JSON shapes work: a plain array, or an object with a
+            <code> stones</code>, <code>data</code>, or <code>result</code> array property.
+          </li>
+          <li>
+            <strong>Use the Chaos write API directly</strong> from your own system — the endpoints
+            documented below. Use this when you want to push changes the moment they happen in
+            your source of truth, rather than waiting for the next poll.
+          </li>
+        </ol>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Chaos auto-detects common dealer formats — for example, feeds that include
+          <code> stockNo</code> and <code>growthType</code> fields are mapped to the
+          <em> Kodllin / Nancy Diamond format</em> preset automatically (no manual column mapping
+          required). If we don&apos;t recognise the shape, we fall through to using the field
+          names as-is, so a feed that already uses Chaos field names works without configuration.
+        </p>
+
         <h2 className="mt-12 font-serif text-3xl">Authentication</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Generate a write API key from your <Link to="/dashboard/dealer/api" className="underline">Developer API dashboard</Link>.

@@ -206,6 +206,27 @@ function StoneDetail() {
                 ))}
               </div>
             )}
+            {stone.video_url && (
+              <div className="mt-4">
+                {/gem360|v360|diamond360|vision360|segoma|sarine/i.test(stone.video_url) ? (
+                  <div className="aspect-square overflow-hidden rounded-md border border-border bg-card">
+                    <iframe
+                      src={stone.video_url}
+                      title="360° viewer"
+                      className="h-full w-full"
+                      allow="autoplay; fullscreen"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : (
+                  <video
+                    src={stone.video_url}
+                    controls
+                    className="w-full rounded-md border border-border bg-card"
+                  />
+                )}
+              </div>
+            )}
           </motion.div>
 
           {/* Specs */}

@@ -32,6 +32,9 @@ function DealerApiPage() {
   const [syncing, setSyncing] = useState(false);
   const [feedUrl, setFeedUrl] = useState("");
   const [autoSync, setAutoSync] = useState(false);
+  const [method, setMethod] = useState<"GET" | "POST">("GET");
+  const [body, setBody] = useState("");
+  const [lastPreset, setLastPreset] = useState<string | null>(null);
 
   const isDealer = profile?.account_type === "dealer";
 
@@ -43,8 +46,11 @@ function DealerApiPage() {
 
   useEffect(() => {
     if (status?.dealerProfile) {
-      setFeedUrl(status.dealerProfile.external_feed_url ?? "");
-      setAutoSync(!!status.dealerProfile.auto_sync_enabled);
+      const dp = status.dealerProfile as any;
+      setFeedUrl(dp.external_feed_url ?? "");
+      setAutoSync(!!dp.auto_sync_enabled);
+      setMethod((dp.external_feed_method as "GET" | "POST") ?? "GET");
+      setBody(dp.external_feed_body ?? "");
     }
   }, [status?.dealerProfile]);
 
@@ -73,6 +79,8 @@ function DealerApiPage() {
         data: {
           external_feed_url: feedUrl.trim() || null,
           auto_sync_enabled: autoSync,
+          external_feed_method: method,
+          external_feed_body: method === "POST" ? body.trim() || null : null,
         },
       });
       toast.success("Sync settings saved");
@@ -86,6 +94,7 @@ function DealerApiPage() {
     setSyncing(true);
     try {
       const result = await triggerSync();
+      setLastPreset(result.preset?.label ?? "Custom mapping");
       toast.success(`Synced — ${result.created} added, ${result.updated} updated, ${result.markedInactive} marked inactive`);
       refetch();
     } catch (e) {
@@ -182,6 +191,35 @@ function DealerApiPage() {
               onChange={(e) => setFeedUrl(e.target.value)}
             />
           </div>
+          <div>
+            <Label>Request method</Label>
+            <div className="mt-1 flex gap-2">
+              {(["GET", "POST"] as const).map((m) => (
+                <Button
+                  key={m}
+                  size="sm"
+                  variant={method === m ? "default" : "outline"}
+                  onClick={() => setMethod(m)}
+                  type="button"
+                >
+                  {m}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {method === "POST" && (
+            <div>
+              <Label htmlFor="feedBody">Request body (JSON, optional)</Label>
+              <textarea
+                id="feedBody"
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
+                rows={3}
+                placeholder='{"filter":"all"}'
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <Switch id="autoSync" checked={autoSync} onCheckedChange={setAutoSync} />
             <Label htmlFor="autoSync" className="text-sm">Auto-sync every 24 hours</Label>
@@ -192,9 +230,14 @@ function DealerApiPage() {
               {syncing ? "Syncing…" : "Sync now"}
             </Button>
           </div>
-          {status?.dealerProfile?.last_synced_at && (
+          {lastPreset && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+              Detected format: <span className="font-medium">{lastPreset}</span>
+            </div>
+          )}
+          {(status?.dealerProfile as any)?.last_synced_at && (
             <div className="text-xs text-muted-foreground">
-              Last synced {new Date(status.dealerProfile.last_synced_at).toLocaleString()}
+              Last synced {new Date((status!.dealerProfile as any).last_synced_at).toLocaleString()}
             </div>
           )}
         </div>
