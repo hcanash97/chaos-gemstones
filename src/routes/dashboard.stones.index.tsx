@@ -10,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Eye, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Row = {
@@ -22,6 +24,8 @@ type Row = {
   status: string;
   featured: boolean;
   created_at: string;
+  view_count: number;
+  share_count: number;
 };
 
 export const Route = createFileRoute("/dashboard/stones/")({
@@ -38,7 +42,7 @@ function StonesList() {
     setLoading(true);
     const { data } = await supabase
       .from("stones")
-      .select("id, stone_type, shape, carat_weight, origin, wholesale_price_usd, status, featured, created_at")
+      .select("id, stone_type, shape, carat_weight, origin, wholesale_price_usd, status, featured, created_at, view_count, share_count")
       .eq("dealer_id", user.id)
       .order("created_at", { ascending: false });
     setRows((data as Row[]) ?? []);
@@ -88,7 +92,29 @@ function StonesList() {
 
       <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
         {loading ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>
+          <table className="w-full text-sm">
+            <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Shape</th>
+                <th className="px-4 py-3">Carat</th>
+                <th className="px-4 py-3">Origin</th>
+                <th className="px-4 py-3">Price</th>
+                <th className="px-4 py-3">Engagement</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} className="border-b border-border last:border-0">
+                  {Array.from({ length: 8 }).map((__, j) => (
+                    <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[100px]" /></td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : rows.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-sm text-muted-foreground">No stones yet.</p>
@@ -105,6 +131,7 @@ function StonesList() {
                 <th className="px-4 py-3">Carat</th>
                 <th className="px-4 py-3">Origin</th>
                 <th className="px-4 py-3">Price</th>
+                <th className="px-4 py-3">Engagement</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -117,6 +144,14 @@ function StonesList() {
                   <td className="px-4 py-3">{r.carat_weight ?? "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{r.origin || "—"}</td>
                   <td className="px-4 py-3">{r.wholesale_price_usd ? `$${Number(r.wholesale_price_usd).toLocaleString()}` : "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1" title={`${r.view_count ?? 0} views`}>
+                      <Eye className="h-3 w-3" />{r.view_count ?? 0}
+                    </span>
+                    <span className="ml-3 inline-flex items-center gap-1" title={`${r.share_count ?? 0} shares`}>
+                      <Share2 className="h-3 w-3" />{r.share_count ?? 0}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v as "available" | "reserved" | "sold")}>
                       <SelectTrigger
