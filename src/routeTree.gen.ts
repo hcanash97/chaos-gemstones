@@ -294,16 +294,6 @@ const DashboardDealerApiRoute = DashboardDealerApiRouteImport.update({
   path: '/dealer/api',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardJewellerShopifyRoute = DashboardJewellerShopifyRouteImport.update({
-  id: '/jeweller/shopify',
-  path: '/jeweller/shopify',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const ApiPublicCronShopifySyncRoute = ApiPublicCronShopifySyncRouteImport.update({
-  id: '/api/public/cron/shopify-sync',
-  path: '/api/public/cron/shopify-sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicFeedRoute = ApiPublicFeedRouteImport.update({
   id: '/api/public/feed',
   path: '/api/public/feed',
