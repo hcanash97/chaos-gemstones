@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"pending" | "all">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "reports">("pending");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isAdmin || tab === "reports") return;
     setError(null);
     let query = supabase
       .from("profiles")
@@ -178,9 +178,16 @@ function AdminPage() {
             >
               All accounts
             </button>
+            <button
+              onClick={() => setTab("reports")}
+              className={`rounded px-3 py-1 ${tab === "reports" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              Reports
+            </button>
           </div>
         </div>
 
+        {tab !== "reports" && (
         <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -202,6 +209,7 @@ function AdminPage() {
             </div>
           </div>
         </div>
+        )}
 
         {error && (
           <div className="mt-4 rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -209,6 +217,9 @@ function AdminPage() {
           </div>
         )}
 
+        {tab === "reports" ? (
+          <ReportsPanel />
+        ) : (
         <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
           {rows.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
@@ -290,6 +301,158 @@ function AdminPage() {
             </table>
           )}
         </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type ReportRow = {
+  id: string;
+  stone_id: string;
+  reporter_id: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  created_at: string;
+  reporter?: { full_name: string | null; email: string | null; company_name: string | null } | null;
+  stone?: { stone_type: string; shape: string | null; carat_weight: number | null; dealer_id: string } | null;
+};
+
+function ReportsPanel() {
+  const [filter, setFilter] = useState<"open" | "all">("open");
+  const [rows, setRows] = useState<ReportRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    let q = (supabase as any)
+      .from("reports")
+      .select(
+        "id, stone_id, reporter_id, reason, details, status, created_at, reporter:reporter_id(full_name, email, company_name), stone:stone_id(stone_type, shape, carat_weight, dealer_id)",
+      )
+      .order("created_at", { ascending: false });
+    if (filter === "open") q = q.eq("status", "open");
+    const { data, error } = await q;
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setRows((data as ReportRow[]) ?? []);
+  }, [filter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function setStatus(id: string, status: "reviewed" | "dismissed" | "open") {
+    setBusy(id);
+    const { error } = await (supabase as any).from("reports").update({ status }).eq("id", id);
+    setBusy(null);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(`Marked ${status}`);
+    load();
+  }
+
+  return (
+    <div className="mt-6">
+      <div className="mb-3 flex gap-1 rounded-md border border-border p-1 text-xs w-fit">
+        {(["open", "all"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`rounded px-3 py-1 capitalize ${filter === f ? "bg-foreground text-background" : "text-muted-foreground"}`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        {loading ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">No reports{filter === "open" ? " open" : ""}.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Stone</th>
+                <th className="px-4 py-3">Reason</th>
+                <th className="px-4 py-3">Reporter</th>
+                <th className="px-4 py-3">Submitted</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-b border-border align-top last:border-0 hover:bg-muted/20">
+                  <td className="px-4 py-3">
+                    <a
+                      href={`/stone/${r.stone_id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium capitalize text-[var(--color-gold)] hover:underline"
+                    >
+                      {r.stone?.carat_weight ? `${Number(r.stone.carat_weight).toFixed(2)}ct ` : ""}
+                      {r.stone?.shape ?? ""} {r.stone?.stone_type ?? "stone"}
+                    </a>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{r.reason}</div>
+                    {r.details && (
+                      <div className="mt-1 max-w-md whitespace-pre-line text-xs text-muted-foreground">
+                        {r.details}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    <div>{r.reporter?.full_name || "—"}</div>
+                    <div>{r.reporter?.company_name}</div>
+                    <div>{r.reporter?.email}</div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {new Date(r.created_at).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs capitalize ${
+                        r.status === "open"
+                          ? "bg-amber-100 text-amber-800"
+                          : r.status === "reviewed"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {r.status === "open" ? (
+                      <>
+                        <Button size="sm" variant="ghost" disabled={busy === r.id} onClick={() => setStatus(r.id, "reviewed")}>
+                          Mark reviewed
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={busy === r.id} onClick={() => setStatus(r.id, "dismissed")} className="text-muted-foreground">
+                          Dismiss
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="ghost" disabled={busy === r.id} onClick={() => setStatus(r.id, "open")}>
+                        Reopen
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
