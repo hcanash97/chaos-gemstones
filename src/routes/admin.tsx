@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"pending" | "all" | "reports">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "reports" | "fees">("pending");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports") return;
+    if (!isAdmin || tab === "reports" || tab === "fees") return;
     setError(null);
     let query = supabase
       .from("profiles")
@@ -184,10 +184,16 @@ function AdminPage() {
             >
               Reports
             </button>
+            <button
+              onClick={() => setTab("fees")}
+              className={`rounded px-3 py-1 ${tab === "fees" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              Fees
+            </button>
           </div>
         </div>
 
-        {tab !== "reports" && (
+        {tab !== "reports" && tab !== "fees" && (
         <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -219,6 +225,8 @@ function AdminPage() {
 
         {tab === "reports" ? (
           <ReportsPanel />
+        ) : tab === "fees" ? (
+          <FeesPanel />
         ) : (
         <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
           {rows.length === 0 ? (
