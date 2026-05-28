@@ -673,7 +673,9 @@ function Marketplace() {
           <div>
             <h1 className="font-serif text-4xl">Marketplace</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isLoading ? "Loading…" : `Showing ${filtered.length} of ${stones?.length ?? 0} stones`}
+              {isLoading
+                ? "Loading…"
+                : `Showing ${Math.min(visible.length, filtered.length)} of ${filtered.length} matching · ${stones?.length ?? 0} total in feed`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -779,15 +781,22 @@ function Marketplace() {
               </div>
             ) : f.view === "grid" ? (
               <StaggerGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" delay={0.06}>
-                {filtered.map((s) => (
+                {visible.map((s) => (
                   <StoneCard key={s.id} stone={s} />
                 ))}
               </StaggerGroup>
             ) : (
               <div className="flex flex-col gap-3">
-                {filtered.map((s) => (
+                {visible.map((s) => (
                   <StoneCard key={s.id} stone={s} />
                 ))}
+              </div>
+            )}
+            {!isLoading && visible.length < filtered.length && (
+              <div className="mt-8 flex justify-center">
+                <Button variant="outline" onClick={() => setVisibleCount((n) => n + 48)}>
+                  Load more ({filtered.length - visible.length} remaining)
+                </Button>
               </div>
             )}
             {!isLoading && filtered.length === 0 && (
