@@ -54,13 +54,11 @@ import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboa
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
 import { Route as DashboardDealerPricingRouteImport } from './routes/dashboard.dealer.pricing'
 import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.dealer.api'
-import { Route as DashboardJewellerShopifyRouteImport } from './routes/dashboard.jeweller.shopify'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
 import { Route as ApiPublicCronShopifySyncRouteImport } from './routes/api/public/cron/shopify-sync'
 import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
-import { Route as ApiPublicCronShopifySyncRouteImport } from './routes/api/public/cron/shopify-sync'
 import { Route as ApiDealerV1StonesRouteImport } from './routes/api/dealer/v1/stones'
 import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
 import { Route as ApiDealerV1StonesBulkRouteImport } from './routes/api/dealer/v1/stones/bulk'
@@ -295,6 +293,16 @@ const DashboardDealerApiRoute = DashboardDealerApiRouteImport.update({
   id: '/dealer/api',
   path: '/dealer/api',
   getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardJewellerShopifyRoute = DashboardJewellerShopifyRouteImport.update({
+  id: '/jeweller/shopify',
+  path: '/jeweller/shopify',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const ApiPublicCronShopifySyncRoute = ApiPublicCronShopifySyncRouteImport.update({
+  id: '/api/public/cron/shopify-sync',
+  path: '/api/public/cron/shopify-sync',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicFeedRoute = ApiPublicFeedRouteImport.update({
   id: '/api/public/feed',
