@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ShieldCheck, Globe2, Boxes } from "lucide-react";
 import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Motion";
 import { LaunchBanner } from "@/components/site/LaunchBanner";
+import { GemParticles } from "@/components/site/GemParticles";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -103,6 +104,8 @@ function Home() {
 
       {/* Hero */}
       <section className="relative overflow-hidden text-primary-foreground hero-aurora">
+        <div className="hero-light" aria-hidden />
+        <GemParticles count={14} />
         <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">B2B · For the trade</Badge>
@@ -125,17 +128,19 @@ function Home() {
             transition={{ duration: 0.55, delay: 0.9 }}
           >
             <Link to="/marketplace">
-              <Button size="lg" className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] gold-glow transition-shadow hover:opacity-95">
+              <Button size="lg" className="group relative overflow-hidden bg-[var(--color-gold)] text-[var(--color-gold-foreground)] gold-glow transition-shadow hover:opacity-95">
                 Browse marketplace <ArrowRight className="ml-2 h-4 w-4" />
+                <span className="shimmer-overlay" aria-hidden />
               </Button>
             </Link>
             <Link to="/sign-up/dealer">
-              <Button size="lg" variant="outline" className="border-white/30 bg-transparent text-primary-foreground hover:bg-white/10">
+              <Button size="lg" variant="outline" className="border-[var(--color-gold)]/60 bg-transparent text-[var(--color-gold)] transition-colors hover:bg-[var(--color-gold)] hover:text-[var(--color-gold-foreground)]">
                 List as a dealer
               </Button>
             </Link>
           </motion.div>
         </div>
+        <span className="gold-line-draw absolute bottom-0 left-0 right-0" aria-hidden />
       </section>
 
       {/* Two-sided explainer */}
@@ -144,24 +149,26 @@ function Home() {
           <LaunchBanner />
         </FadeUp>
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-md border border-border bg-card p-8">
-            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
-            <h2 className="mt-3 font-serif text-3xl">Source verified stones. Sell as your own.</h2>
-            <p className="mt-4 text-muted-foreground">
+          <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #162347 100%)" }}>
+            <GemMarkWatermark />
+            <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
+            <h2 className="relative mt-3 font-serif text-3xl">Source verified stones. Sell as your own.</h2>
+            <p className="relative mt-4 opacity-80">
               Browse thousands of certified stones from trusted dealers. Follow vendors you trust, set your markup, embed a live API feed into your own website. Sold stones drop out of your inventory automatically.
             </p>
-            <Link to="/sign-up/jeweller" className="mt-6 inline-flex items-center text-sm font-medium text-foreground hover:text-[var(--color-gold)]">
-              Create a jeweller account <ArrowRight className="ml-1 h-4 w-4" />
+            <Link to="/sign-up/jeweller" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
+              Create a jeweller account <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
-          <div className="rounded-md border border-border bg-card p-8">
-            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Dealers</div>
-            <h2 className="mt-3 font-serif text-3xl">List once. Reach jewellers worldwide.</h2>
-            <p className="mt-4 text-muted-foreground">
+          <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }}>
+            <GemMarkWatermark />
+            <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Dealers</div>
+            <h2 className="relative mt-3 font-serif text-3xl">List once. Reach jewellers worldwide.</h2>
+            <p className="relative mt-4 opacity-80">
               Upload your inventory manually or via CSV. Get discovered by jewellers across the UK, US, Europe and Australia. Your stones appear in their stores automatically; mark sold and they disappear instantly.
             </p>
-            <Link to="/sign-up/dealer" className="mt-6 inline-flex items-center text-sm font-medium text-foreground hover:text-[var(--color-gold)]">
-              Become a verified dealer <ArrowRight className="ml-1 h-4 w-4" />
+            <Link to="/sign-up/dealer" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
+              Become a verified dealer <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
         </div>
@@ -258,13 +265,38 @@ function Home() {
 }
 
 function StatBig({ label, value }: { label: string; value: number }) {
+  const isEmpty = !value || value === 0;
   return (
     <FadeUp className="text-center md:px-6">
-      <div className="font-serif text-5xl text-[var(--color-gold)]">
-        <CountUp value={value} />
-      </div>
-      <div className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      {isEmpty ? (
+        <>
+          <div className="font-serif text-5xl text-muted-foreground/50">—</div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            {label} · Coming soon
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="font-serif text-5xl text-[var(--color-gold)]">
+            <CountUp value={value} />
+          </div>
+          <div className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+        </>
+      )}
     </FadeUp>
+  );
+}
+
+function GemMarkWatermark() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 40 40"
+      className="pointer-events-none absolute -right-6 -bottom-6 h-44 w-44 opacity-[0.05]"
+    >
+      <polygon points="12,3 28,3 37,12 37,28 28,37 12,37 3,28 3,12" fill="#E8C97A" />
+      <polygon points="16,9 24,9 31,16 31,24 24,31 16,31 9,24 9,16" fill="#E8C97A" />
+    </svg>
   );
 }
 
