@@ -12,6 +12,9 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import appCss from "../styles.css?url";
 import { PwaRegister } from "@/components/site/PwaRegister";
+import { CompareProvider } from "@/contexts/CompareContext";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
+import { CompareBar } from "@/components/site/CompareBar";
 
 function NotFoundComponent() {
   return (
@@ -139,18 +142,23 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-        >
-          <main id="main"><Outlet /></main>
-        </motion.div>
-      </AnimatePresence>
-      <PwaRegister />
+      <CurrencyProvider>
+        <CompareProvider>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <main id="main"><Outlet /></main>
+            </motion.div>
+          </AnimatePresence>
+          <CompareBar />
+          <PwaRegister />
+        </CompareProvider>
+      </CurrencyProvider>
     </QueryClientProvider>
   );
 }
