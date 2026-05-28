@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { ReferralNudge } from "@/components/dashboard/ReferralNudge";
 
 export const Route = createFileRoute("/dashboard/jeweller/")({
   component: JewellerOverview,
@@ -43,6 +44,7 @@ function JewellerOverview() {
 
   return (
     <div>
+      <ReferralNudge />
       <h1 className="font-serif text-3xl">Welcome, {profile?.company_name || profile?.full_name}</h1>
       <p className="text-sm text-muted-foreground">Your sourcing dashboard.</p>
 

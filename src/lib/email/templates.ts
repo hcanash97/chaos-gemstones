@@ -71,6 +71,10 @@ export async function buildEmail(
       return await buildOrderShipped(recordId, sb);
     case "order_received_dealer":
       return await buildOrderReceived(recordId, sb);
+    case "referral_qualified_referrer":
+      return await buildReferralReferrer(recordId, sb);
+    case "referral_welcome_bonus":
+      return await buildReferralWelcome(recordId, sb);
     default:
       console.warn("[email] unknown template type", type);
       return null;
@@ -317,6 +321,44 @@ async function buildOrderReceived(orderId: string, sb: SupabaseClient): Promise<
       <p style="margin:0 0 16px;">Hi ${esc(dealer.full_name || "there")},</p>
       <p style="margin:0 0 16px;">${gold(jName)} has confirmed receipt of ${gold(stoneDesc)}. The transaction is complete.</p>
       <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/sales", "View sales")}</p>
+      <p style="margin:0;">— The Chaos team</p>
+    `),
+  };
+}
+
+async function buildReferralReferrer(profileId: string, sb: SupabaseClient): Promise<EmailPayload> {
+  const { data: p } = await sb
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (!p?.email) return null;
+  return {
+    to: p.email,
+    subject: "Your referral qualified — credit earned",
+    html: shell(`
+      <p style="margin:0 0 16px;">Hi ${esc(p.full_name || "there")},</p>
+      <p style="margin:0 0 16px;">A member you referred has just completed a qualifying action on Chaos. You've earned ${gold("a referral credit")} on your account.</p>
+      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/referrals", "View your credits")}</p>
+      <p style="margin:0;">— The Chaos team</p>
+    `),
+  };
+}
+
+async function buildReferralWelcome(profileId: string, sb: SupabaseClient): Promise<EmailPayload> {
+  const { data: p } = await sb
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (!p?.email) return null;
+  return {
+    to: p.email,
+    subject: "Welcome to Chaos — your referral bonus is confirmed",
+    html: shell(`
+      <p style="margin:0 0 16px;">Hi ${esc(p.full_name || "there")},</p>
+      <p style="margin:0 0 16px;">Your referral bonus is confirmed. You've earned ${gold("3 months free")}, applied automatically when Chaos introduces subscription pricing.</p>
+      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/referrals", "View your credits")}</p>
       <p style="margin:0;">— The Chaos team</p>
     `),
   };

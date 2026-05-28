@@ -35,6 +35,7 @@ import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
 import { Route as DocsDealerApiRouteImport } from './routes/docs.dealer-api'
 import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardSalesRouteImport } from './routes/dashboard.sales'
+import { Route as DashboardReferralsRouteImport } from './routes/dashboard.referrals'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
@@ -192,6 +193,11 @@ const DashboardSalesRoute = DashboardSalesRouteImport.update({
   path: '/sales',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardReferralsRoute = DashboardReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardImportRoute = DashboardImportRouteImport.update({
   id: '/import',
   path: '/import',
@@ -343,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/dashboard/referrals': typeof DashboardReferralsRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
   '/docs/dealer-api': typeof DocsDealerApiRoute
@@ -396,6 +403,7 @@ export interface FileRoutesByTo {
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/dashboard/referrals': typeof DashboardReferralsRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
   '/docs/dealer-api': typeof DocsDealerApiRoute
@@ -451,6 +459,7 @@ export interface FileRoutesById {
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
+  '/dashboard/referrals': typeof DashboardReferralsRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
   '/docs/dealer-api': typeof DocsDealerApiRoute
@@ -507,6 +516,7 @@ export interface FileRouteTypes {
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/dashboard/referrals'
     | '/dashboard/sales'
     | '/docs/api'
     | '/docs/dealer-api'
@@ -560,6 +570,7 @@ export interface FileRouteTypes {
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/dashboard/referrals'
     | '/dashboard/sales'
     | '/docs/api'
     | '/docs/dealer-api'
@@ -614,6 +625,7 @@ export interface FileRouteTypes {
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
+    | '/dashboard/referrals'
     | '/dashboard/sales'
     | '/docs/api'
     | '/docs/dealer-api'
@@ -872,6 +884,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSalesRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/referrals': {
+      id: '/dashboard/referrals'
+      path: '/referrals'
+      fullPath: '/dashboard/referrals'
+      preLoaderRoute: typeof DashboardReferralsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/import': {
       id: '/dashboard/import'
       path: '/import'
@@ -1071,6 +1090,7 @@ interface DashboardRouteChildren {
   DashboardAccountRoute: typeof DashboardAccountRoute
   DashboardEnquiriesRoute: typeof DashboardEnquiriesRoute
   DashboardImportRoute: typeof DashboardImportRoute
+  DashboardReferralsRoute: typeof DashboardReferralsRoute
   DashboardSalesRoute: typeof DashboardSalesRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardDealerApiRoute: typeof DashboardDealerApiRoute
@@ -1092,6 +1112,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAccountRoute: DashboardAccountRoute,
   DashboardEnquiriesRoute: DashboardEnquiriesRoute,
   DashboardImportRoute: DashboardImportRoute,
+  DashboardReferralsRoute: DashboardReferralsRoute,
   DashboardSalesRoute: DashboardSalesRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardDealerApiRoute: DashboardDealerApiRoute,

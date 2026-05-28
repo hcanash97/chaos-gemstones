@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"pending" | "all" | "reports" | "fees">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "reports" | "fees" | "referrals">("pending");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports" || tab === "fees") return;
+    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals") return;
     setError(null);
     let query = supabase
       .from("profiles")
@@ -190,10 +190,16 @@ function AdminPage() {
             >
               Fees
             </button>
+            <button
+              onClick={() => setTab("referrals")}
+              className={`rounded px-3 py-1 ${tab === "referrals" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              Referrals
+            </button>
           </div>
         </div>
 
-        {tab !== "reports" && tab !== "fees" && (
+        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && (
         <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -227,6 +233,8 @@ function AdminPage() {
           <ReportsPanel />
         ) : tab === "fees" ? (
           <FeesPanel />
+        ) : tab === "referrals" ? (
+          <ReferralsPanel />
         ) : (
         <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
           {rows.length === 0 ? (
@@ -311,6 +319,167 @@ function AdminPage() {
         </div>
         )}
       </div>
+    </div>
+  );
+}
+
+type ReferralCreditRow = {
+  id: string;
+  beneficiary_id: string;
+  referral_id: string | null;
+  credit_type: string;
+  credit_months: number;
+  credit_gbp: number;
+  reason: string;
+  status: string;
+  qualifying_event: string;
+  cross_side: boolean;
+  created_at: string;
+  beneficiary?: { full_name: string | null; company_name: string | null; email: string | null } | null;
+};
+
+function ReferralsPanel() {
+  const [rows, setRows] = useState<ReferralCreditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "pending" | "active" | "applied" | "expired">("all");
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("referral_credits")
+        .select("*, beneficiary:profiles!referral_credits_beneficiary_id_fkey(full_name, company_name, email)")
+        .order("created_at", { ascending: false });
+      setRows((data ?? []) as unknown as ReferralCreditRow[]);
+      setLoading(false);
+    })();
+  }, []);
+
+  const filtered = filter === "all" ? rows : rows.filter((r) => r.status === filter);
+  const totalMonths = rows.filter((r) => r.credit_type === "free_months").reduce((t, r) => t + r.credit_months, 0);
+  const totalGbp = rows.filter((r) => r.credit_type === "credit_gbp").reduce((t, r) => t + Number(r.credit_gbp), 0);
+  const totalReferrals = rows.filter((r) => r.qualifying_event !== "referred_signup").length;
+
+  // Leaderboard by beneficiary
+  const board = new Map<string, { name: string; months: number; gbp: number; count: number }>();
+  for (const r of rows) {
+    const name = r.beneficiary?.company_name || r.beneficiary?.full_name || r.beneficiary?.email || "—";
+    const e = board.get(r.beneficiary_id) || { name, months: 0, gbp: 0, count: 0 };
+    e.months += r.credit_months;
+    e.gbp += Number(r.credit_gbp);
+    e.count += 1;
+    board.set(r.beneficiary_id, e);
+  }
+  const leaders = Array.from(board.values()).sort((a, b) => b.months + b.gbp / 50 - (a.months + a.gbp / 50)).slice(0, 10);
+
+  async function markApplied(id: string) {
+    await supabase.from("referral_credits").update({ status: "applied" }).eq("id", id);
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, status: "applied" } : r)));
+  }
+
+  if (loading) return <div className="mt-6 p-8 text-center text-sm text-muted-foreground">Loading referrals…</div>;
+
+  return (
+    <div className="mt-6 space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Stat label="Total referrals" value={totalReferrals} />
+        <Stat label="Months free issued" value={totalMonths} />
+        <Stat label="GBP credits issued" value={`£${totalGbp.toLocaleString()}`} />
+      </div>
+
+      <div className="rounded-lg border border-border bg-card">
+        <div className="border-b border-border p-4 text-sm font-medium">Top referrers</div>
+        {leaders.length === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">No referral credits yet.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2">User</th>
+                <th className="px-4 py-2">Credits</th>
+                <th className="px-4 py-2">Months</th>
+                <th className="px-4 py-2">GBP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaders.map((l, i) => (
+                <tr key={i} className="border-b border-border last:border-0">
+                  <td className="px-4 py-2">{l.name}</td>
+                  <td className="px-4 py-2">{l.count}</td>
+                  <td className="px-4 py-2">{l.months}</td>
+                  <td className="px-4 py-2">£{l.gbp.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="flex gap-2 text-xs">
+        {(["all", "pending", "active", "applied", "expired"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`rounded px-3 py-1 capitalize ${filter === f ? "bg-foreground text-background" : "border border-border"}`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        {filtered.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">No credits to show.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2">Beneficiary</th>
+                <th className="px-4 py-2">Reason</th>
+                <th className="px-4 py-2">Event</th>
+                <th className="px-4 py-2">Amount</th>
+                <th className="px-4 py-2">Status</th>
+                <th className="px-4 py-2">Date</th>
+                <th className="px-4 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id} className="border-b border-border last:border-0 align-top">
+                  <td className="px-4 py-2">
+                    <div className="font-medium">{r.beneficiary?.company_name || r.beneficiary?.full_name || "—"}</div>
+                    <div className="text-xs text-muted-foreground">{r.beneficiary?.email}</div>
+                  </td>
+                  <td className="px-4 py-2 text-xs">{r.reason}{r.cross_side ? " (cross-side)" : ""}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{r.qualifying_event}</td>
+                  <td className="px-4 py-2 text-xs">
+                    {r.credit_months > 0 && <div>{r.credit_months}mo</div>}
+                    {Number(r.credit_gbp) > 0 && <div>£{Number(r.credit_gbp).toLocaleString()}</div>}
+                  </td>
+                  <td className="px-4 py-2 text-xs capitalize">{r.status}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-2 text-right">
+                    {r.status === "active" && (
+                      <Button size="sm" variant="ghost" onClick={() => markApplied(r.id)}>
+                        Mark applied
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 font-serif text-2xl">{value}</div>
     </div>
   );
 }

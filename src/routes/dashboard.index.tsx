@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { ReferralNudge } from "@/components/dashboard/ReferralNudge";
 
 export const Route = createFileRoute("/dashboard/")({
   component: DashboardOverview,
@@ -31,6 +32,7 @@ function DashboardOverview() {
 
   return (
     <div>
+      <ReferralNudge />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif text-3xl text-foreground">Dealer Dashboard</h1>
