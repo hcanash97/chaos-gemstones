@@ -65,6 +65,8 @@ export const STONE_FIELDS: StoneField[] = [
   { key: "minimum_order_qty", label: "Minimum order qty", type: "number", aliases: ["moq", "min_qty"] },
   { key: "lead_time_days", label: "Lead time (days)", type: "number", aliases: ["lead_time"] },
   { key: "notes_for_buyers", label: "Notes for buyers", type: "string", aliases: ["notes", "description", "comments"] },
+  { key: "crown_angle", label: "Crown angle (°)", type: "number", aliases: ["crown"] },
+  { key: "pavilion_angle", label: "Pavilion angle (°)", type: "number", aliases: ["pavilion"] },
 ];
 
 export const FIELD_MAP = Object.fromEntries(STONE_FIELDS.map((f) => [f.key, f]));
