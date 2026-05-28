@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
 
-async function ensureApprovedDealer(supabase: ReturnType<typeof supabaseAdmin.from> extends never ? never : any, userId: string) {
+async function ensureApprovedDealer(supabase: any, userId: string) {
   const { data: profile } = await supabase
     .from("profiles")
     .select("account_type, is_approved")
