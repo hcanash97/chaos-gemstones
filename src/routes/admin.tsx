@@ -348,9 +348,9 @@ function ReferralsPanel() {
       setLoading(true);
       const { data } = await supabase
         .from("referral_credits")
-        .select("*, beneficiary:beneficiary_id(full_name, company_name, email)")
+        .select("*, beneficiary:profiles!referral_credits_beneficiary_id_fkey(full_name, company_name, email)")
         .order("created_at", { ascending: false });
-      setRows((data ?? []) as ReferralCreditRow[]);
+      setRows((data ?? []) as unknown as ReferralCreditRow[]);
       setLoading(false);
     })();
   }, []);
