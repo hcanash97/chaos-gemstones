@@ -184,10 +184,10 @@ function ComparePage() {
                   </td>
                   {(stones ?? []).map((s: any) => (
                     <td key={s.id} className="px-3 py-2 font-mono font-semibold">
-                      {showWholesale ? (
-                        format(s.wholesale_price_usd)
+                       {showWholesale ? (
+                        format(s.wholesale_price_usd, s.price_currency ?? "USD")
                       ) : user ? (
-                        format(s.wholesale_price_usd)
+                        format(s.wholesale_price_usd, s.price_currency ?? "USD")
                       ) : (
                         <Link to="/login" className="text-xs text-[var(--color-gold)] hover:underline">
                           Sign in to view
