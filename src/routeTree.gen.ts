@@ -34,6 +34,7 @@ import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardSalesRouteImport } from './routes/dashboard.sales'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
+import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
 import { Route as AdminImportTestRouteImport } from './routes/admin.import-test'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
 import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
@@ -181,6 +182,11 @@ const DashboardEnquiriesRoute = DashboardEnquiriesRouteImport.update({
   path: '/enquiries',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardAccountRoute = DashboardAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const AdminImportTestRoute = AdminImportTestRouteImport.update({
   id: '/import-test',
   path: '/import-test',
@@ -303,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -350,6 +357,7 @@ export interface FileRoutesByTo {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -399,6 +407,7 @@ export interface FileRoutesById {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -449,6 +458,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -496,6 +506,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -544,6 +555,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -790,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardEnquiriesRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/account': {
+      id: '/dashboard/account'
+      path: '/account'
+      fullPath: '/dashboard/account'
+      preLoaderRoute: typeof DashboardAccountRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/admin/import-test': {
       id: '/admin/import-test'
       path: '/import-test'
@@ -951,6 +970,7 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface DashboardRouteChildren {
+  DashboardAccountRoute: typeof DashboardAccountRoute
   DashboardEnquiriesRoute: typeof DashboardEnquiriesRoute
   DashboardImportRoute: typeof DashboardImportRoute
   DashboardSalesRoute: typeof DashboardSalesRoute
@@ -969,6 +989,7 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAccountRoute: DashboardAccountRoute,
   DashboardEnquiriesRoute: DashboardEnquiriesRoute,
   DashboardImportRoute: DashboardImportRoute,
   DashboardSalesRoute: DashboardSalesRoute,
