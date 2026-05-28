@@ -84,6 +84,7 @@ export type Database = {
           auto_sync_enabled: boolean
           bio: string | null
           created_at: string
+          default_currency: string
           directory_url: string | null
           external_feed_body: string | null
           external_feed_method: string
@@ -104,6 +105,7 @@ export type Database = {
           auto_sync_enabled?: boolean
           bio?: string | null
           created_at?: string
+          default_currency?: string
           directory_url?: string | null
           external_feed_body?: string | null
           external_feed_method?: string
@@ -124,6 +126,7 @@ export type Database = {
           auto_sync_enabled?: boolean
           bio?: string | null
           created_at?: string
+          default_currency?: string
           directory_url?: string | null
           external_feed_body?: string | null
           external_feed_method?: string
@@ -300,6 +303,8 @@ export type Database = {
         Row: {
           bio: string | null
           created_at: string
+          display_currency: string
+          feed_currency: string
           id: string
           markup_global: number
           primary_interests: string[] | null
@@ -310,6 +315,8 @@ export type Database = {
         Insert: {
           bio?: string | null
           created_at?: string
+          display_currency?: string
+          feed_currency?: string
           id: string
           markup_global?: number
           primary_interests?: string[] | null
@@ -320,6 +327,8 @@ export type Database = {
         Update: {
           bio?: string | null
           created_at?: string
+          display_currency?: string
+          feed_currency?: string
           id?: string
           markup_global?: number
           primary_interests?: string[] | null
@@ -652,6 +661,7 @@ export type Database = {
           pavilion_angle: number | null
           phenomenon: string | null
           polish: string | null
+          price_currency: string
           provenance_report: string | null
           report_date: string | null
           shade: string | null
@@ -714,6 +724,7 @@ export type Database = {
           pavilion_angle?: number | null
           phenomenon?: string | null
           polish?: string | null
+          price_currency?: string
           provenance_report?: string | null
           report_date?: string | null
           shade?: string | null
@@ -776,6 +787,7 @@ export type Database = {
           pavilion_angle?: number | null
           phenomenon?: string | null
           polish?: string | null
+          price_currency?: string
           provenance_report?: string | null
           report_date?: string | null
           shade?: string | null

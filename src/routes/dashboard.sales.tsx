@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export const Route = createFileRoute("/dashboard/sales")({
   component: DealerSales,
@@ -9,6 +10,7 @@ export const Route = createFileRoute("/dashboard/sales")({
 
 function DealerSales() {
   const { user, profile } = useAuth();
+  const { format, displayCurrency } = useCurrency();
   if (profile?.account_type !== "dealer" && profile?.account_type !== "admin") {
     return <div>Dealers only.</div>;
   }
@@ -73,7 +75,16 @@ function DealerSales() {
                     {o.stones?.cert_lab ? `${o.stones.cert_lab} ${o.stones.cert_number ?? ""}` : "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {o.wholesale_price_usd ? `$${Number(o.wholesale_price_usd).toLocaleString()}` : "—"}
+                    {o.wholesale_price_usd ? (
+                      <div>
+                        <div className="font-mono">${Number(o.wholesale_price_usd).toLocaleString()}</div>
+                        {displayCurrency !== "USD" && (
+                          <div className="text-xs text-muted-foreground">{format(o.wholesale_price_usd, "USD")}</div>
+                        )}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 </tr>
               ))}

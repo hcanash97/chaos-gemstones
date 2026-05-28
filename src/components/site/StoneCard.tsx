@@ -20,6 +20,7 @@ export type StoneCardData = {
   country_of_origin: string | null;
   cert_lab: string | null;
   wholesale_price_usd: number | null;
+  price_currency?: string | null;
   colour_grade: string | null;
   clarity_grade: string | null;
   image?: string | null;
@@ -197,7 +198,7 @@ function StoneCardImpl({
               <>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Wholesale</div>
                 <div className="font-mono text-sm font-semibold">
-                  {format(stone.wholesale_price_usd)}
+                  {format(stone.wholesale_price_usd, stone.price_currency ?? "USD")}
                 </div>
               </>
             ) : (

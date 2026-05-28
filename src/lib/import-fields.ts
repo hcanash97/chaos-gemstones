@@ -67,6 +67,13 @@ export const STONE_FIELDS: StoneField[] = [
     aliases: ["price", "price_usd", "wholesale", "total", "amount"],
   },
   {
+    key: "price_currency",
+    label: "Price currency",
+    type: "enum",
+    enumValues: ["USD", "GBP", "EUR", "AUD", "CAD", "INR", "THB", "LKR", "HKD", "SGD", "JPY", "AED", "CHF", "ZAR"],
+    aliases: ["currency", "price_ccy", "ccy", "currency_code", "priceCurrency"],
+  },
+  {
     key: "colour_grade",
     label: "Colour grade",
     type: "string",

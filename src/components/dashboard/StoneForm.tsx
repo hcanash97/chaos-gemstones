@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getCertLabel } from "@/lib/cert.functions";
+import { SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export type StoneFormValues = {
   stone_type: string;
@@ -18,6 +20,7 @@ export type StoneFormValues = {
   country_of_origin: string;
   treatment: string;
   wholesale_price_usd: string;
+  price_currency: string;
   available_qty: string;
   status: "available" | "reserved" | "sold";
   cert_lab: string;
@@ -73,6 +76,7 @@ export const emptyStone: StoneFormValues = {
   country_of_origin: "",
   treatment: "",
   wholesale_price_usd: "",
+  price_currency: "USD",
   available_qty: "1",
   status: "available",
   cert_lab: "",
@@ -125,6 +129,29 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
   const [draftRestorable, setDraftRestorable] = useState<{ when: string; values: StoneFormValues } | null>(null);
   const submittedRef = useRef(false);
   const navigate = useNavigate();
+  const { rates } = useCurrency();
+
+  // Default the price currency from the dealer's profile (only when not editing an existing stone).
+  useEffect(() => {
+    if (stoneId) return; // editing — respect stored value
+    if (initial.price_currency && initial.price_currency !== "USD") return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("dealer_profiles")
+        .select("default_currency")
+        .eq("id", dealerId)
+        .maybeSingle();
+      const def = (data as { default_currency?: string } | null)?.default_currency;
+      if (!cancelled && def) {
+        setValues((s) => (s.price_currency === "USD" ? { ...s, price_currency: def } : s));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealerId, stoneId]);
 
   // Detect existing draft on mount (only on new-stone form).
   useEffect(() => {
@@ -177,6 +204,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
       country_of_origin: values.country_of_origin.trim() || null,
       treatment: values.treatment.trim() || null,
       wholesale_price_usd: values.wholesale_price_usd ? Number(values.wholesale_price_usd) : null,
+      price_currency: values.price_currency || "USD",
       available_qty: values.available_qty ? Number(values.available_qty) : 1,
       status: values.status,
       cert_lab: values.cert_lab.trim() || null,
@@ -316,14 +344,39 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
             />
           </div>
           <div>
-            <Label>Wholesale price (USD)</Label>
-            <Input
-              className="mt-1"
-              type="number"
-              step="0.01"
-              value={values.wholesale_price_usd}
-              onChange={(e) => set("wholesale_price_usd", e.target.value)}
-            />
+            <Label>Wholesale price ({values.price_currency || "USD"})</Label>
+            <div className="mt-1 flex gap-2">
+              <Input
+                type="number"
+                step="0.01"
+                className="flex-1"
+                value={values.wholesale_price_usd}
+                onChange={(e) => set("wholesale_price_usd", e.target.value)}
+              />
+              <select
+                className="flex h-10 w-28 rounded-md border border-input bg-background px-2 text-sm"
+                value={values.price_currency || "USD"}
+                onChange={(e) => set("price_currency", e.target.value)}
+                aria-label="Price currency"
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {values.wholesale_price_usd && values.price_currency && values.price_currency !== "USD" && (() => {
+              const n = Number(values.wholesale_price_usd);
+              if (!isFinite(n) || !rates) return null;
+              // Convert dealer's local price into USD for the sanity-check note.
+              const usd = (n / (rates[values.price_currency] ?? 1)) * (rates.USD ?? 1);
+              return (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  ≈ ${Math.round(usd).toLocaleString()} USD at current rates
+                </p>
+              );
+            })()}
           </div>
           <div>
             <Label>Colour grade</Label>

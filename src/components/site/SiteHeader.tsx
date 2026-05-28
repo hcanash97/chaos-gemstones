@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Logo, GemMark } from "@/components/site/Logo";
+import { CurrencySelector } from "@/components/site/CurrencySelector";
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
@@ -29,6 +30,7 @@ export function SiteHeader() {
           <Link to="/about" className="text-foreground/80 hover:text-foreground">About</Link>
         </nav>
         <div className="flex items-center gap-2">
+          <CurrencySelector />
           {user ? (
             <>
               <span className="hidden text-xs text-muted-foreground sm:inline">
