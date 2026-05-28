@@ -8,6 +8,58 @@ import { Textarea } from "@/components/ui/textarea";
 import { getCertLabel } from "@/lib/cert.functions";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { convertPrice } from "@/lib/currency";
+
+type PRule = {
+  scope: string;
+  stone_id: string | null;
+  stone_type: string | null;
+  rule_type: string;
+  value: number;
+  currency: string | null;
+};
+
+function PricingRuleWarning({
+  dealerId, stoneId, stoneType, wholesale, priceCurrency, rates,
+}: {
+  dealerId: string;
+  stoneId?: string;
+  stoneType: string;
+  wholesale: number;
+  priceCurrency: string;
+  rates: Record<string, number>;
+}) {
+  const [rules, setRules] = useState<PRule[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("pricing_rules")
+        .select("scope, stone_id, stone_type, rule_type, value, currency")
+        .eq("dealer_id", dealerId)
+        .eq("is_active", true);
+      if (!cancelled) setRules((data as PRule[]) ?? []);
+    })();
+    return () => { cancelled = true; };
+  }, [dealerId]);
+
+  if (!wholesale || rules.length === 0) return null;
+  const violated = rules.filter((r) => {
+    if (r.scope === "stone" && r.stone_id !== stoneId) return false;
+    if (r.scope === "stone_type" && r.stone_type?.toLowerCase() !== stoneType.toLowerCase()) return false;
+    if (r.rule_type !== "min_price") return false;
+    const ruleCurrency = r.currency || "USD";
+    const wholesaleInRuleCurrency = convertPrice(wholesale, priceCurrency, ruleCurrency, rates);
+    return wholesaleInRuleCurrency < Number(r.value);
+  });
+  if (violated.length === 0) return null;
+  return (
+    <div className="mt-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+      ⚠ This price violates {violated.length === 1 ? "your active pricing rule" : `${violated.length} of your active pricing rules`}.
+      The stone will be hidden from jeweller feeds until you raise the price.
+    </div>
+  );
+}
 
 export type StoneFormValues = {
   stone_type: string;
@@ -377,6 +429,14 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
                 </p>
               );
             })()}
+            <PricingRuleWarning
+              dealerId={dealerId}
+              stoneId={stoneId}
+              stoneType={values.stone_type}
+              wholesale={Number(values.wholesale_price_usd) || 0}
+              priceCurrency={values.price_currency || "USD"}
+              rates={rates}
+            />
           </div>
           <div>
             <Label>Colour grade</Label>

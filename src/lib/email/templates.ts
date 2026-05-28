@@ -67,6 +67,10 @@ export async function buildEmail(
       return await buildEnquiryReplyJeweller(recordId, sb);
     case "order_marked_fulfilled":
       return await buildOrderMarkedFulfilled(recordId, sb);
+    case "order_shipped_jeweller":
+      return await buildOrderShipped(recordId, sb);
+    case "order_received_dealer":
+      return await buildOrderReceived(recordId, sb);
     default:
       console.warn("[email] unknown template type", type);
       return null;
@@ -247,6 +251,72 @@ async function buildOrderMarkedFulfilled(orderId: string, sb: SupabaseClient): P
       ${priceLine}
       ${notesLine}
       <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/jeweller/enquiries", "View conversation")}</p>
+      <p style="margin:0;">— The Chaos team</p>
+    `),
+  };
+}
+
+async function buildOrderShipped(orderId: string, sb: SupabaseClient): Promise<EmailPayload> {
+  const { data: order } = await sb
+    .from("orders")
+    .select("jeweller_id, dealer_id, stone_id, tracking_number, carrier, expected_delivery")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) return null;
+  const [{ data: jeweller }, stoneRes] = await Promise.all([
+    sb.from("profiles").select("email, full_name").eq("id", order.jeweller_id).maybeSingle(),
+    order.stone_id
+      ? sb.from("stones").select("stone_type, shape, carat_weight").eq("id", order.stone_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!jeweller?.email) return null;
+  const stone = stoneRes.data;
+  const stoneDesc = stone
+    ? `${stone.carat_weight ?? ""}ct ${stone.shape ?? ""} ${stone.stone_type}`
+    : "your stone";
+  const eta = order.expected_delivery ? `Expected: ${new Date(order.expected_delivery).toLocaleDateString()}` : "";
+  return {
+    to: jeweller.email,
+    subject: `Your order has shipped — ${stoneDesc} — Chaos`,
+    html: shell(`
+      <p style="margin:0 0 16px;">Hi ${esc(jeweller.full_name || "there")},</p>
+      <p style="margin:0 0 16px;">Your order — ${gold(stoneDesc)} — is on its way.</p>
+      <p style="margin:0 0 8px;">Carrier: ${esc(order.carrier ?? "—")}</p>
+      <p style="margin:0 0 8px;">Tracking: ${gold(order.tracking_number ?? "—")}</p>
+      ${eta ? `<p style="margin:0 0 16px;">${esc(eta)}</p>` : ""}
+      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/jeweller/orders", "View order")}</p>
+      <p style="margin:0;">— The Chaos team</p>
+    `),
+  };
+}
+
+async function buildOrderReceived(orderId: string, sb: SupabaseClient): Promise<EmailPayload> {
+  const { data: order } = await sb
+    .from("orders")
+    .select("jeweller_id, dealer_id, stone_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) return null;
+  const [{ data: dealer }, { data: jeweller }, stoneRes] = await Promise.all([
+    sb.from("profiles").select("email, full_name").eq("id", order.dealer_id).maybeSingle(),
+    sb.from("profiles").select("full_name, company_name").eq("id", order.jeweller_id).maybeSingle(),
+    order.stone_id
+      ? sb.from("stones").select("stone_type, shape, carat_weight").eq("id", order.stone_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!dealer?.email) return null;
+  const jName = jeweller?.company_name || jeweller?.full_name || "The jeweller";
+  const stone = stoneRes.data;
+  const stoneDesc = stone
+    ? `${stone.carat_weight ?? ""}ct ${stone.shape ?? ""} ${stone.stone_type}`
+    : "the stone";
+  return {
+    to: dealer.email,
+    subject: `${jName} has confirmed receipt — Chaos`,
+    html: shell(`
+      <p style="margin:0 0 16px;">Hi ${esc(dealer.full_name || "there")},</p>
+      <p style="margin:0 0 16px;">${gold(jName)} has confirmed receipt of ${gold(stoneDesc)}. The transaction is complete.</p>
+      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/sales", "View sales")}</p>
       <p style="margin:0;">— The Chaos team</p>
     `),
   };

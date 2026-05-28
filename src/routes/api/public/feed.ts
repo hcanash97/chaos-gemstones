@@ -116,13 +116,19 @@ export const Route = createFileRoute("/api/public/feed")({
           };
 
           const stones: unknown[] = [];
+          const excluded: { id: string; reason: string }[] = [];
           const seen = new Set<string>();
+          // Track original wholesale (in USD-normalised form) per stone id for rule checks.
+          const wholesaleMap = new Map<string, { wholesale: number; sourceCurrency: string }>();
 
           const pushStone = (s: StoneRow, markup: number) => {
             if (seen.has(s.id)) return;
             seen.add(s.id);
             const wholesale = s.wholesale_price_usd != null ? Number(s.wholesale_price_usd) : null;
             const sourceCurrency = s.price_currency ?? "USD";
+            if (wholesale != null) {
+              wholesaleMap.set(s.id, { wholesale, sourceCurrency });
+            }
             const wholesaleInFeedCurrency =
               wholesale != null
                 ? convertPrice(wholesale, sourceCurrency, feedCurrency, rates)
@@ -178,7 +184,55 @@ export const Route = createFileRoute("/api/public/feed")({
             });
           }
 
-          return json(stones);
+          // Apply dealer pricing rules — drop stones below min_price / rap_floor.
+          const dealerIdSet = new Set<string>();
+          (stones as Array<{ dealer_id?: string }>).forEach((s) => {
+            if (s.dealer_id) dealerIdSet.add(s.dealer_id);
+          });
+          if (dealerIdSet.size > 0) {
+            const { data: rules } = await supabaseAdmin
+              .from("pricing_rules")
+              .select("dealer_id, scope, stone_id, stone_type, rule_type, value, currency, is_active")
+              .in("dealer_id", Array.from(dealerIdSet))
+              .eq("is_active", true);
+            const ruleList = (rules ?? []) as Array<{
+              dealer_id: string; scope: string; stone_id: string | null;
+              stone_type: string | null; rule_type: string; value: number; currency: string | null;
+            }>;
+            if (ruleList.length > 0) {
+              const kept: unknown[] = [];
+              for (const s of stones as Array<Record<string, unknown>>) {
+                const dealerId = s.dealer_id as string | undefined;
+                const stoneId = s.id as string;
+                const stoneType = s.stone_type as string | undefined;
+                const w = wholesaleMap.get(stoneId);
+                const violates = ruleList.some((r) => {
+                  if (r.dealer_id !== dealerId) return false;
+                  if (r.scope === "stone" && r.stone_id !== stoneId) return false;
+                  if (r.scope === "stone_type" && r.stone_type !== stoneType) return false;
+                  if (!w) return false;
+                  if (r.rule_type === "min_price") {
+                    const ruleCurrency = r.currency || "USD";
+                    const wholesaleInRuleCurrency = convertPrice(
+                      w.wholesale, w.sourceCurrency, ruleCurrency, rates,
+                    );
+                    return wholesaleInRuleCurrency < Number(r.value);
+                  }
+                  // rap_floor and min_margin_pct require a per-stone declared reference price
+                  // which isn't modelled yet — skip without excluding.
+                  return false;
+                });
+                if (violates) {
+                  excluded.push({ id: stoneId, reason: "below_minimum_price" });
+                } else {
+                  kept.push(s);
+                }
+              }
+              return json({ stones: kept, excluded, count: kept.length });
+            }
+          }
+
+          return json({ stones, excluded, count: stones.length });
         } catch (e) {
           console.error("[feed] internal error", e);
           return json({ error: "Internal server error" }, 500);

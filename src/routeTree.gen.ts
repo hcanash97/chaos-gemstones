@@ -43,10 +43,12 @@ import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stone
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
 import { Route as DashboardJewellerWishlistRouteImport } from './routes/dashboard.jeweller.wishlist'
 import { Route as DashboardJewellerSavedSearchesRouteImport } from './routes/dashboard.jeweller.saved-searches'
+import { Route as DashboardJewellerOrdersRouteImport } from './routes/dashboard.jeweller.orders'
 import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.jeweller.markup'
 import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
 import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboard.jeweller.enquiries'
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
+import { Route as DashboardDealerPricingRouteImport } from './routes/dashboard.dealer.pricing'
 import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.dealer.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
@@ -230,6 +232,11 @@ const DashboardJewellerSavedSearchesRoute =
     path: '/jeweller/saved-searches',
     getParentRoute: () => DashboardRoute,
   } as any)
+const DashboardJewellerOrdersRoute = DashboardJewellerOrdersRouteImport.update({
+  id: '/jeweller/orders',
+  path: '/jeweller/orders',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardJewellerMarkupRoute = DashboardJewellerMarkupRouteImport.update({
   id: '/jeweller/markup',
   path: '/jeweller/markup',
@@ -249,6 +256,11 @@ const DashboardJewellerEnquiriesRoute =
 const DashboardJewellerApiRoute = DashboardJewellerApiRouteImport.update({
   id: '/jeweller/api',
   path: '/jeweller/api',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDealerPricingRoute = DashboardDealerPricingRouteImport.update({
+  id: '/dealer/pricing',
+  path: '/dealer/pricing',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardDealerApiRoute = DashboardDealerApiRouteImport.update({
@@ -337,10 +349,12 @@ export interface FileRoutesByFullPath {
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
+  '/dashboard/dealer/pricing': typeof DashboardDealerPricingRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
+  '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
@@ -386,10 +400,12 @@ export interface FileRoutesByTo {
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
+  '/dashboard/dealer/pricing': typeof DashboardDealerPricingRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
+  '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
@@ -437,10 +453,12 @@ export interface FileRoutesById {
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
+  '/dashboard/dealer/pricing': typeof DashboardDealerPricingRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
+  '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
@@ -489,10 +507,12 @@ export interface FileRouteTypes {
     | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/dealer/api'
+    | '/dashboard/dealer/pricing'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
+    | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
@@ -538,10 +558,12 @@ export interface FileRouteTypes {
     | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/dealer/api'
+    | '/dashboard/dealer/pricing'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
+    | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
@@ -588,10 +610,12 @@ export interface FileRouteTypes {
     | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/dealer/api'
+    | '/dashboard/dealer/pricing'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
+    | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
@@ -878,6 +902,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardJewellerSavedSearchesRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/jeweller/orders': {
+      id: '/dashboard/jeweller/orders'
+      path: '/jeweller/orders'
+      fullPath: '/dashboard/jeweller/orders'
+      preLoaderRoute: typeof DashboardJewellerOrdersRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/jeweller/markup': {
       id: '/dashboard/jeweller/markup'
       path: '/jeweller/markup'
@@ -904,6 +935,13 @@ declare module '@tanstack/react-router' {
       path: '/jeweller/api'
       fullPath: '/dashboard/jeweller/api'
       preLoaderRoute: typeof DashboardJewellerApiRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/dealer/pricing': {
+      id: '/dashboard/dealer/pricing'
+      path: '/dealer/pricing'
+      fullPath: '/dashboard/dealer/pricing'
+      preLoaderRoute: typeof DashboardDealerPricingRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/dealer/api': {
@@ -996,10 +1034,12 @@ interface DashboardRouteChildren {
   DashboardSalesRoute: typeof DashboardSalesRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardDealerApiRoute: typeof DashboardDealerApiRoute
+  DashboardDealerPricingRoute: typeof DashboardDealerPricingRoute
   DashboardJewellerApiRoute: typeof DashboardJewellerApiRoute
   DashboardJewellerEnquiriesRoute: typeof DashboardJewellerEnquiriesRoute
   DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
   DashboardJewellerMarkupRoute: typeof DashboardJewellerMarkupRoute
+  DashboardJewellerOrdersRoute: typeof DashboardJewellerOrdersRoute
   DashboardJewellerSavedSearchesRoute: typeof DashboardJewellerSavedSearchesRoute
   DashboardJewellerWishlistRoute: typeof DashboardJewellerWishlistRoute
   DashboardStonesIdRoute: typeof DashboardStonesIdRoute
@@ -1015,10 +1055,12 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardSalesRoute: DashboardSalesRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardDealerApiRoute: DashboardDealerApiRoute,
+  DashboardDealerPricingRoute: DashboardDealerPricingRoute,
   DashboardJewellerApiRoute: DashboardJewellerApiRoute,
   DashboardJewellerEnquiriesRoute: DashboardJewellerEnquiriesRoute,
   DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
   DashboardJewellerMarkupRoute: DashboardJewellerMarkupRoute,
+  DashboardJewellerOrdersRoute: DashboardJewellerOrdersRoute,
   DashboardJewellerSavedSearchesRoute: DashboardJewellerSavedSearchesRoute,
   DashboardJewellerWishlistRoute: DashboardJewellerWishlistRoute,
   DashboardStonesIdRoute: DashboardStonesIdRoute,
@@ -1088,13 +1130,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

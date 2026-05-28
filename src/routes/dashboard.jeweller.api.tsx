@@ -108,7 +108,8 @@ function ApiPage() {
 <script>
 (async function() {
   const res = await fetch("${feedUrl}");
-  const stones = await res.json();
+  const data = await res.json();
+  const stones = data.stones || [];
   const root = document.getElementById('chaos-feed');
   root.innerHTML = stones.map(function(s) {
     return '<div>' + s.stone_type + ' – $' + Number(s.retail_price || 0).toLocaleString() + '</div>';
@@ -126,7 +127,7 @@ function ApiPage() {
       qc.invalidateQueries({ queryKey: ["jeweller-overview"] });
       const res = await fetch(`/api/public/feed?key=${encodeURIComponent(result.rawKey)}`);
       const body = await res.json();
-      if (!res.ok || !Array.isArray(body)) {
+      if (!res.ok || !body || typeof body !== "object" || !Array.isArray(body.stones)) {
         throw new Error("Feed endpoint did not return valid JSON.");
       }
       toast.success("API key generated.");
@@ -214,8 +215,8 @@ function ApiPage() {
           <TabsTrigger value="php">PHP</TabsTrigger>
           <TabsTrigger value="liquid">Shopify</TabsTrigger>
         </TabsList>
-        <TabsContent value="js"><pre className="overflow-x-auto rounded-md border border-border bg-foreground/95 p-4 text-xs text-background">{`const res = await fetch("${feedUrl}");\nconst stones = await res.json();\nstones.forEach((stone) => console.log(stone.stone_type, "$" + stone.retail_price));`}</pre></TabsContent>
-        <TabsContent value="php"><pre className="overflow-x-auto rounded-md border border-border bg-foreground/95 p-4 text-xs text-background">{`<?php\n$stones = json_decode(file_get_contents("${feedUrl}"), true);\nforeach ($stones as $stone) {\n  echo $stone['stone_type'] . ' — $' . $stone['retail_price'] . "\\n";\n}`}</pre></TabsContent>
+        <TabsContent value="js"><pre className="overflow-x-auto rounded-md border border-border bg-foreground/95 p-4 text-xs text-background">{`const res = await fetch("${feedUrl}");\nconst { stones } = await res.json();\nstones.forEach((stone) => console.log(stone.stone_type, "$" + stone.retail_price));`}</pre></TabsContent>
+        <TabsContent value="php"><pre className="overflow-x-auto rounded-md border border-border bg-foreground/95 p-4 text-xs text-background">{`<?php\n$data = json_decode(file_get_contents("${feedUrl}"), true);\nforeach (($data['stones'] ?? []) as $stone) {\n  echo $stone['stone_type'] . ' — $' . $stone['retail_price'] . "\\n";\n}`}</pre></TabsContent>
         <TabsContent value="liquid"><pre className="overflow-x-auto rounded-md border border-border bg-foreground/95 p-4 text-xs text-background">{shopifyEmbed}</pre></TabsContent>
       </Tabs>
 
