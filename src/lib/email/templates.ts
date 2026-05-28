@@ -1,253 +1,405 @@
-// Email content builders. Looks up data from the DB using the admin client
-// and returns { to, subject, html } — or null to skip sending.
-import type { SupabaseClient } from "@supabase/supabase-js";
+// Canonical list of stones fields that the importer can write to,
+// plus aliases for friendly column matching.
+export type StoneField = {
+  key: string;
+  label: string;
+  type: "string" | "number" | "boolean" | "enum";
+  required?: boolean;
+  aliases: string[];
+  enumValues?: string[];
+};
 
-export const BASE_URL = "https://chaosgemstones.com";
+export const CLARITY_VALUES = [
+  "FL",
+  "IF",
+  "VVS1",
+  "VVS2",
+  "VS1",
+  "VS2",
+  "SI1",
+  "SI2",
+  "I1",
+  "I2",
+  "I3",
+  "Eye Clean",
+  "Lightly Included",
+  "Moderately Included",
+  "Heavily Included",
+];
 
-const BRAND_EMERALD = "#1B3A2D";
-const BRAND_GOLD = "#D4AF6A";
-const INK = "#0F1B3D";
-const MUTED = "#777777";
+export const CERT_LABS = [
+  "GIA",
+  "IGI",
+  "HRD",
+  "AGS",
+  "GCAL",
+  "EGL",
+  "GRS",
+  "SSEF",
+  "Gübelin",
+  "AGL",
+  "Lotus",
+  "GIT",
+  "GIA-coloured",
+];
 
-export function esc(s: string | null | undefined): string {
-  if (s == null) return "";
-  return String(s).replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!),
-  );
+export const STONE_FIELDS: StoneField[] = [
+  {
+    key: "stone_type",
+    label: "Stone type",
+    type: "string",
+    required: true,
+    aliases: ["type", "gem", "gemstone", "stone"],
+  },
+  { key: "shape", label: "Shape", type: "string", required: true, aliases: ["cut shape", "outline"] },
+  {
+    key: "carat_weight",
+    label: "Carat weight",
+    type: "number",
+    required: true,
+    aliases: ["weight", "carats", "ct", "carat", "carat_wt"],
+  },
+  {
+    key: "wholesale_price_usd",
+    label: "Wholesale price (USD)",
+    type: "number",
+    required: true,
+    aliases: ["price", "price_usd", "wholesale", "total", "amount"],
+  },
+  {
+    key: "colour_grade",
+    label: "Colour grade",
+    type: "string",
+    aliases: ["color", "colour", "color_grade", "color grade"],
+  },
+  { key: "clarity_grade", label: "Clarity grade", type: "enum", enumValues: CLARITY_VALUES, aliases: ["clarity"] },
+  { key: "cut_grade", label: "Cut grade", type: "string", aliases: ["cut", "make"] },
+  { key: "polish", label: "Polish", type: "string", aliases: ["pol"] },
+  { key: "symmetry", label: "Symmetry", type: "string", aliases: ["sym"] },
+  { key: "fluorescence", label: "Fluorescence", type: "string", aliases: ["fluo", "fluor", "fluorescence_intensity"] },
+  { key: "fluorescence_colour", label: "Fluorescence colour", type: "string", aliases: ["fluo_color", "fluo_colour"] },
+  {
+    key: "cert_lab",
+    label: "Cert lab",
+    type: "enum",
+    enumValues: CERT_LABS,
+    aliases: ["lab", "certificate_lab", "cert", "grading_lab", "gradingLab", "laboratory", "certLab", "certificateLab"],
+  },
+  {
+    key: "cert_number",
+    label: "Cert number",
+    type: "string",
+    aliases: [
+      "cert_no",
+      "certificate",
+      "certificate_number",
+      "report_no",
+      "report_number",
+      "reportNo",
+      "reportNumber",
+      "certificateNumber",
+      "certificate_no",
+      "certNo",
+      "certNumber",
+      "cert_num",
+      "grading_report",
+      "gradingReport",
+      "lab_report",
+      "labReport",
+      "igi_report",
+      "gia_report",
+      "grs_report",
+    ],
+  },
+  { key: "origin", label: "Origin (region)", type: "string", aliases: ["region", "mine", "source"] },
+  { key: "country_of_origin", label: "Country of origin", type: "string", aliases: ["country", "country_origin"] },
+  { key: "treatment", label: "Treatment", type: "string", aliases: ["treatments", "enhancement_type"] },
+  { key: "colour_hue", label: "Colour hue", type: "string", aliases: ["hue", "primary_hue"] },
+  { key: "colour_tone", label: "Colour tone", type: "string", aliases: ["tone"] },
+  { key: "colour_saturation", label: "Colour saturation", type: "string", aliases: ["saturation"] },
+  { key: "phenomenon", label: "Phenomenon", type: "string", aliases: ["optical_phenomenon"] },
+  { key: "measurements_length", label: "Length (mm)", type: "number", aliases: ["length", "length_mm"] },
+  { key: "measurements_width", label: "Width (mm)", type: "number", aliases: ["width", "width_mm"] },
+  { key: "measurements_height", label: "Height (mm)", type: "number", aliases: ["height", "depth_mm", "height_mm"] },
+  { key: "lw_ratio", label: "L/W ratio", type: "number", aliases: ["ratio", "lw"] },
+  { key: "depth_pct", label: "Depth %", type: "number", aliases: ["depth", "depth_percent"] },
+  { key: "table_pct", label: "Table %", type: "number", aliases: ["table", "table_percent"] },
+  { key: "girdle", label: "Girdle", type: "string", aliases: [] },
+  { key: "culet_size", label: "Culet size", type: "string", aliases: ["culet"] },
+  { key: "culet_condition", label: "Culet condition", type: "string", aliases: [] },
+  { key: "shade", label: "Shade", type: "string", aliases: ["tinge"] },
+  { key: "milky", label: "Milky", type: "string", aliases: [] },
+  { key: "eye_clean", label: "Eye clean", type: "string", aliases: ["eyeclean"] },
+  { key: "black_inclusion", label: "Black inclusion", type: "string", aliases: ["bgm"] },
+  { key: "enhancement", label: "Enhancement", type: "string", aliases: [] },
+  { key: "listing_type", label: "Listing type", type: "string", aliases: [] },
+  { key: "parcel_quantity", label: "Parcel quantity", type: "number", aliases: ["parcel_qty"] },
+  { key: "matching_pair", label: "Matching pair", type: "boolean", aliases: ["pair"] },
+  { key: "has_video", label: "Has video", type: "boolean", aliases: ["video"] },
+  { key: "has_360", label: "Has 360°", type: "boolean", aliases: ["360", "three_sixty"] },
+  { key: "provenance_report", label: "Provenance report", type: "string", aliases: ["provenance", "traceability"] },
+  { key: "video_url", label: "Video URL", type: "string", aliases: ["video_link"] },
+  { key: "available_qty", label: "Available qty", type: "number", aliases: ["qty", "quantity", "stock"] },
+  { key: "minimum_order_qty", label: "Minimum order qty", type: "number", aliases: ["moq", "min_qty"] },
+  { key: "lead_time_days", label: "Lead time (days)", type: "number", aliases: ["lead_time"] },
+  { key: "notes_for_buyers", label: "Notes for buyers", type: "string", aliases: ["notes", "description", "comments"] },
+  { key: "crown_angle", label: "Crown angle (°)", type: "number", aliases: ["crown"] },
+  { key: "pavilion_angle", label: "Pavilion angle (°)", type: "number", aliases: ["pavilion"] },
+];
+
+export const FIELD_MAP = Object.fromEntries(STONE_FIELDS.map((f) => [f.key, f]));
+
+function normalise(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[\s\-]+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
 }
 
-export function shell(innerHtml: string): string {
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:Inter,Helvetica,Arial,sans-serif;color:${INK};">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
-    <tr><td align="center" style="padding:32px 16px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-        <tr><td style="padding:0 0 20px;border-bottom:1px solid #eeeeee;">
-          <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:30px;font-weight:600;color:${BRAND_EMERALD};letter-spacing:0.5px;">Chaos</div>
-        </td></tr>
-        <tr><td style="padding:24px 0;font-size:15px;line-height:1.6;color:${INK};">
-          ${innerHtml}
-        </td></tr>
-        <tr><td style="padding:24px 0 0;border-top:1px solid #eeeeee;font-size:12px;color:${MUTED};line-height:1.5;">
-          Chaos &mdash; the global marketplace for independent gemstone dealers.<br/>
-          <a href="${BASE_URL}" style="color:${MUTED};text-decoration:underline;">${BASE_URL.replace(/^https?:\/\//, "")}</a>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
-}
-
-export function btn(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:${BRAND_GOLD};color:${INK};padding:12px 22px;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px;">${esc(label)}</a>`;
-}
-
-export function gold(text: string): string {
-  return `<span style="color:${BRAND_GOLD};font-weight:600;">${esc(text)}</span>`;
-}
-
-export type EmailPayload = { to: string; subject: string; html: string } | null;
-
-export async function buildEmail(
-  type: string,
-  recordId: string,
-  sb: SupabaseClient,
-): Promise<EmailPayload> {
-  switch (type) {
-    case "account_received":
-      return await buildAccountReceived(recordId, sb);
-    case "account_approved_dealer":
-      return await buildAccountApproved(recordId, sb, "dealer");
-    case "account_approved_jeweller":
-      return await buildAccountApproved(recordId, sb, "jeweller");
-    case "enquiry_new_dealer":
-      return await buildEnquiryNewDealer(recordId, sb);
-    case "enquiry_reply_jeweller":
-      return await buildEnquiryReplyJeweller(recordId, sb);
-    case "order_marked_fulfilled":
-      return await buildOrderMarkedFulfilled(recordId, sb);
-    default:
-      console.warn("[email] unknown template type", type);
-      return null;
+export function suggestMapping(headers: string[]): Record<string, string | "__skip__"> {
+  const out: Record<string, string | "__skip__"> = {};
+  for (const h of headers) {
+    const n = normalise(h);
+    const direct = STONE_FIELDS.find((f) => f.key === n);
+    if (direct) {
+      out[h] = direct.key;
+      continue;
+    }
+    const aliased = STONE_FIELDS.find((f) => f.aliases.some((a) => normalise(a) === n));
+    if (aliased) {
+      out[h] = aliased.key;
+      continue;
+    }
+    // contains-based fuzzy match
+    const fuzzy = STONE_FIELDS.find((f) => n.includes(f.key) || f.key.includes(n));
+    out[h] = fuzzy ? fuzzy.key : "__skip__";
   }
+  return out;
 }
 
-async function buildAccountReceived(profileId: string, sb: SupabaseClient): Promise<EmailPayload> {
-  const { data: p } = await sb
-    .from("profiles")
-    .select("email, full_name")
-    .eq("id", profileId)
-    .maybeSingle();
-  if (!p?.email) return null;
-  const name = p.full_name || "there";
-  return {
-    to: p.email,
-    subject: "We've received your Chaos application",
-    html: shell(`
-      <p style="margin:0 0 16px;">Hi ${esc(name)},</p>
-      <p style="margin:0 0 16px;">Thanks for applying to join Chaos. Your account is under review and we'll notify you as soon as it's approved — usually within 24 hours.</p>
-      <p style="margin:0 0 24px;">In the meantime, feel free to browse the marketplace.</p>
-      <p style="margin:0 0 24px;">${btn(BASE_URL + "/marketplace", "Browse the marketplace")}</p>
-      <p style="margin:0;">— The Chaos team</p>
-    `),
-  };
+export type RowError = { field: string; message: string };
+
+export function validateMappedRow(mapped: Record<string, unknown>, existingCertNumbers: Set<string>): RowError[] {
+  const errors: RowError[] = [];
+  for (const f of STONE_FIELDS) {
+    if (f.required) {
+      const v = mapped[f.key];
+      if (v === undefined || v === null || String(v).trim() === "") {
+        errors.push({ field: f.key, message: `${f.label} is required` });
+      }
+    }
+  }
+  const carat = Number(mapped.carat_weight);
+  if (
+    mapped.carat_weight !== undefined &&
+    mapped.carat_weight !== "" &&
+    (isNaN(carat) || carat < 0.01 || carat > 100)
+  ) {
+    errors.push({ field: "carat_weight", message: "Must be 0.01–100" });
+  }
+  if (mapped.wholesale_price_usd !== undefined && mapped.wholesale_price_usd !== "") {
+    const raw = String(mapped.wholesale_price_usd);
+    if (/[^0-9.\-]/.test(raw)) {
+      errors.push({ field: "wholesale_price_usd", message: "No currency symbols — numbers only" });
+    } else {
+      const p = Number(raw);
+      if (isNaN(p) || p < 1 || p > 500_000) errors.push({ field: "wholesale_price_usd", message: "Must be 1–500,000" });
+    }
+  }
+  if (mapped.clarity_grade && !CLARITY_VALUES.includes(String(mapped.clarity_grade).trim())) {
+    errors.push({ field: "clarity_grade", message: `Must be one of ${CLARITY_VALUES.join(", ")}` });
+  }
+  if (mapped.cert_lab && !CERT_LABS.includes(String(mapped.cert_lab).trim())) {
+    errors.push({ field: "cert_lab", message: `Unsupported lab; leave blank if unknown` });
+  }
+  const certNum = mapped.cert_number ? String(mapped.cert_number).trim() : "";
+  if (certNum) {
+    const lab = String(mapped.cert_lab ?? "").trim();
+    if (lab === "GIA" && !/^\d{10}$/.test(certNum)) {
+      errors.push({ field: "cert_number", message: "GIA cert numbers must be exactly 10 digits" });
+    }
+    if (lab === "IGI" && !/^\d{9,12}$/.test(certNum)) {
+      errors.push({ field: "cert_number", message: "IGI cert numbers must be 9–12 digits" });
+    }
+    if (existingCertNumbers.has(certNum)) {
+      errors.push({ field: "cert_number", message: "Duplicate — you already have a stone with this cert number" });
+    }
+  }
+  return errors;
 }
 
-async function buildAccountApproved(
-  profileId: string,
-  sb: SupabaseClient,
-  role: "dealer" | "jeweller",
-): Promise<EmailPayload> {
-  const { data: p } = await sb
-    .from("profiles")
-    .select("email, full_name")
-    .eq("id", profileId)
-    .maybeSingle();
-  if (!p?.email) return null;
-  const name = p.full_name || "there";
+export function normaliseValue(field: StoneField, value: unknown): unknown {
+  if (value === undefined || value === null || value === "") return value;
+  const v = String(value).trim();
 
-  if (role === "dealer") {
-    return {
-      to: p.email,
-      subject: "Your Chaos account is approved — you're in",
-      html: shell(`
-        <p style="margin:0 0 16px;">Hi ${esc(name)},</p>
-        <p style="margin:0 0 16px;">Your dealer account is approved. You can now log in, set up your profile, and start uploading your stone inventory.</p>
-        <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard", "Go to your dashboard")}</p>
-        <p style="margin:0;">— The Chaos team</p>
-      `),
+  if (field.key === "cert_lab") {
+    const up = v.toUpperCase().replace(/[\.\-\s]/g, "");
+    if (up === "GIA" || up === "GIACOLOURED") return up === "GIACOLOURED" ? "GIA-coloured" : "GIA";
+    if (up === "IGI" || up === "IGIUSA" || up === "IGIINDIA") return "IGI";
+    if (up === "HRD") return "HRD";
+    if (up === "AGS") return "AGS";
+    if (up === "GRS") return "GRS";
+    if (up === "AGL") return "AGL";
+    if (up === "GCAL") return "GCAL";
+    if (up === "EGL") return "EGL";
+    if (up === "SSEF") return "SSEF";
+    if (up === "LOTUS" || up === "LOTUSGEMS") return "Lotus";
+    if (up === "GIT") return "GIT";
+    if (up === "GUBELIN" || up === "GÜBELIN") return "Gübelin";
+    return v;
+  }
+
+  if (field.key === "shape") {
+    const up = v.toUpperCase().replace(/[\s\-]/g, "");
+    const shapeMap: Record<string, string> = {
+      RD: "Round",
+      ROUND: "Round",
+      ROUNDBRILLIANT: "Round",
+      BR: "Round",
+      OV: "Oval",
+      OVAL: "Oval",
+      OVALBRILLIANT: "Oval",
+      CU: "Cushion",
+      CUSH: "Cushion",
+      CUSHION: "Cushion",
+      CUSHIONBRILLIANT: "Cushion",
+      PR: "Pear",
+      PEAR: "Pear",
+      PEARSHAPE: "Pear",
+      EM: "Emerald Cut",
+      EMERALD: "Emerald Cut",
+      EMERALDCUT: "Emerald Cut",
+      STEPCUT: "Emerald Cut",
+      RAD: "Radiant",
+      RADIANT: "Radiant",
+      MQ: "Marquise",
+      MARQUISE: "Marquise",
+      MARQUISEBRILL: "Marquise",
+      MARQUISEBRILLIANT: "Marquise",
+      AS: "Asscher",
+      ASSCHER: "Asscher",
+      HT: "Heart",
+      HEART: "Heart",
+      HEARTSHAPE: "Heart",
+      PS: "Princess",
+      PRINCESS: "Princess",
+      RC: "Rose Cut",
+      ROSECUT: "Rose Cut",
+      OM: "Old Mine Cut",
+      OLDMINE: "Old Mine Cut",
+      OLDMINECUT: "Old Mine Cut",
+      OEC: "Old European Cut",
+      OLDEUROPEAN: "Old European Cut",
+      OLDEUROPEANCUT: "Old European Cut",
     };
+    return shapeMap[up] ?? v;
   }
 
-  return {
-    to: p.email,
-    subject: "Your Chaos account is approved — you're in",
-    html: shell(`
-      <p style="margin:0 0 16px;">Hi ${esc(name)},</p>
-      <p style="margin:0 0 16px;">Your jeweller account is approved. You can now browse the marketplace, follow dealers, and generate your API feed key.</p>
-      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/jeweller", "Go to your dashboard")}</p>
-      <p style="margin:0;">— The Chaos team</p>
-    `),
-  };
+  if (field.key === "treatment") {
+    const lo = v.toLowerCase().replace(/[\s\-]/g, "");
+    if (["", "none", "no", "untreated", "notreatment"].includes(lo)) return "None";
+    if (["h", "heat", "heated", "heattreated"].includes(lo)) return "Heat treated";
+    if (["be", "beryllium", "bediffusion"].includes(lo)) return "Beryllium diffused";
+    if (["fr", "fracturefill", "fracturefilled", "ff"].includes(lo)) return "Fracture filled";
+    if (["oil", "oiled", "oiling", "cedaroil"].includes(lo)) return "Oiled";
+    if (["ir", "irradiated", "irradiation"].includes(lo)) return "Irradiated";
+    return v;
+  }
+
+  if (field.key === "eye_clean") {
+    const up = v.toUpperCase().replace(/[\s\-]/g, "");
+    if (["EC", "Y", "YES", "EYECLEAN", "1"].includes(up)) return "Yes";
+    if (["BL", "BORDERLINE", "BORDERLINE"].includes(up)) return "Borderline";
+    if (["N", "NO", "NOTEYECLEAN", "0"].includes(up)) return "No";
+    return v;
+  }
+
+  if (field.key === "origin") {
+    const lo = v.toLowerCase().replace(/[\s\-]/g, "");
+    if (["cvd", "hpht", "labgrown", "laggrown", "synthetic", "manmade", "labbrown"].includes(lo)) return "Lab-grown";
+    if (["natural", "mined", "earthmined"].includes(lo)) return "Natural";
+    return v;
+  }
+
+  if (field.key === "stone_type") {
+    const up = v.toUpperCase().replace(/[\s\-]/g, "");
+    const typeMap: Record<string, string> = {
+      DIAM: "Diamond",
+      DIA: "Diamond",
+      D: "Diamond",
+      DIAMOND: "Diamond",
+      SAP: "Sapphire",
+      SAPP: "Sapphire",
+      SAPPHIRE: "Sapphire",
+      RUB: "Ruby",
+      RUBY: "Ruby",
+      EME: "Emerald",
+      EMER: "Emerald",
+      EMERALD: "Emerald",
+      ALEX: "Alexandrite",
+      ALEXANDRITE: "Alexandrite",
+      SPIN: "Spinel",
+      SPINEL: "Spinel",
+      TOUR: "Tourmaline",
+      TOURMALINE: "Tourmaline",
+      TANZ: "Tanzanite",
+      TANZANITE: "Tanzanite",
+    };
+    return typeMap[up] ?? v;
+  }
+
+  return v;
 }
 
-async function buildEnquiryNewDealer(enquiryId: string, sb: SupabaseClient): Promise<EmailPayload> {
-  const { data: enq } = await sb
-    .from("enquiries")
-    .select("from_jeweller_id, to_dealer_id, stone_id, subject, message")
-    .eq("id", enquiryId)
-    .maybeSingle();
-  if (!enq) return null;
-
-  const [{ data: dealer }, { data: jeweller }, stoneRes] = await Promise.all([
-    sb.from("profiles").select("email, full_name, company_name").eq("id", enq.to_dealer_id).maybeSingle(),
-    sb.from("profiles").select("full_name, company_name").eq("id", enq.from_jeweller_id).maybeSingle(),
-    enq.stone_id
-      ? sb.from("stones").select("stone_type, shape, carat_weight").eq("id", enq.stone_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-
-  if (!dealer?.email) return null;
-
-  const jName = jeweller?.full_name || "A jeweller";
-  const jCo = jeweller?.company_name || "";
-  const subjectCo = jCo || jName;
-
-  const stone = stoneRes.data;
-  const stoneLine = stone
-    ? `<p style="margin:0 0 16px;">They're asking about your ${esc(String(stone.carat_weight ?? ""))}ct ${esc(stone.shape ?? "")} ${esc(stone.stone_type)}.</p>`
-    : "";
-
-  return {
-    to: dealer.email,
-    subject: `New enquiry from ${subjectCo} — Chaos`,
-    html: shell(`
-      <p style="margin:0 0 16px;">Hi ${esc(dealer.full_name || "there")},</p>
-      <p style="margin:0 0 16px;">You have a new enquiry from ${gold(jName)}${jCo ? ` at ${gold(jCo)}` : ""}.</p>
-      ${stoneLine}
-      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/enquiries", "View enquiry")}</p>
-      <p style="margin:0;">— The Chaos team</p>
-    `),
-  };
+export function coerceForInsert(mapped: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of STONE_FIELDS) {
+    const v = mapped[f.key];
+    if (v === undefined || v === null || v === "") continue;
+    if (f.type === "number") {
+      const n = Number(String(v).replace(/[^0-9.\-]/g, ""));
+      if (!isNaN(n)) out[f.key] = n;
+    } else if (f.type === "boolean") {
+      const s = String(v).toLowerCase().trim();
+      out[f.key] = ["1", "true", "yes", "y"].includes(s);
+    } else {
+      out[f.key] = normaliseValue(f, String(v).trim());
+    }
+  }
+  return out;
 }
 
-async function buildEnquiryReplyJeweller(messageId: string, sb: SupabaseClient): Promise<EmailPayload> {
-  const { data: msg } = await sb
-    .from("enquiry_messages")
-    .select("enquiry_id, sender_id")
-    .eq("id", messageId)
-    .maybeSingle();
-  if (!msg) return null;
-
-  const { data: enq } = await sb
-    .from("enquiries")
-    .select("from_jeweller_id, to_dealer_id")
-    .eq("id", msg.enquiry_id)
-    .maybeSingle();
-  if (!enq) return null;
-
-  const [{ data: jeweller }, { data: dealer }] = await Promise.all([
-    sb.from("profiles").select("email, full_name").eq("id", enq.from_jeweller_id).maybeSingle(),
-    sb.from("profiles").select("full_name, company_name").eq("id", enq.to_dealer_id).maybeSingle(),
-  ]);
-
-  if (!jeweller?.email) return null;
-
-  const dName = dealer?.company_name || dealer?.full_name || "The dealer";
-
-  return {
-    to: jeweller.email,
-    subject: `${dName} has replied to your enquiry — Chaos`,
-    html: shell(`
-      <p style="margin:0 0 16px;">Hi ${esc(jeweller.full_name || "there")},</p>
-      <p style="margin:0 0 16px;">${gold(dName)} has replied to your enquiry.</p>
-      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/jeweller/enquiries", "View conversation")}</p>
-      <p style="margin:0;">— The Chaos team</p>
-    `),
+// Build a CSV template with all fields + one realistic example row.
+export function buildTemplateCsv(): string {
+  const headers = STONE_FIELDS.map((f) => f.key);
+  const example: Record<string, string> = {
+    stone_type: "diamond",
+    shape: "round",
+    carat_weight: "1.05",
+    wholesale_price_usd: "4200",
+    colour_grade: "F",
+    clarity_grade: "VS1",
+    cut_grade: "Excellent",
+    polish: "Excellent",
+    symmetry: "Excellent",
+    fluorescence: "None",
+    cert_lab: "GIA",
+    cert_number: "2191234567",
+    origin: "natural",
+    country_of_origin: "Botswana",
+    treatment: "none",
+    measurements_length: "6.52",
+    measurements_width: "6.55",
+    measurements_height: "4.03",
+    depth_pct: "61.6",
+    table_pct: "57",
+    available_qty: "1",
+    listing_type: "single",
+    notes_for_buyers: "Premium make, eye-clean to 10x.",
   };
-}
-
-async function buildOrderMarkedFulfilled(orderId: string, sb: SupabaseClient): Promise<EmailPayload> {
-  const { data: order } = await sb
-    .from("orders")
-    .select("jeweller_id, dealer_id, stone_id, wholesale_price_usd, notes")
-    .eq("id", orderId)
-    .maybeSingle();
-  if (!order) return null;
-
-  const [{ data: jeweller }, { data: dealer }, stoneRes] = await Promise.all([
-    sb.from("profiles").select("email, full_name").eq("id", order.jeweller_id).maybeSingle(),
-    sb.from("profiles").select("full_name, company_name").eq("id", order.dealer_id).maybeSingle(),
-    order.stone_id
-      ? sb.from("stones").select("stone_type, shape, carat_weight").eq("id", order.stone_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  if (!jeweller?.email) return null;
-
-  const dName = dealer?.company_name || dealer?.full_name || "The dealer";
-  const stone = stoneRes.data;
-  const stoneLine = stone
-    ? `<p style="margin:0 0 16px;">Stone: ${esc(String(stone.carat_weight ?? ""))}ct ${esc(stone.shape ?? "")} ${esc(stone.stone_type)}.</p>`
-    : "";
-  const priceLine = order.wholesale_price_usd
-    ? `<p style="margin:0 0 16px;">Agreed price: ${gold("$" + Number(order.wholesale_price_usd).toLocaleString())}</p>`
-    : "";
-  const notesLine = order.notes
-    ? `<p style="margin:0 0 16px;color:${MUTED};">Dealer note: ${esc(order.notes)}</p>`
-    : "";
-
-  return {
-    to: jeweller.email,
-    subject: `Sale confirmed by ${dName} — Chaos`,
-    html: shell(`
-      <p style="margin:0 0 16px;">Hi ${esc(jeweller.full_name || "there")},</p>
-      <p style="margin:0 0 16px;">${gold(dName)} has marked your enquiry as sold.</p>
-      ${stoneLine}
-      ${priceLine}
-      ${notesLine}
-      <p style="margin:0 0 24px;">${btn(BASE_URL + "/dashboard/jeweller/enquiries", "View conversation")}</p>
-      <p style="margin:0;">— The Chaos team</p>
-    `),
-  };
+  const row = headers.map((h) => {
+    const v = example[h] ?? "";
+    return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  });
+  return headers.join(",") + "\n" + row.join(",") + "\n";
 }
