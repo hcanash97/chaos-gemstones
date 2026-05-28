@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ReferralNudge } from "@/components/dashboard/ReferralNudge";
+import { Users, Gem, KeyRound, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 export const Route = createFileRoute("/dashboard/jeweller/")({
   component: JewellerOverview,
@@ -45,13 +47,31 @@ function JewellerOverview() {
   return (
     <div>
       <ReferralNudge />
-      <h1 className="font-serif text-3xl">Welcome, {profile?.company_name || profile?.full_name}</h1>
-      <p className="text-sm text-muted-foreground">Your sourcing dashboard.</p>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <h1 className="font-serif text-3xl">Welcome, {profile?.company_name || profile?.full_name}</h1>
+        <p className="text-sm text-muted-foreground">Your sourcing dashboard.</p>
+      </motion.div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Stat label="Followed vendors" value={data?.activeFeeds ?? 0} />
-        <Stat label="Stones in your feed" value={data?.stoneCount ?? 0} />
-        <Stat label="API key" value={data?.hasKey ? "Active" : "Not generated"} />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          icon={<Users className="h-4 w-4" />}
+          label="Followed vendors"
+          value={data?.activeFeeds ?? 0}
+          empty={(data?.activeFeeds ?? 0) === 0}
+          ctaLabel="Follow your first vendor"
+          ctaTo="/dashboard/jeweller/feeds"
+          delay={0.05}
+        />
+        <StatCard
+          icon={<Gem className="h-4 w-4" />}
+          label="Stones in your feed"
+          value={data?.stoneCount ?? 0}
+          empty={(data?.stoneCount ?? 0) === 0}
+          ctaLabel="Follow a vendor to populate your feed"
+          ctaTo="/dashboard/jeweller/feeds"
+          delay={0.15}
+        />
+        <ApiKeyCard active={!!data?.hasKey} delay={0.25} />
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -63,12 +83,57 @@ function JewellerOverview() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function StatCard({
+  icon, label, value, empty, ctaLabel, ctaTo, delay,
+}: { icon: React.ReactNode; label: string; value: number; empty: boolean; ctaLabel: string; ctaTo: string; delay: number }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-2 font-serif text-3xl">{value}</div>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+      className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-[var(--color-gold)]/50"
+    >
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-gold)]/15 text-[var(--color-gold)]">{icon}</span>
+        {label}
+      </div>
+      <div className={`mt-3 font-serif text-4xl ${empty ? "text-muted-foreground/50" : "text-[var(--color-gold)]"}`}>
+        {empty ? "—" : value}
+      </div>
+      {empty && (
+        <Link to={ctaTo} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[var(--color-gold)] hover:opacity-80">
+          {ctaLabel} <ArrowRight className="h-3 w-3" />
+        </Link>
+      )}
+    </motion.div>
+  );
+}
+
+function ApiKeyCard({ active, delay }: { active: boolean; delay: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+      className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-[var(--color-gold)]/50"
+    >
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-gold)]/15 text-[var(--color-gold)]"><KeyRound className="h-4 w-4" /></span>
+        API key
+      </div>
+      {active ? (
+        <div className="mt-3 flex items-center gap-2 font-serif text-2xl">
+          <span className="live-dot" /> <span>Active</span>
+        </div>
+      ) : (
+        <>
+          <div className="mt-3 font-serif text-2xl text-muted-foreground/60">Not generated</div>
+          <Link to="/dashboard/jeweller/api" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-[var(--color-gold)] hover:opacity-80">
+            Generate your API key <ArrowRight className="h-3 w-3" />
+          </Link>
+        </>
+      )}
+    </motion.div>
   );
 }
 
