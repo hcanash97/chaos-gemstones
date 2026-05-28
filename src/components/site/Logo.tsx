@@ -5,7 +5,7 @@ import cMark from "@/assets/chaos-c-mark.png";
  * CHAOS wordmark + minimal gem-facet mark.
  * Octagon viewed from above with internal facet lines in lighter champagne gold.
  */
-export function GemMark({ size = 24, className }: { size?: number; className?: string }) {
+export function GemMark({ size = 24, className, style }: { size?: number; className?: string; style?: React.CSSProperties }) {
   return (
     <img
       src={cMark}
@@ -14,7 +14,7 @@ export function GemMark({ size = 24, className }: { size?: number; className?: s
       alt=""
       aria-hidden="true"
       className={className}
-      style={{ display: "inline-block", objectFit: "contain" }}
+      style={{ display: "inline-block", objectFit: "contain", ...style }}
     />
   );
 }
