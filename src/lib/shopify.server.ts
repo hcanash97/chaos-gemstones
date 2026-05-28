@@ -33,7 +33,7 @@ export async function encryptToken(plaintext: string): Promise<string> {
   const key = await getKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
     new TextEncoder().encode(plaintext),
   );
@@ -45,9 +45,9 @@ export async function decryptToken(payload: string): Promise<string> {
   if (!ivStr || !ctStr) throw new Error("Bad token payload");
   const key = await getKey();
   const pt = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: fromB64(ivStr) },
+    { name: "AES-GCM", iv: fromB64(ivStr) as BufferSource },
     key,
-    fromB64(ctStr),
+    fromB64(ctStr) as BufferSource,
   );
   return new TextDecoder().decode(pt);
 }
