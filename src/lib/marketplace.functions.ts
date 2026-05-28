@@ -26,8 +26,8 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       .eq("is_test", false);
 
     // Availability (defaults to ['available'])
-    const availability = f.availability && f.availability.length ? f.availability : ["available"];
-    q = q.in("status", availability as string[]);
+    const availability = f.availability && f.availability.length ? f.availability : (["available"] as const);
+    q = q.in("status", availability as readonly ("available" | "reserved" | "sold")[]);
 
     // Dealer
     if (f.dealerId && f.dealerId !== "all") q = q.eq("dealer_id", f.dealerId);
