@@ -397,6 +397,63 @@ export type Database = {
           },
         ]
       }
+      pricing_rules: {
+        Row: {
+          created_at: string
+          currency: string | null
+          dealer_id: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          rule_type: string
+          scope: string
+          stone_id: string | null
+          stone_type: string | null
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          dealer_id: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rule_type: string
+          scope?: string
+          stone_id?: string | null
+          stone_type?: string | null
+          value: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          dealer_id?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rule_type?: string
+          scope?: string
+          stone_id?: string | null
+          stone_type?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_rules_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_rules_stone_id_fkey"
+            columns: ["stone_id"]
+            isOneToOne: false
+            referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"]
