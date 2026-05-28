@@ -4,10 +4,12 @@ import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Logo, GemMark } from "@/components/site/Logo";
 import { CurrencySelector } from "@/components/site/CurrencySelector";
+import { Menu, X } from "lucide-react";
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
     onScroll();
@@ -15,6 +17,7 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
   return (
+    <>
     <header
       className={`sticky top-0 z-40 transition-all duration-300 ${
         scrolled
@@ -23,14 +26,14 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <Logo />
+        <span className="logo-glow"><Logo /></span>
         <nav className="hidden items-center gap-7 text-sm md:flex">
           <Link to="/marketplace" className="text-foreground/80 hover:text-foreground">Marketplace</Link>
           <Link to="/vendors" className="text-foreground/80 hover:text-foreground">Vendors</Link>
           <Link to="/learn" className="text-foreground/80 hover:text-foreground">Learn</Link>
           <Link to="/about" className="text-foreground/80 hover:text-foreground">About</Link>
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 md:flex">
           <CurrencySelector />
           {user ? (
             <>
@@ -57,15 +60,73 @@ export function SiteHeader() {
                 <Button variant="ghost" size="sm">Log in</Button>
               </Link>
               <Link to="/sign-up/jeweller">
-                <Button size="sm" className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+                <Button size="sm" className="pulse-once bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
                   Sign up
                 </Button>
               </Link>
             </>
           )}
         </div>
+        {/* Mobile: currency + hamburger */}
+        <div className="flex items-center gap-2 md:hidden">
+          <CurrencySelector />
+          <button
+            type="button"
+            aria-label="Open menu"
+            onClick={() => setMenuOpen(true)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </header>
+    {/* Mobile drawer */}
+    {menuOpen && (
+      <div className="fixed inset-0 z-50 md:hidden">
+        <div className="absolute inset-0 bg-primary/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
+        <aside className="absolute right-0 top-0 h-full w-80 max-w-[85%] bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <span className="font-serif text-xl italic">Chaos</span>
+            <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="inline-flex h-9 w-9 items-center justify-center">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <nav className="flex flex-col gap-1 p-3 text-sm">
+            {[
+              { to: "/marketplace", label: "Marketplace" },
+              { to: "/vendors", label: "Vendors" },
+              { to: "/learn", label: "Learn" },
+              { to: "/about", label: "About" },
+            ].map((l) => (
+              <Link key={l.to} to={l.to} onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 text-foreground/90 hover:bg-muted">
+                {l.label}
+              </Link>
+            ))}
+            <div className="my-3 border-t border-border" />
+            {user ? (
+              <>
+                {profile?.account_type && (
+                  <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 hover:bg-muted">Dashboard</Link>
+                )}
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 text-[var(--color-gold)] hover:bg-muted">Admin</Link>
+                )}
+                <button onClick={() => { setMenuOpen(false); signOut(); }} className="rounded-md px-3 py-3 text-left hover:bg-muted">Sign out</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 hover:bg-muted">Log in</Link>
+                <Link to="/sign-up/jeweller" onClick={() => setMenuOpen(false)} className="mt-1 rounded-md bg-[var(--color-gold)] px-3 py-3 text-center font-medium text-[var(--color-gold-foreground)]">
+                  Sign up
+                </Link>
+              </>
+            )}
+          </nav>
+        </aside>
+      </div>
+    )}
+    </>
   );
 }
 
