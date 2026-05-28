@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Copy, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,6 +18,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getJewellerApiStatus, generateJewellerApiKey } from "@/lib/jeweller-feed.functions";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -44,6 +52,7 @@ function ApiPage() {
   const [revealed, setRevealed] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
 
   const isJeweller = profile?.account_type === "jeweller";
 
@@ -131,6 +140,10 @@ function ApiPage() {
         throw new Error("Feed endpoint did not return valid JSON.");
       }
       toast.success("API key generated.");
+      if (typeof window !== "undefined" && !localStorage.getItem("chaos-referral-nudge-shown")) {
+        setReferralOpen(true);
+        localStorage.setItem("chaos-referral-nudge-shown", "1");
+      }
     } catch (error) {
       const message = mapError(error instanceof Error ? error.message : "Server error");
       setInlineError(message);
@@ -144,6 +157,7 @@ function ApiPage() {
 
   return (
     <div>
+      <ReferralDialog open={referralOpen} onOpenChange={setReferralOpen} />
       <h1 className="font-serif text-3xl">API Feed</h1>
       <p className="text-sm text-muted-foreground">Stream your curated catalogue into any website.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -231,5 +245,37 @@ function ApiPage() {
         </table>
       </div>
     </div>
+  );
+}
+
+function ReferralDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const message =
+    "I just connected my website to Chaos Gemstones — it's a B2B marketplace for verified independent dealers in Jaipur, Bangkok and Sri Lanka. Worth a look if you're looking for a better way to source: https://chaosgemstones.com";
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-serif text-2xl">Your feed is live</DialogTitle>
+          <DialogDescription>
+            Most jewellers on Chaos found us through a peer. If you know a colleague who'd benefit, sharing
+            the platform takes 10 seconds.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="rounded-md border border-border bg-muted/30 p-3 text-sm text-foreground">
+          {message}
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Maybe later</Button>
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(message);
+              toast.success("Copied — paste it anywhere");
+            }}
+          >
+            <Copy className="mr-1 h-3 w-3" /> Copy message
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

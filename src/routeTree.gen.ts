@@ -19,6 +19,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorsIndexRouteImport } from './routes/vendors.index'
+import { Route as LearnIndexRouteImport } from './routes/learn.index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
@@ -27,6 +28,7 @@ import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
 import { Route as LegalTermsJewellersRouteImport } from './routes/legal.terms-jewellers'
 import { Route as LegalTermsDealersRouteImport } from './routes/legal.terms-dealers'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as LearnSlugRouteImport } from './routes/learn.$slug'
 import { Route as HowItWorksShippingRouteImport } from './routes/how-it-works.shipping'
 import { Route as HowItWorksPaymentsRouteImport } from './routes/how-it-works.payments'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
@@ -110,6 +112,11 @@ const VendorsIndexRoute = VendorsIndexRouteImport.update({
   path: '/vendors/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnIndexRoute = LearnIndexRouteImport.update({
+  id: '/learn/',
+  path: '/learn/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -148,6 +155,11 @@ const LegalTermsDealersRoute = LegalTermsDealersRouteImport.update({
 const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
   id: '/legal/privacy',
   path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnSlugRoute = LearnSlugRouteImport.update({
+  id: '/learn/$slug',
+  path: '/learn/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HowItWorksShippingRoute = HowItWorksShippingRouteImport.update({
@@ -337,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -345,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
@@ -388,6 +402,7 @@ export interface FileRoutesByTo {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -396,6 +411,7 @@ export interface FileRoutesByTo {
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/learn': typeof LearnIndexRoute
   '/vendors': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
@@ -441,6 +457,7 @@ export interface FileRoutesById {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -449,6 +466,7 @@ export interface FileRoutesById {
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
@@ -495,6 +513,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -503,6 +522,7 @@ export interface FileRouteTypes {
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
+    | '/learn/'
     | '/vendors/'
     | '/api/public/chaos.js'
     | '/api/public/feed'
@@ -546,6 +566,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -554,6 +575,7 @@ export interface FileRouteTypes {
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard'
+    | '/learn'
     | '/vendors'
     | '/api/public/chaos.js'
     | '/api/public/feed'
@@ -598,6 +620,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -606,6 +629,7 @@ export interface FileRouteTypes {
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
+    | '/learn/'
     | '/vendors/'
     | '/api/public/chaos.js'
     | '/api/public/feed'
@@ -646,6 +670,7 @@ export interface RootRouteChildren {
   EmbedKeyRoute: typeof EmbedKeyRoute
   HowItWorksPaymentsRoute: typeof HowItWorksPaymentsRoute
   HowItWorksShippingRoute: typeof HowItWorksShippingRoute
+  LearnSlugRoute: typeof LearnSlugRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsDealersRoute: typeof LegalTermsDealersRoute
   LegalTermsJewellersRoute: typeof LegalTermsJewellersRoute
@@ -653,6 +678,7 @@ export interface RootRouteChildren {
   SignUpJewellerRoute: typeof SignUpJewellerRoute
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
+  LearnIndexRoute: typeof LearnIndexRoute
   VendorsIndexRoute: typeof VendorsIndexRoute
   ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
@@ -734,6 +760,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/': {
+      id: '/learn/'
+      path: '/learn'
+      fullPath: '/learn/'
+      preLoaderRoute: typeof LearnIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard/': {
       id: '/dashboard/'
       path: '/'
@@ -788,6 +821,13 @@ declare module '@tanstack/react-router' {
       path: '/legal/privacy'
       fullPath: '/legal/privacy'
       preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/$slug': {
+      id: '/learn/$slug'
+      path: '/learn/$slug'
+      fullPath: '/learn/$slug'
+      preLoaderRoute: typeof LearnSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/how-it-works/shipping': {
@@ -1112,6 +1152,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmbedKeyRoute: EmbedKeyRoute,
   HowItWorksPaymentsRoute: HowItWorksPaymentsRoute,
   HowItWorksShippingRoute: HowItWorksShippingRoute,
+  LearnSlugRoute: LearnSlugRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsDealersRoute: LegalTermsDealersRoute,
   LegalTermsJewellersRoute: LegalTermsJewellersRoute,
@@ -1119,6 +1160,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignUpJewellerRoute: SignUpJewellerRoute,
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
+  LearnIndexRoute: LearnIndexRoute,
   VendorsIndexRoute: VendorsIndexRoute,
   ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
   ApiPublicFeedRoute: ApiPublicFeedRoute,

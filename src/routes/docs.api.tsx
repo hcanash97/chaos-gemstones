@@ -60,7 +60,10 @@ function ApiDocs() {
   const snippetCurl = `curl "${base}/api/public/feed?key=${KEY}"`;
 
   const snippetJs = `const res = await fetch("${base}/api/public/feed?key=${KEY}");
-const { stones } = await res.json();
+const { stones, excluded, count } = await res.json();
+// stones[] — live inventory ready to display
+// excluded[] — stones held back by a dealer pricing rule (id + reason)
+// count — number of stones in this response
 stones.forEach(s => {
   console.log(s.stone_type, s.carat_weight, s.retail_price);
 });`;
@@ -169,7 +172,12 @@ export function ChaosFeed({ apiKey }) {
             <CopyBlock code={snippetJs} />
             <p className="text-xs text-muted-foreground">
               Response shape:{" "}
-              <code>{"{ count, last_updated, stones: [{ id, stone_type, shape, carat_weight, origin, cert_lab, retail_price, markup_applied, stone_images, ... }] }"}</code>
+              <code>{"{ count, last_updated, stones: [{ id, stone_type, shape, carat_weight, origin, cert_lab, retail_price, retail_currency, markup_applied, stone_images, ... }], excluded: [{ id, reason }] }"}</code>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              <strong>excluded[]</strong> lists stones a dealer has flagged with a pricing rule (e.g. a minimum-price floor)
+              that your current markup would breach. Render them with “Contact for price” or omit them entirely.
+              <strong> retail_currency</strong> reflects the jeweller’s Feed Output Currency setting.
             </p>
           </TabsContent>
 

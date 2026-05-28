@@ -27,6 +27,7 @@ export function SiteHeader() {
         <nav className="hidden items-center gap-7 text-sm md:flex">
           <Link to="/marketplace" className="text-foreground/80 hover:text-foreground">Marketplace</Link>
           <Link to="/vendors" className="text-foreground/80 hover:text-foreground">Vendors</Link>
+          <Link to="/learn" className="text-foreground/80 hover:text-foreground">Learn</Link>
           <Link to="/about" className="text-foreground/80 hover:text-foreground">About</Link>
         </nav>
         <div className="flex items-center gap-2">
@@ -89,6 +90,7 @@ export function SiteFooter() {
               <li><Link to="/marketplace" className="opacity-80 hover:opacity-100">Marketplace</Link></li>
               <li><Link to="/vendors" className="opacity-80 hover:opacity-100">Vendors</Link></li>
               <li><Link to="/about" className="opacity-80 hover:opacity-100">About</Link></li>
+              <li><Link to="/learn" className="opacity-80 hover:opacity-100">Learning hub</Link></li>
               <li><Link to="/docs/api" className="opacity-80 hover:opacity-100">API &amp; Embeds</Link></li>
               <li><Link to="/how-it-works/payments" className="opacity-80 hover:opacity-100">Payments</Link></li>
               <li><Link to="/how-it-works/shipping" className="opacity-80 hover:opacity-100">Shipping</Link></li>
