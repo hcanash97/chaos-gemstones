@@ -118,12 +118,17 @@ export const Route = createFileRoute("/api/public/feed")({
           const stones: unknown[] = [];
           const excluded: { id: string; reason: string }[] = [];
           const seen = new Set<string>();
+          // Track original wholesale (in USD-normalised form) per stone id for rule checks.
+          const wholesaleMap = new Map<string, { wholesale: number; sourceCurrency: string }>();
 
           const pushStone = (s: StoneRow, markup: number) => {
             if (seen.has(s.id)) return;
             seen.add(s.id);
             const wholesale = s.wholesale_price_usd != null ? Number(s.wholesale_price_usd) : null;
             const sourceCurrency = s.price_currency ?? "USD";
+            if (wholesale != null) {
+              wholesaleMap.set(s.id, { wholesale, sourceCurrency });
+            }
             const wholesaleInFeedCurrency =
               wholesale != null
                 ? convertPrice(wholesale, sourceCurrency, feedCurrency, rates)
@@ -200,27 +205,28 @@ export const Route = createFileRoute("/api/public/feed")({
                 const dealerId = s.dealer_id as string | undefined;
                 const stoneId = s.id as string;
                 const stoneType = s.stone_type as string | undefined;
-                const wholesaleUsd = (s as { _wholesale_usd?: number })._wholesale_usd;
-                // we stripped wholesale_price_usd; recompute from retail_price / markup? simpler: look up below.
-                // We need a numeric to compare — fetch from a parallel map.
+                const w = wholesaleMap.get(stoneId);
                 const violates = ruleList.some((r) => {
                   if (r.dealer_id !== dealerId) return false;
                   if (r.scope === "stone" && r.stone_id !== stoneId) return false;
                   if (r.scope === "stone_type" && r.stone_type !== stoneType) return false;
-                  if (r.rule_type !== "min_price" && r.rule_type !== "rap_floor") return false;
-                  // Compare against retail_price converted back to rule currency. Simpler: compare retail in feed currency to rule.value converted to feed currency.
-                  const retail = s.retail_price as number | null;
-                  if (retail == null) return false;
-                  const ruleCurrency = r.currency || "USD";
-                  const ruleInFeed = convertPrice(Number(r.value), ruleCurrency, feedCurrency, rates);
-                  return retail < ruleInFeed;
+                  if (!w) return false;
+                  if (r.rule_type === "min_price") {
+                    const ruleCurrency = r.currency || "USD";
+                    const wholesaleInRuleCurrency = convertPrice(
+                      w.wholesale, w.sourceCurrency, ruleCurrency, rates,
+                    );
+                    return wholesaleInRuleCurrency < Number(r.value);
+                  }
+                  // rap_floor and min_margin_pct require a per-stone declared reference price
+                  // which isn't modelled yet — skip without excluding.
+                  return false;
                 });
                 if (violates) {
                   excluded.push({ id: stoneId, reason: "below_minimum_price" });
                 } else {
                   kept.push(s);
                 }
-                void wholesaleUsd;
               }
               return json({ stones: kept, excluded, count: kept.length });
             }
