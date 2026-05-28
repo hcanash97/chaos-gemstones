@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { captureRefFromUrl, applyStoredRefForUser } from "@/lib/referral";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,7 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<{ message: string; action?: "login" } | null>(null);
+  useEffect(() => { captureRefFromUrl(); }, []);
   const [form, setForm] = useState<any>({
     email: "", password: "", full_name: "", company_name: "", country: "", city: "",
     phone: "", website: "", bio: "", specialities: [] as string[], terms_accepted: false,
@@ -144,6 +146,7 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
           website: form.website || null,
         }).eq("id", uid);
       }
+      await applyStoredRefForUser(uid);
     }
     setLoading(false);
     toast.success("Account created — pending approval");
