@@ -33,7 +33,7 @@ export const getDealerApiStatus = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase
+      (supabase as any)
         .from("dealer_profiles")
         .select("external_feed_url, auto_sync_enabled, last_synced_at, external_feed_method, external_feed_body")
         .eq("id", userId)
@@ -127,7 +127,7 @@ export const runDealerSync = createServerFn({ method: "POST" })
     // Use admin client to read profile + write logs (avoids RLS edge cases)
     await ensureApprovedDealer(supabaseAdmin, userId);
 
-    const { data: dealer } = await supabaseAdmin
+    const { data: dealer } = await (supabaseAdmin as any)
       .from("dealer_profiles")
       .select("external_feed_url, external_feed_method, external_feed_body")
       .eq("id", userId)
