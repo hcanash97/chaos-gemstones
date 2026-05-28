@@ -22,6 +22,7 @@ export type Database = {
           jeweller_id: string
           key_hash: string
           key_prefix: string | null
+          key_type: string
           label: string | null
           last_used_at: string | null
         }
@@ -32,6 +33,7 @@ export type Database = {
           jeweller_id: string
           key_hash: string
           key_prefix?: string | null
+          key_type?: string
           label?: string | null
           last_used_at?: string | null
         }
@@ -42,6 +44,7 @@ export type Database = {
           jeweller_id?: string
           key_hash?: string
           key_prefix?: string | null
+          key_type?: string
           label?: string | null
           last_used_at?: string | null
         }
@@ -78,6 +81,7 @@ export type Database = {
       }
       dealer_profiles: {
         Row: {
+          auto_sync_enabled: boolean
           bio: string | null
           created_at: string
           directory_url: string | null
@@ -87,6 +91,7 @@ export type Database = {
           id: string
           igi_member: boolean | null
           languages: string[] | null
+          last_synced_at: string | null
           logo_url: string | null
           response_time_hours: number | null
           slug: string
@@ -94,6 +99,7 @@ export type Database = {
           years_trading: number | null
         }
         Insert: {
+          auto_sync_enabled?: boolean
           bio?: string | null
           created_at?: string
           directory_url?: string | null
@@ -103,6 +109,7 @@ export type Database = {
           id: string
           igi_member?: boolean | null
           languages?: string[] | null
+          last_synced_at?: string | null
           logo_url?: string | null
           response_time_hours?: number | null
           slug: string
@@ -110,6 +117,7 @@ export type Database = {
           years_trading?: number | null
         }
         Update: {
+          auto_sync_enabled?: boolean
           bio?: string | null
           created_at?: string
           directory_url?: string | null
@@ -119,6 +127,7 @@ export type Database = {
           id?: string
           igi_member?: boolean | null
           languages?: string[] | null
+          last_synced_at?: string | null
           logo_url?: string | null
           response_time_hours?: number | null
           slug?: string
@@ -667,6 +676,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sync_logs: {
+        Row: {
+          created_at: string
+          dealer_id: string
+          errors: Json
+          finished_at: string | null
+          id: string
+          source: string
+          started_at: string
+          status: string
+          stones_added: number
+          stones_marked_inactive: number
+          stones_updated: number
+        }
+        Insert: {
+          created_at?: string
+          dealer_id: string
+          errors?: Json
+          finished_at?: string | null
+          id?: string
+          source?: string
+          started_at?: string
+          status?: string
+          stones_added?: number
+          stones_marked_inactive?: number
+          stones_updated?: number
+        }
+        Update: {
+          created_at?: string
+          dealer_id?: string
+          errors?: Json
+          finished_at?: string | null
+          id?: string
+          source?: string
+          started_at?: string
+          status?: string
+          stones_added?: number
+          stones_marked_inactive?: number
+          stones_updated?: number
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
