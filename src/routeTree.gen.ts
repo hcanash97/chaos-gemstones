@@ -28,6 +28,7 @@ import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
 import { Route as LegalTermsJewellersRouteImport } from './routes/legal.terms-jewellers'
 import { Route as LegalTermsDealersRouteImport } from './routes/legal.terms-dealers'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as LearnSlugRouteImport } from './routes/learn.$slug'
 import { Route as HowItWorksShippingRouteImport } from './routes/how-it-works.shipping'
 import { Route as HowItWorksPaymentsRouteImport } from './routes/how-it-works.payments'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
@@ -154,6 +155,11 @@ const LegalTermsDealersRoute = LegalTermsDealersRouteImport.update({
 const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
   id: '/legal/privacy',
   path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnSlugRoute = LearnSlugRouteImport.update({
+  id: '/learn/$slug',
+  path: '/learn/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HowItWorksShippingRoute = HowItWorksShippingRouteImport.update({
@@ -343,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -395,6 +402,7 @@ export interface FileRoutesByTo {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -449,6 +457,7 @@ export interface FileRoutesById {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
@@ -504,6 +513,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -556,6 +566,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -609,6 +620,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
@@ -658,6 +670,7 @@ export interface RootRouteChildren {
   EmbedKeyRoute: typeof EmbedKeyRoute
   HowItWorksPaymentsRoute: typeof HowItWorksPaymentsRoute
   HowItWorksShippingRoute: typeof HowItWorksShippingRoute
+  LearnSlugRoute: typeof LearnSlugRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsDealersRoute: typeof LegalTermsDealersRoute
   LegalTermsJewellersRoute: typeof LegalTermsJewellersRoute
@@ -808,6 +821,13 @@ declare module '@tanstack/react-router' {
       path: '/legal/privacy'
       fullPath: '/legal/privacy'
       preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/$slug': {
+      id: '/learn/$slug'
+      path: '/learn/$slug'
+      fullPath: '/learn/$slug'
+      preLoaderRoute: typeof LearnSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/how-it-works/shipping': {
@@ -1132,6 +1152,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmbedKeyRoute: EmbedKeyRoute,
   HowItWorksPaymentsRoute: HowItWorksPaymentsRoute,
   HowItWorksShippingRoute: HowItWorksShippingRoute,
+  LearnSlugRoute: LearnSlugRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsDealersRoute: LegalTermsDealersRoute,
   LegalTermsJewellersRoute: LegalTermsJewellersRoute,

@@ -9,7 +9,25 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const staticPaths = ["/", "/marketplace", "/vendors", "/about"];
+        const learnSlugs = [
+          "sourcing-coloured-gemstones",
+          "api-embedding-guide",
+          "jewellers-markup-strategy",
+          "gemstone-cert-labs",
+          "jaipur-bangkok-colombo-guide",
+          "wholesale-vs-retail",
+        ];
+        const staticPaths = [
+          "/",
+          "/marketplace",
+          "/vendors",
+          "/about",
+          "/learn",
+          ...learnSlugs.map((s) => `/learn/${s}`),
+          "/docs/api",
+          "/how-it-works/payments",
+          "/how-it-works/shipping",
+        ];
         const [{ data: vendors }, { data: stones }] = await Promise.all([
           supabaseAdmin
             .from("dealer_profiles")
