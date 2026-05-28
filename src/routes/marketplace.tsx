@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useReducer, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
@@ -18,7 +20,6 @@ import { StaggerGroup } from "@/components/anim/Motion";
 import { useAuth } from "@/hooks/useAuth";
 import {
   defaultFilters,
-  applyFilters,
   activeFilterCount,
   hasDiamondSelection,
   hasColouredSelection,
@@ -95,33 +96,43 @@ function reducer(s: FilterState, a: Action): FilterState {
 function Marketplace() {
   const [f, dispatch] = useReducer(reducer, defaultFilters);
   const { user, profile } = useAuth();
-  const [visibleCount, setVisibleCount] = useState(48);
+  const [page, setPage] = useState(1);
+  const [debouncedF, setDebouncedF] = useState<FilterState>(defaultFilters);
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
 
-  const { data: stones, isLoading } = useQuery({
-    queryKey: ["marketplace-stones"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("stones")
-        .select(
-          "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)",
-        )
-        .limit(500);
-      return (data ?? []).map((s: any) => {
-        const sortedImgs = [...(s.stone_images ?? [])].sort(
-          (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
-        );
-        const primaryImg = sortedImgs.find((i: any) => i.is_primary) ?? sortedImgs[0];
-        return {
-          ...s,
-          image: (primaryImg?.storage_url || primaryImg?.external_image_url) ?? null,
-          dealer_country: s.profiles?.country ?? null,
-          dealer_verified: !!s.profiles?.is_verified,
-        };
-      });
-    },
+  // Debounce filter changes (300ms) so rapid interactions trigger a single query.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedF(f), 300);
+    return () => clearTimeout(t);
+  }, [f]);
+
+  // Reset to page 1 whenever the (debounced) filters change.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedF]);
+
+  const search = useServerFn(searchMarketplace);
+  const { data: result, isFetching } = useQuery({
+    queryKey: ["marketplace-search", debouncedF, page],
+    queryFn: () => search({ data: { filters: debouncedF, page } }),
+    placeholderData: keepPreviousData,
   });
+
+  const rawStones = result?.stones ?? [];
+  const total = result?.total ?? 0;
+  const isLoading = isFetching && !result;
+
+  // Per-carat price mode: server filters per_stone; refine current page client-side.
+  const visible = useMemo(() => {
+    if (debouncedF.priceMode !== "per_carat") return rawStones;
+    return rawStones.filter((s: any) => {
+      const price = Number(s.wholesale_price_usd ?? 0);
+      const c = Number(s.carat_weight ?? 1) || 1;
+      const v = price / c;
+      return v >= debouncedF.priceMin && v <= debouncedF.priceMax;
+    });
+  }, [rawStones, debouncedF.priceMode, debouncedF.priceMin, debouncedF.priceMax]);
 
   const { data: dealers } = useQuery({
     queryKey: ["marketplace-dealers"],
@@ -137,13 +148,8 @@ function Marketplace() {
     },
   });
 
-  const filtered = useMemo(() => applyFilters(stones ?? [], f), [stones, f]);
   const filterCount = activeFilterCount(f);
-  // Reset pagination when filters change
-  useEffect(() => {
-    setVisibleCount(48);
-  }, [f]);
-  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const showDiamond = hasDiamondSelection(f.types);
   const showColoured = hasColouredSelection(f.types);
   const isJeweller = profile?.account_type === "jeweller";
@@ -675,7 +681,7 @@ function Marketplace() {
             <p className="mt-1 text-sm text-muted-foreground">
               {isLoading
                 ? "Loading…"
-                : `Showing ${Math.min(visible.length, filtered.length)} of ${filtered.length} matching · ${stones?.length ?? 0} total in feed`}
+                : `Showing ${visible.length} of ${total.toLocaleString()} results${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -792,14 +798,34 @@ function Marketplace() {
                 ))}
               </div>
             )}
-            {!isLoading && visible.length < filtered.length && (
-              <div className="mt-8 flex justify-center">
-                <Button variant="outline" onClick={() => setVisibleCount((n) => n + 48)}>
-                  Load more ({filtered.length - visible.length} remaining)
+            {!isLoading && totalPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-3">
+                <Button
+                  variant="outline"
+                  disabled={page <= 1 || isFetching}
+                  onClick={() => {
+                    setPage((p) => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={page >= totalPages || isFetching}
+                  onClick={() => {
+                    setPage((p) => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Next
                 </Button>
               </div>
             )}
-            {!isLoading && filtered.length === 0 && (
+            {!isLoading && total === 0 && (
               <div className="rounded-md border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
                 No stones match your filters.
               </div>
