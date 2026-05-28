@@ -151,6 +151,7 @@ function StoneDetail() {
   const primaryImage = images[0];
   const slug = stone.dealer?.dealer_profiles?.slug;
 
+
   const specs: Array<[string, any]> = [
     ["Stone type", stone.stone_type],
     ["Origin", stone.origin],
