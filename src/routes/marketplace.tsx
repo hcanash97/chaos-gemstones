@@ -8,13 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -68,16 +62,27 @@ export const Route = createFileRoute("/marketplace")({
   head: () => ({
     meta: [
       { title: "Browse Certified Gemstones & Diamonds — Chaos" },
-      { name: "description", content: "Search certified natural and lab-grown diamonds, sapphires, rubies, emeralds and rare coloured gemstones from verified dealers worldwide." },
+      {
+        name: "description",
+        content:
+          "Search certified natural and lab-grown diamonds, sapphires, rubies, emeralds and rare coloured gemstones from verified dealers worldwide.",
+      },
       { property: "og:title", content: "Browse Certified Gemstones & Diamonds — Chaos" },
-      { property: "og:description", content: "Search certified natural and lab-grown diamonds and coloured gemstones from verified dealers worldwide." },
+      {
+        property: "og:description",
+        content:
+          "Search certified natural and lab-grown diamonds and coloured gemstones from verified dealers worldwide.",
+      },
       { property: "og:url", content: "/marketplace" },
     ],
     links: [{ rel: "canonical", href: "/marketplace" }],
   }),
 });
 
-type Action = { type: "set"; patch: Partial<FilterState> } | { type: "toggle"; key: keyof FilterState; value: string } | { type: "reset" };
+type Action =
+  | { type: "set"; patch: Partial<FilterState> }
+  | { type: "toggle"; key: keyof FilterState; value: string }
+  | { type: "reset" };
 function reducer(s: FilterState, a: Action): FilterState {
   if (a.type === "reset") return { ...defaultFilters };
   if (a.type === "set") return { ...s, ...a.patch };
@@ -97,14 +102,22 @@ function Marketplace() {
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")
-        .select("id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, is_primary), profiles:dealer_id(country, is_verified)")
+        .select(
+          "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)",
+        )
         .limit(500);
-      return (data ?? []).map((s: any) => ({
-        ...s,
-        image: s.stone_images?.[0]?.storage_url ?? null,
-        dealer_country: s.profiles?.country ?? null,
-        dealer_verified: !!s.profiles?.is_verified,
-      }));
+      return (data ?? []).map((s: any) => {
+        const sortedImgs = [...(s.stone_images ?? [])].sort(
+          (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
+        );
+        const primaryImg = sortedImgs.find((i: any) => i.is_primary) ?? sortedImgs[0];
+        return {
+          ...s,
+          image: (primaryImg?.storage_url || primaryImg?.external_image_url) ?? null,
+          dealer_country: s.profiles?.country ?? null,
+          dealer_verified: !!s.profiles?.is_verified,
+        };
+      });
     },
   });
 
@@ -136,13 +149,28 @@ function Marketplace() {
     <div className="space-y-3">
       <CollapsibleSection title="Search" defaultOpen>
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Search</Label>
-        <Input value={f.search} onChange={(e) => set({ search: e.target.value })} placeholder="ruby, oval, Sri Lanka…" className="mt-2" />
+        <Input
+          value={f.search}
+          onChange={(e) => set({ search: e.target.value })}
+          placeholder="ruby, oval, Sri Lanka…"
+          className="mt-2"
+        />
         <Label className="mt-3 block text-xs uppercase tracking-wider text-muted-foreground">Certificate number</Label>
-        <Input value={f.certNumber} onChange={(e) => set({ certNumber: e.target.value })} placeholder="e.g. 2235681432" className="mt-2" />
+        <Input
+          value={f.certNumber}
+          onChange={(e) => set({ certNumber: e.target.value })}
+          placeholder="e.g. 2235681432"
+          className="mt-2"
+        />
       </CollapsibleSection>
 
       <CollapsibleSection title="Stone type">
-        <CheckGrid options={STONE_TYPES} selected={f.types} onToggle={(v) => toggle("types", v)} labels={STONE_TYPE_LABELS} />
+        <CheckGrid
+          options={STONE_TYPES}
+          selected={f.types}
+          onToggle={(v) => toggle("types", v)}
+          labels={STONE_TYPE_LABELS}
+        />
       </CollapsibleSection>
 
       <CollapsibleSection title="Shape">
@@ -150,24 +178,52 @@ function Marketplace() {
       </CollapsibleSection>
 
       <CollapsibleSection title={`Carat: ${f.caratMin} – ${f.caratMax}`}>
-        <Slider min={CARAT_MIN} max={CARAT_MAX} step={0.1} value={[f.caratMin, f.caratMax]} onValueChange={(v) => set({ caratMin: v[0], caratMax: v[1] })} />
+        <Slider
+          min={CARAT_MIN}
+          max={CARAT_MAX}
+          step={0.1}
+          value={[f.caratMin, f.caratMax]}
+          onValueChange={(v) => set({ caratMin: v[0], caratMax: v[1] })}
+        />
         <PillRow className="mt-3">
           {CARAT_BANDS.map((b) => (
-            <Pill key={b.label} active={f.caratMin === b.min && f.caratMax === b.max} onClick={() => set({ caratMin: b.min, caratMax: b.max })}>{b.label}</Pill>
+            <Pill
+              key={b.label}
+              active={f.caratMin === b.min && f.caratMax === b.max}
+              onClick={() => set({ caratMin: b.min, caratMax: b.max })}
+            >
+              {b.label}
+            </Pill>
           ))}
         </PillRow>
       </CollapsibleSection>
 
-      <CollapsibleSection title={`Price (${f.priceMode === "per_carat" ? "/ct" : "/stone"}): $${f.priceMin.toLocaleString()} – $${f.priceMax.toLocaleString()}`}>
-        <Slider min={PRICE_MIN} max={PRICE_MAX} step={500} value={[f.priceMin, f.priceMax]} onValueChange={(v) => set({ priceMin: v[0], priceMax: v[1] })} />
+      <CollapsibleSection
+        title={`Price (${f.priceMode === "per_carat" ? "/ct" : "/stone"}): $${f.priceMin.toLocaleString()} – $${f.priceMax.toLocaleString()}`}
+      >
+        <Slider
+          min={PRICE_MIN}
+          max={PRICE_MAX}
+          step={500}
+          value={[f.priceMin, f.priceMax]}
+          onValueChange={(v) => set({ priceMin: v[0], priceMax: v[1] })}
+        />
         <PillRow className="mt-3">
           {PRICE_BANDS.map((b) => (
-            <Pill key={b.label} active={f.priceMin === b.min && f.priceMax === b.max} onClick={() => set({ priceMin: b.min, priceMax: b.max })}>{b.label}</Pill>
+            <Pill
+              key={b.label}
+              active={f.priceMin === b.min && f.priceMax === b.max}
+              onClick={() => set({ priceMin: b.min, priceMax: b.max })}
+            >
+              {b.label}
+            </Pill>
           ))}
         </PillRow>
         <div className="mt-3 flex gap-2 text-xs">
           {(["per_stone", "per_carat"] as const).map((m) => (
-            <Pill key={m} active={f.priceMode === m} onClick={() => set({ priceMode: m })}>{m === "per_stone" ? "Per stone" : "Per carat"}</Pill>
+            <Pill key={m} active={f.priceMode === m} onClick={() => set({ priceMode: m })}>
+              {m === "per_stone" ? "Per stone" : "Per carat"}
+            </Pill>
           ))}
         </div>
       </CollapsibleSection>
@@ -175,7 +231,9 @@ function Marketplace() {
       <CollapsibleSection title="Origin">
         <PillRow>
           {(["all", "natural", "lab-grown"] as const).map((o) => (
-            <Pill key={o} active={f.origin === o} onClick={() => set({ origin: o })}>{o.replace("-", " ")}</Pill>
+            <Pill key={o} active={f.origin === o} onClick={() => set({ origin: o })}>
+              {o.replace("-", " ")}
+            </Pill>
           ))}
         </PillRow>
       </CollapsibleSection>
@@ -187,7 +245,9 @@ function Marketplace() {
       <CollapsibleSection title="Cert lab">
         <PillRow>
           {CERT_LABS.map((t) => (
-            <Pill key={t} active={f.labs.includes(t)} onClick={() => toggle("labs", t)}>{t}</Pill>
+            <Pill key={t} active={f.labs.includes(t)} onClick={() => toggle("labs", t)}>
+              {t}
+            </Pill>
           ))}
         </PillRow>
       </CollapsibleSection>
@@ -195,12 +255,16 @@ function Marketplace() {
       <CollapsibleSection title="Availability & listing">
         <PillRow>
           {(["available", "reserved", "sold"] as const).map((s) => (
-            <Pill key={s} active={f.availability.includes(s)} onClick={() => toggle("availability", s)}>{s}</Pill>
+            <Pill key={s} active={f.availability.includes(s)} onClick={() => toggle("availability", s)}>
+              {s}
+            </Pill>
           ))}
         </PillRow>
         <PillRow className="mt-3">
           {(["all", "single", "parcel"] as const).map((s) => (
-            <Pill key={s} active={f.listingType === s} onClick={() => set({ listingType: s })}>{s === "all" ? "All listings" : s}</Pill>
+            <Pill key={s} active={f.listingType === s} onClick={() => set({ listingType: s })}>
+              {s === "all" ? "All listings" : s}
+            </Pill>
           ))}
         </PillRow>
         <label className="mt-3 flex items-center gap-2 text-xs">
@@ -211,11 +275,15 @@ function Marketplace() {
 
       <CollapsibleSection title="Dealer">
         <Select value={f.dealerId} onValueChange={(v) => set({ dealerId: v })}>
-          <SelectTrigger><SelectValue placeholder="All dealers" /></SelectTrigger>
+          <SelectTrigger>
+            <SelectValue placeholder="All dealers" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All dealers</SelectItem>
             {(dealers ?? []).map((d) => (
-              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+              <SelectItem key={d.id} value={d.id}>
+                {d.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -224,7 +292,9 @@ function Marketplace() {
       <CollapsibleSection title="New listings">
         <PillRow>
           {[0, 1, 3, 7, 30].map((d) => (
-            <Pill key={d} active={f.newWithin === d} onClick={() => set({ newWithin: d as any })}>{d === 0 ? "Any time" : `Last ${d}d`}</Pill>
+            <Pill key={d} active={f.newWithin === d} onClick={() => set({ newWithin: d as any })}>
+              {d === 0 ? "Any time" : `Last ${d}d`}
+            </Pill>
           ))}
         </PillRow>
       </CollapsibleSection>
@@ -233,24 +303,46 @@ function Marketplace() {
         <>
           <CollapsibleSection title="Diamond colour">
             <div className="mb-2 flex gap-2 text-xs">
-              <Pill active={!f.fancyColourMode} onClick={() => set({ fancyColourMode: false })}>White (D–Z)</Pill>
-              <Pill active={f.fancyColourMode} onClick={() => set({ fancyColourMode: true })}>Fancy colour</Pill>
+              <Pill active={!f.fancyColourMode} onClick={() => set({ fancyColourMode: false })}>
+                White (D–Z)
+              </Pill>
+              <Pill active={f.fancyColourMode} onClick={() => set({ fancyColourMode: true })}>
+                Fancy colour
+              </Pill>
             </div>
             {!f.fancyColourMode ? (
               <PillRow>
                 {DIAMOND_COLOURS.map((c) => (
-                  <Pill key={c} active={f.colourGrades.includes(c)} onClick={() => toggle("colourGrades", c)}>{c}</Pill>
+                  <Pill key={c} active={f.colourGrades.includes(c)} onClick={() => toggle("colourGrades", c)}>
+                    {c}
+                  </Pill>
                 ))}
               </PillRow>
             ) : (
               <div className="space-y-3">
                 <div>
                   <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Hue</div>
-                  <PillRow>{FANCY_HUES.map((c) => <Pill key={c} active={f.fancyHues.includes(c)} onClick={() => toggle("fancyHues", c)}>{c}</Pill>)}</PillRow>
+                  <PillRow>
+                    {FANCY_HUES.map((c) => (
+                      <Pill key={c} active={f.fancyHues.includes(c)} onClick={() => toggle("fancyHues", c)}>
+                        {c}
+                      </Pill>
+                    ))}
+                  </PillRow>
                 </div>
                 <div>
                   <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Intensity</div>
-                  <PillRow>{FANCY_INTENSITIES.map((c) => <Pill key={c} active={f.fancyIntensities.includes(c)} onClick={() => toggle("fancyIntensities", c)}>{c}</Pill>)}</PillRow>
+                  <PillRow>
+                    {FANCY_INTENSITIES.map((c) => (
+                      <Pill
+                        key={c}
+                        active={f.fancyIntensities.includes(c)}
+                        onClick={() => toggle("fancyIntensities", c)}
+                      >
+                        {c}
+                      </Pill>
+                    ))}
+                  </PillRow>
                 </div>
                 <label className="flex items-center gap-2 text-xs">
                   <Checkbox checked={f.treatedColour} onCheckedChange={(v) => set({ treatedColour: !!v })} />
@@ -261,62 +353,188 @@ function Marketplace() {
           </CollapsibleSection>
 
           <CollapsibleSection title="Clarity">
-            <PillRow>{CLARITIES.map((c) => <Pill key={c} active={f.clarities.includes(c)} onClick={() => toggle("clarities", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {CLARITIES.map((c) => (
+                <Pill key={c} active={f.clarities.includes(c)} onClick={() => toggle("clarities", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
 
           <CollapsibleSection title="Cut / polish / symmetry">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Cut</div>
-            <PillRow>{CUT_GRADES.map((c) => <Pill key={c} active={f.cutGrades.includes(c)} onClick={() => toggle("cutGrades", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {CUT_GRADES.map((c) => (
+                <Pill key={c} active={f.cutGrades.includes(c)} onClick={() => toggle("cutGrades", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Polish</div>
-            <PillRow>{CUT_GRADES.map((c) => <Pill key={c} active={f.polish.includes(c)} onClick={() => toggle("polish", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {CUT_GRADES.map((c) => (
+                <Pill key={c} active={f.polish.includes(c)} onClick={() => toggle("polish", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Symmetry</div>
-            <PillRow>{CUT_GRADES.map((c) => <Pill key={c} active={f.symmetry.includes(c)} onClick={() => toggle("symmetry", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {CUT_GRADES.map((c) => (
+                <Pill key={c} active={f.symmetry.includes(c)} onClick={() => toggle("symmetry", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
 
           <CollapsibleSection title="Fluorescence">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Intensity</div>
-            <PillRow>{FLUOR_INTENSITY.map((c) => <Pill key={c} active={f.fluorescenceIntensity.includes(c)} onClick={() => toggle("fluorescenceIntensity", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {FLUOR_INTENSITY.map((c) => (
+                <Pill
+                  key={c}
+                  active={f.fluorescenceIntensity.includes(c)}
+                  onClick={() => toggle("fluorescenceIntensity", c)}
+                >
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Colour</div>
-            <PillRow>{FLUOR_COLOUR.map((c) => <Pill key={c} active={f.fluorescenceColour.includes(c)} onClick={() => toggle("fluorescenceColour", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {FLUOR_COLOUR.map((c) => (
+                <Pill key={c} active={f.fluorescenceColour.includes(c)} onClick={() => toggle("fluorescenceColour", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
 
           <CollapsibleSection title="Measurements (mm)">
-            <RangeInputs label="Length" mn={f.lengthMin} mx={f.lengthMax} onMn={(v) => set({ lengthMin: v })} onMx={(v) => set({ lengthMax: v })} />
-            <RangeInputs label="Width" mn={f.widthMin} mx={f.widthMax} onMn={(v) => set({ widthMin: v })} onMx={(v) => set({ widthMax: v })} />
-            <RangeInputs label="Height" mn={f.heightMin} mx={f.heightMax} onMn={(v) => set({ heightMin: v })} onMx={(v) => set({ heightMax: v })} />
-            <RangeInputs label="L/W ratio" mn={f.lwRatioMin} mx={f.lwRatioMax} onMn={(v) => set({ lwRatioMin: v })} onMx={(v) => set({ lwRatioMax: v })} />
-            <RangeInputs label="Depth %" mn={f.depthPctMin} mx={f.depthPctMax} onMn={(v) => set({ depthPctMin: v })} onMx={(v) => set({ depthPctMax: v })} />
-            <RangeInputs label="Table %" mn={f.tablePctMin} mx={f.tablePctMax} onMn={(v) => set({ tablePctMin: v })} onMx={(v) => set({ tablePctMax: v })} />
+            <RangeInputs
+              label="Length"
+              mn={f.lengthMin}
+              mx={f.lengthMax}
+              onMn={(v) => set({ lengthMin: v })}
+              onMx={(v) => set({ lengthMax: v })}
+            />
+            <RangeInputs
+              label="Width"
+              mn={f.widthMin}
+              mx={f.widthMax}
+              onMn={(v) => set({ widthMin: v })}
+              onMx={(v) => set({ widthMax: v })}
+            />
+            <RangeInputs
+              label="Height"
+              mn={f.heightMin}
+              mx={f.heightMax}
+              onMn={(v) => set({ heightMin: v })}
+              onMx={(v) => set({ heightMax: v })}
+            />
+            <RangeInputs
+              label="L/W ratio"
+              mn={f.lwRatioMin}
+              mx={f.lwRatioMax}
+              onMn={(v) => set({ lwRatioMin: v })}
+              onMx={(v) => set({ lwRatioMax: v })}
+            />
+            <RangeInputs
+              label="Depth %"
+              mn={f.depthPctMin}
+              mx={f.depthPctMax}
+              onMn={(v) => set({ depthPctMin: v })}
+              onMx={(v) => set({ depthPctMax: v })}
+            />
+            <RangeInputs
+              label="Table %"
+              mn={f.tablePctMin}
+              mx={f.tablePctMax}
+              onMn={(v) => set({ tablePctMin: v })}
+              onMx={(v) => set({ tablePctMax: v })}
+            />
           </CollapsibleSection>
 
           <CollapsibleSection title="Girdle & culet">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Girdle</div>
-            <PillRow>{GIRDLE.map((c) => <Pill key={c} active={f.girdle.includes(c)} onClick={() => toggle("girdle", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {GIRDLE.map((c) => (
+                <Pill key={c} active={f.girdle.includes(c)} onClick={() => toggle("girdle", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Culet size</div>
-            <PillRow>{CULET_SIZE.map((c) => <Pill key={c} active={f.culetSize.includes(c)} onClick={() => toggle("culetSize", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {CULET_SIZE.map((c) => (
+                <Pill key={c} active={f.culetSize.includes(c)} onClick={() => toggle("culetSize", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Culet condition</div>
-            <PillRow>{CULET_CONDITION.map((c) => <Pill key={c} active={f.culetCondition.includes(c)} onClick={() => toggle("culetCondition", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {CULET_CONDITION.map((c) => (
+                <Pill key={c} active={f.culetCondition.includes(c)} onClick={() => toggle("culetCondition", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
 
           <CollapsibleSection title="Tinge & inclusions">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Shade</div>
-            <PillRow>{SHADE_OPTIONS.map((c) => <Pill key={c} active={f.shade.includes(c)} onClick={() => toggle("shade", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {SHADE_OPTIONS.map((c) => (
+                <Pill key={c} active={f.shade.includes(c)} onClick={() => toggle("shade", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Milky</div>
-            <PillRow>{MILKY.map((c) => <Pill key={c} active={f.milky.includes(c)} onClick={() => toggle("milky", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {MILKY.map((c) => (
+                <Pill key={c} active={f.milky.includes(c)} onClick={() => toggle("milky", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Eye clean</div>
-            <PillRow>{EYE_CLEAN.map((c) => <Pill key={c} active={f.eyeClean.includes(c)} onClick={() => toggle("eyeClean", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {EYE_CLEAN.map((c) => (
+                <Pill key={c} active={f.eyeClean.includes(c)} onClick={() => toggle("eyeClean", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Black inclusion</div>
-            <PillRow>{BLACK_INCLUSION.map((c) => <Pill key={c} active={f.blackInclusion.includes(c)} onClick={() => toggle("blackInclusion", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {BLACK_INCLUSION.map((c) => (
+                <Pill key={c} active={f.blackInclusion.includes(c)} onClick={() => toggle("blackInclusion", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
 
           <CollapsibleSection title="Enhancement & provenance">
             <PillRow>
               {(["any", "include", "only", "exclude"] as const).map((e) => (
-                <Pill key={e} active={f.enhancement === e} onClick={() => set({ enhancement: e })}>{e === "any" ? "Any" : e}</Pill>
+                <Pill key={e} active={f.enhancement === e} onClick={() => set({ enhancement: e })}>
+                  {e === "any" ? "Any" : e}
+                </Pill>
               ))}
             </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Provenance</div>
-            <PillRow>{PROVENANCE.map((c) => <Pill key={c} active={f.provenance.includes(c)} onClick={() => toggle("provenance", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {PROVENANCE.map((c) => (
+                <Pill key={c} active={f.provenance.includes(c)} onClick={() => toggle("provenance", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
         </>
       )}
@@ -343,21 +561,47 @@ function Marketplace() {
 
           <CollapsibleSection title="Tone & saturation">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Tone</div>
-            <PillRow>{TONES.map((c) => <Pill key={c} active={f.tones.includes(c)} onClick={() => toggle("tones", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {TONES.map((c) => (
+                <Pill key={c} active={f.tones.includes(c)} onClick={() => toggle("tones", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Saturation</div>
-            <PillRow>{SATURATIONS.map((c) => <Pill key={c} active={f.saturations.includes(c)} onClick={() => toggle("saturations", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {SATURATIONS.map((c) => (
+                <Pill key={c} active={f.saturations.includes(c)} onClick={() => toggle("saturations", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
 
           <CollapsibleSection title="Treatment">
             <CheckGrid options={TREATMENTS} selected={f.treatments} onToggle={(v) => toggle("treatments", v)} />
-            <p className="mt-2 text-[11px] text-[var(--color-gold)]">Unheated stones command a premium — filter for "None (unheated)" to find untreated.</p>
+            <p className="mt-2 text-[11px] text-[var(--color-gold)]">
+              Unheated stones command a premium — filter for "None (unheated)" to find untreated.
+            </p>
           </CollapsibleSection>
 
           <CollapsibleSection title="Clarity & phenomenon">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Clarity</div>
-            <PillRow>{CLARITY_TYPES.map((c) => <Pill key={c} active={f.clarityTypes.includes(c)} onClick={() => toggle("clarityTypes", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {CLARITY_TYPES.map((c) => (
+                <Pill key={c} active={f.clarityTypes.includes(c)} onClick={() => toggle("clarityTypes", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Phenomenon</div>
-            <PillRow>{PHENOMENA.map((c) => <Pill key={c} active={f.phenomena.includes(c)} onClick={() => toggle("phenomena", c)}>{c}</Pill>)}</PillRow>
+            <PillRow>
+              {PHENOMENA.map((c) => (
+                <Pill key={c} active={f.phenomena.includes(c)} onClick={() => toggle("phenomena", c)}>
+                  {c}
+                </Pill>
+              ))}
+            </PillRow>
           </CollapsibleSection>
 
           <CollapsibleSection title="Premium origins & pairs">
@@ -375,8 +619,16 @@ function Marketplace() {
             </label>
             {f.parcelOnly && (
               <div className="mt-2">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Min parcel quantity</Label>
-                <Input type="number" min="1" className="mt-1 h-9" value={f.parcelMinQty ?? ""} onChange={(e) => set({ parcelMinQty: e.target.value ? Number(e.target.value) : null })} />
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Min parcel quantity
+                </Label>
+                <Input
+                  type="number"
+                  min="1"
+                  className="mt-1 h-9"
+                  value={f.parcelMinQty ?? ""}
+                  onChange={(e) => set({ parcelMinQty: e.target.value ? Number(e.target.value) : null })}
+                />
               </div>
             )}
           </CollapsibleSection>
@@ -384,10 +636,18 @@ function Marketplace() {
       )}
 
       <CollapsibleSection title="Media">
-        <label className="flex items-center gap-2 text-xs"><Checkbox checked={f.hasImages} onCheckedChange={(v) => set({ hasImages: !!v })} /> Has images</label>
-        <label className="mt-1 flex items-center gap-2 text-xs"><Checkbox checked={f.hasVideo} onCheckedChange={(v) => set({ hasVideo: !!v })} /> Has video</label>
-        <label className="mt-1 flex items-center gap-2 text-xs"><Checkbox checked={f.has360} onCheckedChange={(v) => set({ has360: !!v })} /> Has 360° view</label>
-        <label className="mt-1 flex items-center gap-2 text-xs"><Checkbox checked={f.hasCertScan} onCheckedChange={(v) => set({ hasCertScan: !!v })} /> Has cert scan</label>
+        <label className="flex items-center gap-2 text-xs">
+          <Checkbox checked={f.hasImages} onCheckedChange={(v) => set({ hasImages: !!v })} /> Has images
+        </label>
+        <label className="mt-1 flex items-center gap-2 text-xs">
+          <Checkbox checked={f.hasVideo} onCheckedChange={(v) => set({ hasVideo: !!v })} /> Has video
+        </label>
+        <label className="mt-1 flex items-center gap-2 text-xs">
+          <Checkbox checked={f.has360} onCheckedChange={(v) => set({ has360: !!v })} /> Has 360° view
+        </label>
+        <label className="mt-1 flex items-center gap-2 text-xs">
+          <Checkbox checked={f.hasCertScan} onCheckedChange={(v) => set({ hasCertScan: !!v })} /> Has cert scan
+        </label>
       </CollapsibleSection>
 
       {filterCount > 0 && (
@@ -417,17 +677,33 @@ function Marketplace() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
-                <SheetHeader><SheetTitle>Filters</SheetTitle></SheetHeader>
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
                 <div className="mt-4">{Filters}</div>
               </SheetContent>
             </Sheet>
             {isJeweller && <SaveSearchDialog filters={f} userId={user!.id} />}
             <div className="flex rounded-md border border-border">
-              <button onClick={() => set({ view: "grid" })} className={`p-2 ${f.view === "grid" ? "bg-muted" : ""}`} aria-label="Grid view"><LayoutGrid className="h-4 w-4" /></button>
-              <button onClick={() => set({ view: "list" })} className={`p-2 ${f.view === "list" ? "bg-muted" : ""}`} aria-label="List view"><List className="h-4 w-4" /></button>
+              <button
+                onClick={() => set({ view: "grid" })}
+                className={`p-2 ${f.view === "grid" ? "bg-muted" : ""}`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => set({ view: "list" })}
+                className={`p-2 ${f.view === "list" ? "bg-muted" : ""}`}
+                aria-label="List view"
+              >
+                <List className="h-4 w-4" />
+              </button>
             </div>
             <Select value={f.sort} onValueChange={(v) => set({ sort: v as FilterState["sort"] })}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="newest">Newest</SelectItem>
                 <SelectItem value="price-asc">Price: low to high</SelectItem>
@@ -444,31 +720,55 @@ function Marketplace() {
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted-foreground">Active:</span>
             {f.search && <Chip label={`"${f.search}"`} onClear={() => set({ search: "" })} />}
-            {f.types.map((t) => <Chip key={t} label={STONE_TYPE_LABELS[t] ?? t} onClear={() => toggle("types", t)} />)}
-            {f.shapes.map((t) => <Chip key={t} label={SHAPE_LABELS[t] ?? t} onClear={() => toggle("shapes", t)} />)}
-            {f.countries.map((t) => <Chip key={t} label={t} onClear={() => toggle("countries", t)} />)}
-            {f.labs.map((t) => <Chip key={t} label={t} onClear={() => toggle("labs", t)} />)}
-            {f.colourGrades.map((t) => <Chip key={t} label={`Colour ${t}`} onClear={() => toggle("colourGrades", t)} />)}
-            {f.clarities.map((t) => <Chip key={t} label={t} onClear={() => toggle("clarities", t)} />)}
-            {f.primaryColours.map((t) => <Chip key={t} label={t} onClear={() => toggle("primaryColours", t)} />)}
-            {f.treatments.map((t) => <Chip key={t} label={t} onClear={() => toggle("treatments", t)} />)}
+            {f.types.map((t) => (
+              <Chip key={t} label={STONE_TYPE_LABELS[t] ?? t} onClear={() => toggle("types", t)} />
+            ))}
+            {f.shapes.map((t) => (
+              <Chip key={t} label={SHAPE_LABELS[t] ?? t} onClear={() => toggle("shapes", t)} />
+            ))}
+            {f.countries.map((t) => (
+              <Chip key={t} label={t} onClear={() => toggle("countries", t)} />
+            ))}
+            {f.labs.map((t) => (
+              <Chip key={t} label={t} onClear={() => toggle("labs", t)} />
+            ))}
+            {f.colourGrades.map((t) => (
+              <Chip key={t} label={`Colour ${t}`} onClear={() => toggle("colourGrades", t)} />
+            ))}
+            {f.clarities.map((t) => (
+              <Chip key={t} label={t} onClear={() => toggle("clarities", t)} />
+            ))}
+            {f.primaryColours.map((t) => (
+              <Chip key={t} label={t} onClear={() => toggle("primaryColours", t)} />
+            ))}
+            {f.treatments.map((t) => (
+              <Chip key={t} label={t} onClear={() => toggle("treatments", t)} />
+            ))}
             {f.origin !== "all" && <Chip label={f.origin} onClear={() => set({ origin: "all" })} />}
-            {f.premiumOriginsOnly && <Chip label="Premium origins" onClear={() => set({ premiumOriginsOnly: false })} />}
+            {f.premiumOriginsOnly && (
+              <Chip label="Premium origins" onClear={() => set({ premiumOriginsOnly: false })} />
+            )}
             {f.matchingPairOnly && <Chip label="Matching pairs" onClear={() => set({ matchingPairOnly: false })} />}
           </div>
         )}
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[260px_1fr]">
-          <aside className="hidden max-h-[calc(100vh-2rem)] overflow-y-auto pr-2 lg:sticky lg:top-4 lg:block">{Filters}</aside>
+          <aside className="hidden max-h-[calc(100vh-2rem)] overflow-y-auto pr-2 lg:sticky lg:top-4 lg:block">
+            {Filters}
+          </aside>
 
           <div>
             {f.view === "grid" ? (
               <StaggerGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" delay={0.06}>
-                {filtered.map((s) => <StoneCard key={s.id} stone={s} />)}
+                {filtered.map((s) => (
+                  <StoneCard key={s.id} stone={s} />
+                ))}
               </StaggerGroup>
             ) : (
               <div className="flex flex-col gap-3">
-                {filtered.map((s) => <StoneCard key={s.id} stone={s} />)}
+                {filtered.map((s) => (
+                  <StoneCard key={s.id} stone={s} />
+                ))}
               </div>
             )}
             {!isLoading && filtered.length === 0 && (
@@ -484,11 +784,23 @@ function Marketplace() {
   );
 }
 
-function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-md border border-border">
-      <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-3 py-2.5 text-left text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      >
         <span>{title}</span>
         {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
       </button>
@@ -497,7 +809,17 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
   );
 }
 
-function CheckGrid({ options, selected, onToggle, labels = {} }: { options: string[]; selected: string[]; onToggle: (v: string) => void; labels?: Record<string, string> }) {
+function CheckGrid({
+  options,
+  selected,
+  onToggle,
+  labels = {},
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+  labels?: Record<string, string>;
+}) {
   return (
     <div className="space-y-1.5">
       {options.map((o) => (
@@ -526,13 +848,37 @@ function Pill({ children, active, onClick }: { children: React.ReactNode; active
   );
 }
 
-function RangeInputs({ label, mn, mx, onMn, onMx }: { label: string; mn: number | null; mx: number | null; onMn: (v: number | null) => void; onMx: (v: number | null) => void }) {
+function RangeInputs({
+  label,
+  mn,
+  mx,
+  onMn,
+  onMx,
+}: {
+  label: string;
+  mn: number | null;
+  mx: number | null;
+  onMn: (v: number | null) => void;
+  onMx: (v: number | null) => void;
+}) {
   return (
     <div className="mb-2">
       <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</Label>
       <div className="mt-1 flex gap-2">
-        <Input type="number" placeholder="min" className="h-8" value={mn ?? ""} onChange={(e) => onMn(e.target.value ? Number(e.target.value) : null)} />
-        <Input type="number" placeholder="max" className="h-8" value={mx ?? ""} onChange={(e) => onMx(e.target.value ? Number(e.target.value) : null)} />
+        <Input
+          type="number"
+          placeholder="min"
+          className="h-8"
+          value={mn ?? ""}
+          onChange={(e) => onMn(e.target.value ? Number(e.target.value) : null)}
+        />
+        <Input
+          type="number"
+          placeholder="max"
+          className="h-8"
+          value={mx ?? ""}
+          onChange={(e) => onMx(e.target.value ? Number(e.target.value) : null)}
+        />
       </div>
     </div>
   );
@@ -540,7 +886,10 @@ function RangeInputs({ label, mn, mx, onMn, onMx }: { label: string; mn: number 
 
 function Chip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
-    <button onClick={onClear} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs capitalize hover:bg-muted">
+    <button
+      onClick={onClear}
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs capitalize hover:bg-muted"
+    >
       {label}
       <X className="h-3 w-3" />
     </button>
@@ -563,23 +912,42 @@ function SaveSearchDialog({ filters, userId }: { filters: FilterState; userId: s
       notify_daily: true,
     });
     setSaving(false);
-    if (!error) { setDone(true); setName(""); setTimeout(() => { setOpen(false); setDone(false); }, 1200); }
+    if (!error) {
+      setDone(true);
+      setName("");
+      setTimeout(() => {
+        setOpen(false);
+        setDone(false);
+      }, 1200);
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm"><Save className="mr-1.5 h-4 w-4" /> Save search</Button>
+        <Button variant="outline" size="sm">
+          <Save className="mr-1.5 h-4 w-4" /> Save search
+        </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Save this search</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Save this search</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <Label>Name</Label>
-          <Input placeholder="e.g. Unheated Burmese rubies 2–3ct" value={name} onChange={(e) => setName(e.target.value)} />
-          <p className="text-xs text-muted-foreground">We'll email you a daily digest when new stones match — you can turn this off from your dashboard.</p>
+          <Input
+            placeholder="e.g. Unheated Burmese rubies 2–3ct"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            We'll email you a daily digest when new stones match — you can turn this off from your dashboard.
+          </p>
         </div>
         <DialogFooter>
-          <Button onClick={save} disabled={saving || !name.trim()}>{done ? "Saved ✓" : saving ? "Saving…" : "Save"}</Button>
+          <Button onClick={save} disabled={saving || !name.trim()}>
+            {done ? "Saved ✓" : saving ? "Saving…" : "Save"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

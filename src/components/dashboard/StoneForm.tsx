@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getCertLabel } from "@/lib/cert.functions";
 
 export type StoneFormValues = {
   stone_type: string;
@@ -136,7 +137,9 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
         const when = new Date(parsed.savedAt).toLocaleString();
         setDraftRestorable({ when, values: parsed.values });
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -147,7 +150,9 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
       if (submittedRef.current) return;
       try {
         localStorage.setItem(draftKey, JSON.stringify({ savedAt: new Date().toISOString(), values }));
-      } catch { /* quota */ }
+      } catch {
+        /* quota */
+      }
     }, 30_000);
     return () => window.clearInterval(t);
   }, [draftKey, values]);
@@ -212,10 +217,18 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
     let resultId = stoneId;
     if (stoneId) {
       const { error } = await supabase.from("stones").update(payload).eq("id", stoneId);
-      if (error) { setError(error.message); setSaving(false); return; }
+      if (error) {
+        setError(error.message);
+        setSaving(false);
+        return;
+      }
     } else {
       const { data, error } = await supabase.from("stones").insert(payload).select("id").single();
-      if (error) { setError(error.message); setSaving(false); return; }
+      if (error) {
+        setError(error.message);
+        setSaving(false);
+        return;
+      }
       resultId = data.id;
     }
     setSaving(false);
@@ -233,14 +246,28 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
         <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 px-3 py-2 text-sm">
           <span>You have an unsaved draft from {draftRestorable.when}.</span>
           <div className="flex gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => {
-              setValues(draftRestorable.values);
-              setDraftRestorable(null);
-            }}>Restore</Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => {
-              if (draftKey) localStorage.removeItem(draftKey);
-              setDraftRestorable(null);
-            }}>Discard</Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setValues(draftRestorable.values);
+                setDraftRestorable(null);
+              }}
+            >
+              Restore
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (draftKey) localStorage.removeItem(draftKey);
+                setDraftRestorable(null);
+              }}
+            >
+              Discard
+            </Button>
           </div>
         </div>
       )}
@@ -250,113 +277,225 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
         </div>
       )}
       <Section title="Identity">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className={field}>
-          <Label>Stone type *</Label>
-          <select
-            className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={values.stone_type}
-            onChange={(e) => set("stone_type", e.target.value)}
-            required
-          >
-            <option value="diamond">Diamond</option>
-            <option value="sapphire">Sapphire</option>
-            <option value="ruby">Ruby</option>
-            <option value="emerald">Emerald</option>
-            <option value="spinel">Spinel</option>
-            <option value="tourmaline">Tourmaline</option>
-            <option value="garnet">Garnet</option>
-            <option value="other">Other</option>
-          </select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className={field}>
+            <Label>Stone type *</Label>
+            <select
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={values.stone_type}
+              onChange={(e) => set("stone_type", e.target.value)}
+              required
+            >
+              <option value="diamond">Diamond</option>
+              <option value="sapphire">Sapphire</option>
+              <option value="ruby">Ruby</option>
+              <option value="emerald">Emerald</option>
+              <option value="spinel">Spinel</option>
+              <option value="tourmaline">Tourmaline</option>
+              <option value="garnet">Garnet</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <Label>Shape</Label>
+            <Input
+              className="mt-1"
+              value={values.shape}
+              onChange={(e) => set("shape", e.target.value)}
+              placeholder="round, oval, cushion…"
+            />
+          </div>
+          <div>
+            <Label>Carat weight</Label>
+            <Input
+              className="mt-1"
+              type="number"
+              step="0.01"
+              value={values.carat_weight}
+              onChange={(e) => set("carat_weight", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Wholesale price (USD)</Label>
+            <Input
+              className="mt-1"
+              type="number"
+              step="0.01"
+              value={values.wholesale_price_usd}
+              onChange={(e) => set("wholesale_price_usd", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Colour grade</Label>
+            <Input
+              className="mt-1"
+              value={values.colour_grade}
+              onChange={(e) => set("colour_grade", e.target.value)}
+              placeholder="D, E, F or vivid blue…"
+            />
+          </div>
+          <div>
+            <Label>Clarity grade</Label>
+            <Input
+              className="mt-1"
+              value={values.clarity_grade}
+              onChange={(e) => set("clarity_grade", e.target.value)}
+              placeholder="VS1, SI2, eye-clean…"
+            />
+          </div>
+          <div>
+            <Label>Cut grade</Label>
+            <Input className="mt-1" value={values.cut_grade} onChange={(e) => set("cut_grade", e.target.value)} />
+          </div>
+          <div>
+            <Label>Treatment</Label>
+            <Input
+              className="mt-1"
+              value={values.treatment}
+              onChange={(e) => set("treatment", e.target.value)}
+              placeholder="none, heated, oiled…"
+            />
+          </div>
+          <div>
+            <Label>Origin (region)</Label>
+            <Input
+              className="mt-1"
+              value={values.origin}
+              onChange={(e) => set("origin", e.target.value)}
+              placeholder="Mogok, Kashmir…"
+            />
+          </div>
+          <div>
+            <Label>Country of origin</Label>
+            <Input
+              className="mt-1"
+              value={values.country_of_origin}
+              onChange={(e) => set("country_of_origin", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Certificate lab</Label>
+            <Input
+              className="mt-1"
+              value={values.cert_lab}
+              onChange={(e) => set("cert_lab", e.target.value)}
+              placeholder="GIA, GRS, SSEF…"
+            />
+          </div>
+          <div>
+            <Label>{getCertLabel(values.cert_lab)}</Label>
+            <Input className="mt-1" value={values.cert_number} onChange={(e) => set("cert_number", e.target.value)} />
+          </div>
+          <div>
+            <Label>Available quantity</Label>
+            <Input
+              className="mt-1"
+              type="number"
+              min="0"
+              value={values.available_qty}
+              onChange={(e) => set("available_qty", e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Status</Label>
+            <select
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={values.status}
+              onChange={(e) => set("status", e.target.value as StoneFormValues["status"])}
+            >
+              <option value="available">Available</option>
+              <option value="reserved">Reserved</option>
+              <option value="sold">Sold</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <Label>Shape</Label>
-          <Input className="mt-1" value={values.shape} onChange={(e) => set("shape", e.target.value)} placeholder="round, oval, cushion…" />
-        </div>
-        <div>
-          <Label>Carat weight</Label>
-          <Input className="mt-1" type="number" step="0.01" value={values.carat_weight} onChange={(e) => set("carat_weight", e.target.value)} />
-        </div>
-        <div>
-          <Label>Wholesale price (USD)</Label>
-          <Input className="mt-1" type="number" step="0.01" value={values.wholesale_price_usd} onChange={(e) => set("wholesale_price_usd", e.target.value)} />
-        </div>
-        <div>
-          <Label>Colour grade</Label>
-          <Input className="mt-1" value={values.colour_grade} onChange={(e) => set("colour_grade", e.target.value)} placeholder="D, E, F or vivid blue…" />
-        </div>
-        <div>
-          <Label>Clarity grade</Label>
-          <Input className="mt-1" value={values.clarity_grade} onChange={(e) => set("clarity_grade", e.target.value)} placeholder="VS1, SI2, eye-clean…" />
-        </div>
-        <div>
-          <Label>Cut grade</Label>
-          <Input className="mt-1" value={values.cut_grade} onChange={(e) => set("cut_grade", e.target.value)} />
-        </div>
-        <div>
-          <Label>Treatment</Label>
-          <Input className="mt-1" value={values.treatment} onChange={(e) => set("treatment", e.target.value)} placeholder="none, heated, oiled…" />
-        </div>
-        <div>
-          <Label>Origin (region)</Label>
-          <Input className="mt-1" value={values.origin} onChange={(e) => set("origin", e.target.value)} placeholder="Mogok, Kashmir…" />
-        </div>
-        <div>
-          <Label>Country of origin</Label>
-          <Input className="mt-1" value={values.country_of_origin} onChange={(e) => set("country_of_origin", e.target.value)} />
-        </div>
-        <div>
-          <Label>Certificate lab</Label>
-          <Input className="mt-1" value={values.cert_lab} onChange={(e) => set("cert_lab", e.target.value)} placeholder="GIA, GRS, SSEF…" />
-        </div>
-        <div>
-          <Label>Certificate number</Label>
-          <Input className="mt-1" value={values.cert_number} onChange={(e) => set("cert_number", e.target.value)} />
-        </div>
-        <div>
-          <Label>Available quantity</Label>
-          <Input className="mt-1" type="number" min="0" value={values.available_qty} onChange={(e) => set("available_qty", e.target.value)} />
-        </div>
-        <div>
-          <Label>Status</Label>
-          <select
-            className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={values.status}
-            onChange={(e) => set("status", e.target.value as StoneFormValues["status"])}
-          >
-            <option value="available">Available</option>
-            <option value="reserved">Reserved</option>
-            <option value="sold">Sold</option>
-          </select>
-        </div>
-      </div>
       </Section>
 
       <Section title="Gemological grades (diamonds)">
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField label="Polish" v={values.polish} on={(x) => set("polish", x)} placeholder="Excellent, Very Good…" />
-          <TextField label="Symmetry" v={values.symmetry} on={(x) => set("symmetry", x)} placeholder="Excellent, Very Good…" />
-          <TextField label="Fluorescence intensity" v={values.fluorescence} on={(x) => set("fluorescence", x)} placeholder="None, Faint, Medium…" />
-          <TextField label="Fluorescence colour" v={values.fluorescence_colour} on={(x) => set("fluorescence_colour", x)} placeholder="Blue, Yellow…" />
+          <TextField
+            label="Polish"
+            v={values.polish}
+            on={(x) => set("polish", x)}
+            placeholder="Excellent, Very Good…"
+          />
+          <TextField
+            label="Symmetry"
+            v={values.symmetry}
+            on={(x) => set("symmetry", x)}
+            placeholder="Excellent, Very Good…"
+          />
+          <TextField
+            label="Fluorescence intensity"
+            v={values.fluorescence}
+            on={(x) => set("fluorescence", x)}
+            placeholder="None, Faint, Medium…"
+          />
+          <TextField
+            label="Fluorescence colour"
+            v={values.fluorescence_colour}
+            on={(x) => set("fluorescence_colour", x)}
+            placeholder="Blue, Yellow…"
+          />
         </div>
       </Section>
 
       <Section title="Colour (coloured stones)">
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField label="Primary hue" v={values.colour_hue} on={(x) => set("colour_hue", x)} placeholder="Royal Blue, Pigeon Blood…" />
-          <TextField label="Tone" v={values.colour_tone} on={(x) => set("colour_tone", x)} placeholder="Medium, Dark…" />
-          <TextField label="Saturation" v={values.colour_saturation} on={(x) => set("colour_saturation", x)} placeholder="Vivid, Strong…" />
-          <TextField label="Phenomenon" v={values.phenomenon} on={(x) => set("phenomenon", x)} placeholder="Asterism, Colour change…" />
+          <TextField
+            label="Primary hue"
+            v={values.colour_hue}
+            on={(x) => set("colour_hue", x)}
+            placeholder="Royal Blue, Pigeon Blood…"
+          />
+          <TextField
+            label="Tone"
+            v={values.colour_tone}
+            on={(x) => set("colour_tone", x)}
+            placeholder="Medium, Dark…"
+          />
+          <TextField
+            label="Saturation"
+            v={values.colour_saturation}
+            on={(x) => set("colour_saturation", x)}
+            placeholder="Vivid, Strong…"
+          />
+          <TextField
+            label="Phenomenon"
+            v={values.phenomenon}
+            on={(x) => set("phenomenon", x)}
+            placeholder="Asterism, Colour change…"
+          />
         </div>
       </Section>
 
       <Section title="Clarity & inclusions">
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField label="Shade / tinge" v={values.shade} on={(x) => set("shade", x)} placeholder="No BGM, No Brown…" />
+          <TextField
+            label="Shade / tinge"
+            v={values.shade}
+            on={(x) => set("shade", x)}
+            placeholder="No BGM, No Brown…"
+          />
           <TextField label="Milky" v={values.milky} on={(x) => set("milky", x)} placeholder="None, Light…" />
-          <TextField label="Eye clean" v={values.eye_clean} on={(x) => set("eye_clean", x)} placeholder="Yes / Borderline / No" />
-          <TextField label="Black inclusion" v={values.black_inclusion} on={(x) => set("black_inclusion", x)} placeholder="None, Light…" />
-          <TextField label="Enhancement" v={values.enhancement} on={(x) => set("enhancement", x)} placeholder="None, Laser drilling…" />
+          <TextField
+            label="Eye clean"
+            v={values.eye_clean}
+            on={(x) => set("eye_clean", x)}
+            placeholder="Yes / Borderline / No"
+          />
+          <TextField
+            label="Black inclusion"
+            v={values.black_inclusion}
+            on={(x) => set("black_inclusion", x)}
+            placeholder="None, Light…"
+          />
+          <TextField
+            label="Enhancement"
+            v={values.enhancement}
+            on={(x) => set("enhancement", x)}
+            placeholder="None, Laser drilling…"
+          />
         </div>
       </Section>
 
@@ -369,8 +508,18 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
           <NumField label="Depth %" v={values.depth_pct} on={(x) => set("depth_pct", x)} />
           <NumField label="Table %" v={values.table_pct} on={(x) => set("table_pct", x)} />
           <TextField label="Girdle" v={values.girdle} on={(x) => set("girdle", x)} placeholder="Thin, Medium…" />
-          <TextField label="Culet size" v={values.culet_size} on={(x) => set("culet_size", x)} placeholder="None, Small…" />
-          <TextField label="Culet condition" v={values.culet_condition} on={(x) => set("culet_condition", x)} placeholder="Pointed, Polished…" />
+          <TextField
+            label="Culet size"
+            v={values.culet_size}
+            on={(x) => set("culet_size", x)}
+            placeholder="None, Small…"
+          />
+          <TextField
+            label="Culet condition"
+            v={values.culet_condition}
+            on={(x) => set("culet_condition", x)}
+            placeholder="Pointed, Polished…"
+          />
         </div>
       </Section>
 
@@ -392,7 +541,11 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
           )}
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={values.matching_pair} onChange={(e) => set("matching_pair", e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={values.matching_pair}
+            onChange={(e) => set("matching_pair", e.target.checked)}
+          />
           Matching pair available
         </label>
       </Section>
@@ -407,7 +560,12 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
             <input type="checkbox" checked={values.has_360} onChange={(e) => set("has_360", e.target.checked)} />
             360° view available
           </label>
-          <TextField label="Provenance / traceability" v={values.provenance_report} on={(x) => set("provenance_report", x)} placeholder="GIA DOR, Tracr, Sarine Journey…" />
+          <TextField
+            label="Provenance / traceability"
+            v={values.provenance_report}
+            on={(x) => set("provenance_report", x)}
+            placeholder="GIA DOR, Tracr, Sarine Journey…"
+          />
         </div>
       </Section>
 
@@ -470,7 +628,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function TextField({ label, v, on, placeholder }: { label: string; v: string; on: (x: string) => void; placeholder?: string }) {
+function TextField({
+  label,
+  v,
+  on,
+  placeholder,
+}: {
+  label: string;
+  v: string;
+  on: (x: string) => void;
+  placeholder?: string;
+}) {
   return (
     <div>
       <Label>{label}</Label>
