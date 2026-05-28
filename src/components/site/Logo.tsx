@@ -1,39 +1,21 @@
 import { Link } from "@tanstack/react-router";
+import cMark from "@/assets/chaos-c-mark.png";
 
 /**
  * CHAOS wordmark + minimal gem-facet mark.
  * Octagon viewed from above with internal facet lines in lighter champagne gold.
  */
-export function GemMark({ size = 24, className }: { size?: number; className?: string }) {
+export function GemMark({ size = 24, className, style }: { size?: number; className?: string; style?: React.CSSProperties }) {
   return (
-    <svg
+    <img
+      src={cMark}
       width={size}
       height={size}
-      viewBox="0 0 40 40"
-      fill="none"
+      alt=""
       aria-hidden="true"
       className={className}
-    >
-      {/* Outer octagon — champagne gold */}
-      <polygon
-        points="12,3 28,3 37,12 37,28 28,37 12,37 3,28 3,12"
-        fill="#D4AF6A"
-        stroke="#B68F4E"
-        strokeWidth="0.6"
-      />
-      {/* Inner table */}
-      <polygon
-        points="16,9 24,9 31,16 31,24 24,31 16,31 9,24 9,16"
-        fill="#E8C97A"
-      />
-      {/* Facet lines — lighter gold */}
-      <g stroke="#F2DDA5" strokeWidth="0.8" opacity="0.85" strokeLinecap="round">
-        <line x1="12" y1="3" x2="28" y2="37" />
-        <line x1="28" y1="3" x2="12" y2="37" />
-        <line x1="3" y1="12" x2="37" y2="28" />
-        <line x1="37" y1="12" x2="3" y2="28" />
-      </g>
-    </svg>
+      style={{ display: "inline-block", objectFit: "contain", ...style }}
+    />
   );
 }
 

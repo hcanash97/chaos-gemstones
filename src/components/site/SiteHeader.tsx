@@ -136,7 +136,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 md:grid-cols-3">
         <div>
           <div className="flex items-center gap-2.5">
-            <GemMark size={26} />
+            <GemMark size={26} className="invert brightness-0 contrast-100" style={{ filter: "brightness(0) invert(1)" }} />
             <span className="font-serif text-2xl italic font-medium tracking-tight">Chaos</span>
           </div>
           <p className="mt-3 max-w-xs text-sm opacity-75">
