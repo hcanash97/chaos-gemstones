@@ -43,6 +43,7 @@ import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.
 import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
 import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboard.jeweller.enquiries'
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
+import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.dealer.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
 import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
@@ -225,6 +226,11 @@ const DashboardJewellerApiRoute = DashboardJewellerApiRouteImport.update({
   path: '/jeweller/api',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardDealerApiRoute = DashboardDealerApiRouteImport.update({
+  id: '/dealer/api',
+  path: '/dealer/api',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const ApiPublicFeedRoute = ApiPublicFeedRouteImport.update({
   id: '/api/public/feed',
   path: '/api/public/feed',
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/vendors/': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -346,6 +353,7 @@ export interface FileRoutesByTo {
   '/vendors': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -392,6 +400,7 @@ export interface FileRoutesById {
   '/vendors/': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -439,6 +448,7 @@ export interface FileRouteTypes {
     | '/vendors/'
     | '/api/public/chaos.js'
     | '/api/public/feed'
+    | '/dashboard/dealer/api'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -483,6 +493,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/api/public/chaos.js'
     | '/api/public/feed'
+    | '/dashboard/dealer/api'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/vendors/'
     | '/api/public/chaos.js'
     | '/api/public/feed'
+    | '/dashboard/dealer/api'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -815,6 +827,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardJewellerApiRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/dealer/api': {
+      id: '/dashboard/dealer/api'
+      path: '/dealer/api'
+      fullPath: '/dashboard/dealer/api'
+      preLoaderRoute: typeof DashboardDealerApiRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/api/public/feed': {
       id: '/api/public/feed'
       path: '/api/public/feed'
@@ -896,6 +915,7 @@ interface DashboardRouteChildren {
   DashboardImportRoute: typeof DashboardImportRoute
   DashboardSalesRoute: typeof DashboardSalesRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardDealerApiRoute: typeof DashboardDealerApiRoute
   DashboardJewellerApiRoute: typeof DashboardJewellerApiRoute
   DashboardJewellerEnquiriesRoute: typeof DashboardJewellerEnquiriesRoute
   DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
@@ -912,6 +932,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardImportRoute: DashboardImportRoute,
   DashboardSalesRoute: DashboardSalesRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardDealerApiRoute: DashboardDealerApiRoute,
   DashboardJewellerApiRoute: DashboardJewellerApiRoute,
   DashboardJewellerEnquiriesRoute: DashboardJewellerEnquiriesRoute,
   DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
