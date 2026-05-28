@@ -42,6 +42,7 @@ function DashboardLayout() {
         { to: "/dashboard/jeweller/feeds", label: "Vendors & Stones", exact: false },
         { to: "/dashboard/jeweller/markup", label: "Markup", exact: false },
         { to: "/dashboard/jeweller/api", label: "API Feed", exact: false },
+        { to: "/dashboard/jeweller/shopify", label: "Shopify Sync", exact: false },
         { to: "/dashboard/jeweller/orders", label: "My Orders", exact: false },
         { to: "/dashboard/jeweller/enquiries", label: "My Enquiries", exact: false },
         { to: "/dashboard/jeweller/saved-searches", label: "Saved Searches", exact: false },

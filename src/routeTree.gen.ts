@@ -45,6 +45,7 @@ import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.j
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
 import { Route as DashboardJewellerWishlistRouteImport } from './routes/dashboard.jeweller.wishlist'
+import { Route as DashboardJewellerShopifyRouteImport } from './routes/dashboard.jeweller.shopify'
 import { Route as DashboardJewellerSavedSearchesRouteImport } from './routes/dashboard.jeweller.saved-searches'
 import { Route as DashboardJewellerOrdersRouteImport } from './routes/dashboard.jeweller.orders'
 import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.jeweller.markup'
@@ -244,6 +245,12 @@ const DashboardJewellerWishlistRoute =
     path: '/jeweller/wishlist',
     getParentRoute: () => DashboardRoute,
   } as any)
+const DashboardJewellerShopifyRoute =
+  DashboardJewellerShopifyRouteImport.update({
+    id: '/jeweller/shopify',
+    path: '/jeweller/shopify',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardJewellerSavedSearchesRoute =
   DashboardJewellerSavedSearchesRouteImport.update({
     id: '/jeweller/saved-searches',
@@ -377,6 +384,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/shopify': typeof DashboardJewellerShopifyRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
@@ -431,6 +439,7 @@ export interface FileRoutesByTo {
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/shopify': typeof DashboardJewellerShopifyRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
@@ -487,6 +496,7 @@ export interface FileRoutesById {
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/shopify': typeof DashboardJewellerShopifyRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/shopify'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
@@ -598,6 +609,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/shopify'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
@@ -653,6 +665,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/shopify'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
@@ -954,6 +967,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardJewellerWishlistRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/jeweller/shopify': {
+      id: '/dashboard/jeweller/shopify'
+      path: '/jeweller/shopify'
+      fullPath: '/dashboard/jeweller/shopify'
+      preLoaderRoute: typeof DashboardJewellerShopifyRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/jeweller/saved-searches': {
       id: '/dashboard/jeweller/saved-searches'
       path: '/jeweller/saved-searches'
@@ -1101,6 +1121,7 @@ interface DashboardRouteChildren {
   DashboardJewellerMarkupRoute: typeof DashboardJewellerMarkupRoute
   DashboardJewellerOrdersRoute: typeof DashboardJewellerOrdersRoute
   DashboardJewellerSavedSearchesRoute: typeof DashboardJewellerSavedSearchesRoute
+  DashboardJewellerShopifyRoute: typeof DashboardJewellerShopifyRoute
   DashboardJewellerWishlistRoute: typeof DashboardJewellerWishlistRoute
   DashboardStonesIdRoute: typeof DashboardStonesIdRoute
   DashboardStonesNewRoute: typeof DashboardStonesNewRoute
@@ -1123,6 +1144,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardJewellerMarkupRoute: DashboardJewellerMarkupRoute,
   DashboardJewellerOrdersRoute: DashboardJewellerOrdersRoute,
   DashboardJewellerSavedSearchesRoute: DashboardJewellerSavedSearchesRoute,
+  DashboardJewellerShopifyRoute: DashboardJewellerShopifyRoute,
   DashboardJewellerWishlistRoute: DashboardJewellerWishlistRoute,
   DashboardStonesIdRoute: DashboardStonesIdRoute,
   DashboardStonesNewRoute: DashboardStonesNewRoute,
