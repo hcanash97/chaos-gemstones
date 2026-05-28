@@ -5,6 +5,32 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
 import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
+import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
+
+// SSRF guard — same rules as feed-fetch.functions.ts.
+function assertSafeFeedUrl(urlStr: string): void {
+  const target = new URL(urlStr);
+  if (target.protocol !== "https:" && target.protocol !== "http:") {
+    throw new Error("Only http(s) URLs are supported");
+  }
+  const host = target.hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host === "::1" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host.startsWith("10.") ||
+    host.startsWith("192.168.") ||
+    /^169\.254\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+    /^fd[0-9a-f]{2}:/i.test(host) ||
+    /^fe80:/i.test(host)
+  ) {
+    throw new Error("Private or local hosts are not allowed");
+  }
+}
 
 async function ensureApprovedDealer(supabase: any, userId: string) {
   const { data: profile } = await supabase
@@ -64,11 +90,7 @@ export const generateDealerApiKey = createServerFn({ method: "POST" })
     const prefix = raw.slice(0, 12);
 
     // Deactivate prior write keys for this dealer
-    await supabase
-      .from("api_keys")
-      .update({ is_active: false })
-      .eq("jeweller_id", userId)
-      .eq("key_type", "write");
+    await supabase.from("api_keys").update({ is_active: false }).eq("jeweller_id", userId).eq("key_type", "write");
 
     const { data, error } = await supabase
       .from("api_keys")
@@ -133,7 +155,11 @@ export const runDealerSync = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
 
-    const dealerRow = dealer as { external_feed_url?: string | null; external_feed_method?: string | null; external_feed_body?: string | null } | null;
+    const dealerRow = dealer as {
+      external_feed_url?: string | null;
+      external_feed_method?: string | null;
+      external_feed_body?: string | null;
+    } | null;
     if (!dealerRow?.external_feed_url) {
       throw new Error("No sync URL configured.");
     }
@@ -146,6 +172,7 @@ export const runDealerSync = createServerFn({ method: "POST" })
     const logId = logRow!.id;
 
     try {
+      assertSafeFeedUrl(dealerRow.external_feed_url);
       const method = (dealerRow.external_feed_method ?? "GET").toUpperCase();
       const init: RequestInit = {
         method,
@@ -166,12 +193,12 @@ export const runDealerSync = createServerFn({ method: "POST" })
         rows = Array.isArray(data)
           ? data
           : Array.isArray((data as any)?.stones)
-          ? (data as any).stones
-          : Array.isArray((data as any)?.data)
-          ? (data as any).data
-          : Array.isArray((data as any)?.result)
-          ? (data as any).result
-          : [];
+            ? (data as any).stones
+            : Array.isArray((data as any)?.data)
+              ? (data as any).data
+              : Array.isArray((data as any)?.result)
+                ? (data as any).result
+                : [];
       } else {
         const text = await res.text();
         rows = parseCsv(text);
@@ -201,7 +228,13 @@ export const runDealerSync = createServerFn({ method: "POST" })
       rows.forEach((raw, idx) => {
         const mapped = mapRow(raw as Record<string, unknown>, preset);
         if (!cityFromFeed && mapped.city) cityFromFeed = mapped.city;
-        const payload = mapped.stone;
+        // Normalise string fields before validation.
+        const rawPayload = mapped.stone;
+        const payload: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(rawPayload)) {
+          const fieldDef = FIELD_MAP[k];
+          payload[k] = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
+        }
         const cert = payload.cert_number ? String(payload.cert_number).trim() : "";
         if (cert) seenCerts.add(cert);
         const existingId = cert ? certToId.get(cert) : undefined;
@@ -217,21 +250,31 @@ export const runDealerSync = createServerFn({ method: "POST" })
 
       let created = 0;
       let updated = 0;
-      const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
+      const createdImageRows: Array<{
+        stone_id: string;
+        storage_url: string;
+        external_image_url: string;
+        is_primary: boolean;
+        sort_order: number;
+      }> = [];
       if (toCreate.length) {
         const insertData = toCreate.map((c) => c.data);
-        const { data, error } = await supabaseAdmin.from("stones").insert(insertData as never).select("id");
+        const { data, error } = await supabaseAdmin
+          .from("stones")
+          .insert(insertData as never)
+          .select("id");
         if (error) throw new Error(error.message);
         created = data?.length ?? 0;
         (data ?? []).forEach((row: any, i: number) => {
           const img = toCreate[i]?.image_url;
-          if (img) createdImageRows.push({
-            stone_id: row.id,
-            storage_url: img,
-            external_image_url: img,
-            is_primary: true,
-            sort_order: 0,
-          });
+          if (img)
+            createdImageRows.push({
+              stone_id: row.id,
+              storage_url: img,
+              external_image_url: img,
+              is_primary: true,
+              sort_order: 0,
+            });
         });
       }
       if (createdImageRows.length) {
@@ -267,9 +310,7 @@ export const runDealerSync = createServerFn({ method: "POST" })
       // Mark stones with cert_numbers not seen in this feed as feed_inactive
       let markedInactive = 0;
       if (seenCerts.size && existing && existing.length) {
-        const inactiveIds = existing
-          .filter((s) => s.cert_number && !seenCerts.has(s.cert_number))
-          .map((s) => s.id);
+        const inactiveIds = existing.filter((s) => s.cert_number && !seenCerts.has(s.cert_number)).map((s) => s.id);
         if (inactiveIds.length) {
           const { error } = await supabaseAdmin
             .from("stones")
@@ -332,7 +373,10 @@ export const runDealerSync = createServerFn({ method: "POST" })
 
 // Tiny CSV parser — supports quoted fields, comma separator, header row.
 function parseCsv(text: string): Array<Record<string, string>> {
-  const lines = text.replace(/\r\n?/g, "\n").split("\n").filter((l) => l.trim());
+  const lines = text
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .filter((l) => l.trim());
   if (lines.length < 2) return [];
   const headers = splitCsvLine(lines[0]);
   return lines.slice(1).map((line) => {
@@ -352,12 +396,16 @@ function splitCsvLine(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (inQuotes) {
-      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
-      else if (c === '"') inQuotes = false;
+      if (c === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (c === '"') inQuotes = false;
       else cur += c;
     } else {
-      if (c === ",") { out.push(cur); cur = ""; }
-      else if (c === '"') inQuotes = true;
+      if (c === ",") {
+        out.push(cur);
+        cur = "";
+      } else if (c === '"') inQuotes = true;
       else cur += c;
     }
   }
