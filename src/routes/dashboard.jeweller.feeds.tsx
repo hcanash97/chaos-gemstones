@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { getApprovedDealersWithStoneCounts, getJewellerApiStatus, toggleFeedSelection } from "@/lib/jeweller-feed.functions";
 
@@ -26,7 +27,7 @@ function FeedsPage() {
 
   const isJeweller = profile?.account_type === "jeweller";
 
-  const { data: dealers } = useQuery({
+  const { data: dealers, isLoading: dealersLoading } = useQuery({
     queryKey: ["approved-dealers", user?.id],
     enabled: !!user?.id && isJeweller,
     queryFn: () => fetchDealers(),
@@ -105,6 +106,16 @@ function FeedsPage() {
               </tr>
             </thead>
             <tbody>
+              {dealersLoading &&
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="border-t border-border">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
+                    <td className="px-4 py-3 text-right"><Skeleton className="ml-auto h-4 w-8" /></td>
+                    <td className="px-4 py-3 text-right"><Skeleton className="ml-auto h-5 w-10" /></td>
+                  </tr>
+                ))}
               {activeDealers.map((d: any) => (
                 <tr key={d.id} className="border-t border-border">
                   <td className="px-4 py-3 font-medium">{d.profiles?.company_name}</td>
@@ -116,7 +127,7 @@ function FeedsPage() {
                   </td>
                 </tr>
               ))}
-              {!activeDealers.length && (
+              {!dealersLoading && !activeDealers.length && (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No approved dealers are listed yet. Check back soon or browse the marketplace.</td></tr>
               )}
             </tbody>

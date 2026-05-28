@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
@@ -8,6 +9,11 @@ import { ShieldCheck } from "lucide-react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { StarInput } from "@/components/site/StarInput";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/vendors/$slug")({
   component: VendorProfile,
@@ -60,7 +66,9 @@ export const Route = createFileRoute("/vendors/$slug")({
 
 function VendorProfile() {
   const { slug } = Route.useParams();
-  const { data } = useQuery({
+  const { user, profile } = useAuth();
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
     queryKey: ["vendor", slug],
     queryFn: async () => {
       const { data: vendor } = await supabase
@@ -119,6 +127,37 @@ function VendorProfile() {
       };
     },
   });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteHeader />
+        <section className="bg-primary text-primary-foreground">
+          <div className="mx-auto max-w-7xl px-6 py-16">
+            <Skeleton className="h-3 w-24 bg-white/20" />
+            <Skeleton className="mt-4 h-12 w-2/3 bg-white/20" />
+            <Skeleton className="mt-2 h-4 w-1/3 bg-white/15" />
+            <Skeleton className="mt-6 h-20 w-full max-w-2xl bg-white/15" />
+          </div>
+        </section>
+        <section className="mx-auto max-w-7xl px-6 py-16">
+          <Skeleton className="h-8 w-40" />
+          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="overflow-hidden rounded-md border border-border bg-card">
+                <Skeleton className="aspect-square w-full rounded-none" />
+                <div className="space-y-2 p-4">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <SiteFooter />
+      </div>
+    );
+  }
 
   if (!data?.vendor) {
     return (
@@ -251,8 +290,106 @@ function VendorProfile() {
           </div>
         </section>
       )}
+      <ReviewSubmit
+        dealerId={(data.vendor as any).id}
+        userId={user?.id}
+        accountType={profile?.account_type}
+        onSubmitted={() => qc.invalidateQueries({ queryKey: ["vendor", slug] })}
+      />
       <SiteFooter />
     </div>
+  );
+}
+
+function ReviewSubmit({
+  dealerId,
+  userId,
+  accountType,
+  onSubmitted,
+}: {
+  dealerId: string;
+  userId?: string;
+  accountType?: string;
+  onSubmitted: () => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Only authenticated jewellers can attempt to leave a review.
+  // RLS additionally requires they have an order with this dealer.
+  const { data: canReview } = useQuery({
+    queryKey: ["can-review", dealerId, userId],
+    enabled: !!userId && accountType === "jeweller",
+    queryFn: async () => {
+      const { count: orderCount } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("jeweller_id", userId!)
+        .eq("dealer_id", dealerId);
+      if (!orderCount) return false;
+      const { count: existing } = await (supabase as any)
+        .from("reviews")
+        .select("id", { count: "exact", head: true })
+        .eq("jeweller_id", userId!)
+        .eq("dealer_id", dealerId);
+      return (existing ?? 0) === 0;
+    },
+  });
+
+  if (!canReview) return null;
+
+  async function submit() {
+    if (rating < 1) {
+      toast.error("Please choose a star rating");
+      return;
+    }
+    setBusy(true);
+    const { error } = await (supabase as any).from("reviews").insert({
+      dealer_id: dealerId,
+      jeweller_id: userId,
+      rating,
+      comment: comment.trim() || null,
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Review posted — thank you");
+    setComment("");
+    setRating(0);
+    onSubmitted();
+  }
+
+  return (
+    <section className="border-t border-border bg-card">
+      <div className="mx-auto max-w-3xl px-6 py-12">
+        <h2 className="font-serif text-2xl">Leave a review</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          You bought from this dealer — your honest feedback helps other jewellers.
+        </p>
+        <div className="mt-5 space-y-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Rating</div>
+            <StarInput value={rating} onChange={setRating} />
+          </div>
+          <Textarea
+            placeholder="How was the stone, communication, packaging…"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={4}
+          />
+          <Button
+            onClick={submit}
+            disabled={busy || rating < 1}
+            className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+          >
+            {busy ? "Posting…" : "Post review"}
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }
 

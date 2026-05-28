@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { StoneCard } from "@/components/site/StoneCard";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -150,6 +151,7 @@ function StoneDetail() {
     .filter(Boolean);
   const primaryImage = images[0];
   const slug = stone.dealer?.dealer_profiles?.slug;
+
 
   const specs: Array<[string, any]> = [
     ["Stone type", stone.stone_type],
@@ -420,7 +422,81 @@ function StoneDetail() {
           </div>
         </div>
       </div>
+      <RelatedStones stone={stone} />
       <SiteFooter />
+    </div>
+  );
+}
+
+function RelatedStones({ stone }: { stone: any }) {
+  const { data: related } = useQuery({
+    queryKey: ["stone-related", stone.id, stone.dealer_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("stones")
+        .select(
+          "id, stone_type, shape, carat_weight, origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, stone_images(storage_url, external_image_url, is_primary, sort_order)",
+        )
+        .eq("dealer_id", stone.dealer_id)
+        .eq("status", "available")
+        .neq("id", stone.id)
+        .limit(4);
+      return (data ?? []).map((s: any) => ({
+        ...s,
+        image: s.stone_images?.[0]?.storage_url || s.stone_images?.[0]?.external_image_url || null,
+      }));
+    },
+  });
+
+  const { data: similar } = useQuery({
+    queryKey: ["stone-similar", stone.id, stone.stone_type, stone.shape],
+    queryFn: async () => {
+      let q = supabase
+        .from("stones")
+        .select(
+          "id, stone_type, shape, carat_weight, origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(is_verified)",
+        )
+        .eq("status", "available")
+        .eq("stone_type", stone.stone_type)
+        .neq("id", stone.id)
+        .neq("dealer_id", stone.dealer_id);
+      if (stone.shape) q = q.eq("shape", stone.shape);
+      const { data } = await q.limit(8);
+      return (data ?? []).map((s: any) => ({
+        ...s,
+        image: s.stone_images?.[0]?.storage_url || s.stone_images?.[0]?.external_image_url || null,
+        dealer_verified: !!s.profiles?.is_verified,
+      }));
+    },
+  });
+
+  const hasRelated = (related?.length ?? 0) > 0;
+  const hasSimilar = (similar?.length ?? 0) > 0;
+  if (!hasRelated && !hasSimilar) return null;
+
+  return (
+    <div className="border-t border-border bg-secondary/20">
+      <div className="mx-auto max-w-7xl px-6 py-14 space-y-12">
+        {hasRelated && (
+          <section>
+            <h2 className="font-serif text-2xl">More from this dealer</h2>
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {related!.map((s: any) => <StoneCard key={s.id} stone={s} />)}
+            </div>
+          </section>
+        )}
+        {hasSimilar && (
+          <section>
+            <h2 className="font-serif text-2xl">Similar stones</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Other {stone.shape ? stone.shape.toLowerCase() + " " : ""}{stone.stone_type?.toLowerCase()} listings from verified dealers.
+            </p>
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {similar!.slice(0, 4).map((s: any) => <StoneCard key={s.id} stone={s} />)}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
