@@ -12,6 +12,10 @@ import { useState } from "react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { certLink, countryFlag } from "@/lib/countries";
 import { getCertSignedUrl, getCertLabel } from "@/lib/cert.functions";
+import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -314,6 +318,7 @@ function StoneDetail() {
                   </Button>
                 )}
               </div>
+              <ReportListing stoneId={stone.id} />
             </div>
 
             {/* Vendor card */}
