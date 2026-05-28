@@ -353,11 +353,16 @@ export type Database = {
           dealer_id: string
           enquiry_id: string | null
           expected_delivery: string | null
+          fee_invoiced_at: string | null
+          fee_paid_at: string | null
           id: string
           jeweller_confirmed_receipt: boolean | null
           jeweller_id: string
           jeweller_notes: string | null
           notes: string | null
+          platform_fee_amount: number | null
+          platform_fee_currency: string | null
+          platform_fee_usd: number | null
           received_at: string | null
           sale_date: string
           shipping_status: string | null
@@ -371,11 +376,16 @@ export type Database = {
           dealer_id: string
           enquiry_id?: string | null
           expected_delivery?: string | null
+          fee_invoiced_at?: string | null
+          fee_paid_at?: string | null
           id?: string
           jeweller_confirmed_receipt?: boolean | null
           jeweller_id: string
           jeweller_notes?: string | null
           notes?: string | null
+          platform_fee_amount?: number | null
+          platform_fee_currency?: string | null
+          platform_fee_usd?: number | null
           received_at?: string | null
           sale_date?: string
           shipping_status?: string | null
@@ -389,11 +399,16 @@ export type Database = {
           dealer_id?: string
           enquiry_id?: string | null
           expected_delivery?: string | null
+          fee_invoiced_at?: string | null
+          fee_paid_at?: string | null
           id?: string
           jeweller_confirmed_receipt?: boolean | null
           jeweller_id?: string
           jeweller_notes?: string | null
           notes?: string | null
+          platform_fee_amount?: number | null
+          platform_fee_currency?: string | null
+          platform_fee_usd?: number | null
           received_at?: string | null
           sale_date?: string
           shipping_status?: string | null
