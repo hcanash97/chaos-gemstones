@@ -377,8 +377,6 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
                 </p>
               );
             })()}
-            {/* swallow unused convert binding warning in some configs */}
-            <span className="hidden" data-x={convert ? 1 : 0} />
           </div>
           <div>
             <Label>Colour grade</Label>
