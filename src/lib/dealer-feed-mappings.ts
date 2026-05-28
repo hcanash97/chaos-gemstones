@@ -58,9 +58,14 @@ const KODLLIN: FeedPreset = {
   map: (row) => {
     const stone: Record<string, unknown> = {};
 
+    // Nancy Diamond / Kodllin only returns lab-grown diamonds.
+    stone.stone_type = "Diamond";
+
     const stockNote = s(row.stockNo) ? `Stock ref: ${s(row.stockNo)}` : "";
     const certComment = s(row.certiComment);
-    const notes = [stockNote, certComment].filter(Boolean).join(" — ");
+    const inscription = s(row.inscription);
+    const laserInscription = s(row.laserInscription);
+    const notes = [stockNote, certComment, inscription, laserInscription].filter(Boolean).join(" — ");
     if (notes) stone.notes_for_buyers = notes;
 
     const status = s(row.status).toLowerCase();
@@ -126,8 +131,28 @@ const KODLLIN: FeedPreset = {
 
     const ca = n(row.crownAngle);
     if (ca !== undefined) stone.crown_angle = ca;
+    // crownHeight is sent as a percentage by Kodllin, not degrees — stored as-is
+    const ch = n(row.crownHeight);
+    if (ch !== undefined && ca === undefined) stone.crown_angle = ch;
     const pa = n(row.pavilionAngle);
     if (pa !== undefined) stone.pavilion_angle = pa;
+    // pavilionDepth is sent as a percentage by Kodllin, not degrees — stored as-is
+    const pd = n(row.pavilionDepth);
+    if (pd !== undefined && pa === undefined) stone.pavilion_angle = pd;
+
+    const openInclusion = s(row.openInclusion);
+    if (openInclusion) stone.enhancement = openInclusion;
+
+    // vdbVideo as fallback when videoLink is absent
+    if (!s(row.videoLink)) {
+      const vdb = s(row.vdbVideo);
+      if (vdb) {
+        stone.video_url = vdb;
+        stone.has_video = true;
+      }
+    }
+
+    // keyToSymbole and starLength are internal Kodllin fields — ignored.
 
     Object.assign(stone, parseMeasurements(row.measurements));
 

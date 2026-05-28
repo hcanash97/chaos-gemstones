@@ -9,11 +9,27 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
+    headers: { "Content-Type": "application/json", ...corsHeaders, ...extra },
   });
+}
+
+// Per-worker in-memory rate limiter (approximate — resets on CF Worker cold start).
+const RATE_LIMIT = 60; // requests per minute per key
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(keyId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(keyId);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(keyId, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT) return false;
+  entry.count++;
+  return true;
 }
 
 export const Route = createFileRoute("/api/public/feed")({
@@ -29,12 +45,20 @@ export const Route = createFileRoute("/api/public/feed")({
           const keyHash = createHash("sha256").update(key).digest("hex");
           const { data: apiKey } = await supabaseAdmin
             .from("api_keys")
-            .select("id, jeweller_id, is_active")
+            .select("id, jeweller_id, is_active, key_type")
             .eq("key_hash", keyHash)
             .maybeSingle();
 
           if (!apiKey || !apiKey.is_active) {
             return json({ error: "Invalid or inactive API key" }, 401);
+          }
+          // Only read keys (jeweller feed keys) may query this endpoint.
+          if (apiKey.key_type !== "read") {
+            return json({ error: "This endpoint requires a read API key" }, 403);
+          }
+
+          if (!checkRateLimit(apiKey.id)) {
+            return json({ error: "Rate limit exceeded" }, 429, { "Retry-After": "60" });
           }
 
           // Fire-and-forget last_used_at update
@@ -56,22 +80,40 @@ export const Route = createFileRoute("/api/public/feed")({
             .select("selection_type, stone_id, dealer_id, markup_override")
             .eq("api_key_id", apiKey.id);
 
-          const dealerFollows = (selections ?? []).filter(
-            (s) => s.selection_type === "dealer_follow" && s.dealer_id,
-          );
-          const stonePins = (selections ?? []).filter(
-            (s) => s.selection_type === "stone_pin" && s.stone_id,
-          );
+          const dealerFollows = (selections ?? []).filter((s) => s.selection_type === "dealer_follow" && s.dealer_id);
+          const stonePins = (selections ?? []).filter((s) => s.selection_type === "stone_pin" && s.stone_id);
 
-          const stones: any[] = [];
+          type StoneRow = Record<string, unknown> & {
+            id: string;
+            wholesale_price_usd?: number | null;
+            stone_images?: Array<{
+              storage_url: string | null;
+              external_image_url: string | null;
+              is_primary: boolean;
+              sort_order: number | null;
+            }>;
+          };
+
+          const stones: unknown[] = [];
           const seen = new Set<string>();
 
-          const pushStone = (s: any, markup: number) => {
+          const pushStone = (s: StoneRow, markup: number) => {
             if (seen.has(s.id)) return;
             seen.add(s.id);
             const wholesale = s.wholesale_price_usd != null ? Number(s.wholesale_price_usd) : null;
+
+            // Resolve primary image from storage_url, falling back to external_image_url.
+            const sortedImages = [...(s.stone_images ?? [])].sort(
+              (a, b) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
+            );
+            const primaryImg = sortedImages.find((img) => img.is_primary) ?? sortedImages[0];
+            const image_url = primaryImg?.storage_url || primaryImg?.external_image_url || null;
+
+            // Strip wholesale price — only expose the computed retail price.
+            const { wholesale_price_usd, stone_images, ...stoneData } = s;
             stones.push({
-              ...s,
+              ...stoneData,
+              image_url,
               retail_price: wholesale != null ? Math.round(wholesale * markup * 100) / 100 : null,
               markup_applied: markup,
             });
@@ -81,13 +123,13 @@ export const Route = createFileRoute("/api/public/feed")({
             const dealerIds = dealerFollows.map((d) => d.dealer_id as string);
             const { data } = await supabaseAdmin
               .from("stones")
-              .select("*, stone_images(storage_url, is_primary, sort_order)")
+              .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("dealer_id", dealerIds)
               .eq("status", "available");
-            (data ?? []).forEach((s: any) => {
-              const override = dealerFollows.find((d) => d.dealer_id === s.dealer_id)?.markup_override;
+            (data ?? []).forEach((s) => {
+              const override = dealerFollows.find((d) => d.dealer_id === (s as StoneRow).dealer_id)?.markup_override;
               const m = override != null ? Number(override) : globalMarkup;
-              pushStone(s, m);
+              pushStone(s as StoneRow, m);
             });
           }
 
@@ -95,13 +137,13 @@ export const Route = createFileRoute("/api/public/feed")({
             const stoneIds = stonePins.map((p) => p.stone_id as string);
             const { data } = await supabaseAdmin
               .from("stones")
-              .select("*, stone_images(storage_url, is_primary, sort_order)")
+              .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("id", stoneIds)
               .eq("status", "available");
-            (data ?? []).forEach((s: any) => {
-              const pin = stonePins.find((p) => p.stone_id === s.id);
+            (data ?? []).forEach((s) => {
+              const pin = stonePins.find((p) => p.stone_id === (s as StoneRow).id);
               const m = pin?.markup_override != null ? Number(pin.markup_override) : globalMarkup;
-              pushStone(s, m);
+              pushStone(s as StoneRow, m);
             });
           }
 
