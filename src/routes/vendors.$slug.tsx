@@ -181,15 +181,33 @@ function VendorProfile() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <section className="bg-primary text-primary-foreground">
-        <div className="mx-auto max-w-7xl px-6 py-16">
+      <section
+        className="relative overflow-hidden text-primary-foreground"
+        style={{ background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }}
+      >
+        {/* Specialities watermark */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 flex items-center justify-end overflow-hidden pr-10 font-serif text-[8rem] uppercase leading-none opacity-[0.04]"
+        >
+          {(v.specialities ?? []).slice(0, 1).join(" · ") || v.profiles?.country}
+        </div>
+        <div className="relative mx-auto max-w-7xl px-6 py-16">
           <Link to="/vendors" className="text-xs opacity-70 hover:opacity-100">← All vendors</Link>
-          <div className="mt-3 flex items-center gap-3">
-            <h1 className="font-serif text-5xl">{v.profiles.company_name}</h1>
-            {v.profiles.is_verified && <ShieldCheck className="h-6 w-6 text-[var(--color-gold)]" />}
+          <div className="mt-4 flex items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-gold)] bg-[var(--color-gold)]/10 font-serif text-2xl text-[var(--color-gold)]">
+              {(v.profiles.company_name || "?").slice(0, 1).toUpperCase()}
+            </div>
+            <div className="flex items-center gap-3">
+              <h1 className="font-serif text-5xl">{v.profiles.company_name}</h1>
+              {v.profiles.is_verified && <ShieldCheck className="verified-cycle h-6 w-6" />}
+            </div>
           </div>
           <div className="mt-2 text-sm opacity-70">
             {v.profiles.city}, {v.profiles.country} · {v.years_trading} years trading · ~{v.response_time_hours}h response
+            <span className="ml-3 inline-flex items-center rounded-full bg-[var(--color-gold)] px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-gold-foreground)]">
+              {data.stones.length} stones
+            </span>
           </div>
           <p className="mt-6 max-w-2xl opacity-90">{v.bio}</p>
           <div className="mt-6 flex flex-wrap gap-1.5">
