@@ -1,9 +1,13 @@
+import React, { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { countryFlag } from "@/lib/countries";
 import { fadeUp } from "@/components/anim/Motion";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Heart } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export type StoneCardData = {
   id: string;
@@ -21,7 +25,61 @@ export type StoneCardData = {
   dealer_verified?: boolean | null;
 };
 
-export function StoneCard({ stone }: { stone: StoneCardData }) {
+function StoneCardImpl({ stone }: { stone: StoneCardData }) {
+  const { user, profile } = useAuth();
+  const isJeweller = profile?.account_type === "jeweller";
+  const [saved, setSaved] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isJeweller || !user) {
+      setSaved(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("wishlists")
+        .select("id")
+        .eq("jeweller_id", user.id)
+        .eq("stone_id", stone.id)
+        .maybeSingle();
+      if (!cancelled) setSaved(!!data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isJeweller, user?.id, stone.id]);
+
+  async function toggleWishlist(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user || !isJeweller || busy) return;
+    const next = !saved;
+    setSaved(next); // optimistic
+    setBusy(true);
+    try {
+      if (next) {
+        const { error } = await (supabase as any)
+          .from("wishlists")
+          .insert({ jeweller_id: user.id, stone_id: stone.id });
+        if (error && !String(error.message).includes("duplicate")) throw error;
+      } else {
+        const { error } = await (supabase as any)
+          .from("wishlists")
+          .delete()
+          .eq("jeweller_id", user.id)
+          .eq("stone_id", stone.id);
+        if (error) throw error;
+      }
+    } catch (err: any) {
+      setSaved(!next); // rollback
+      toast.error(err?.message || "Could not update wishlist");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
     <Link
@@ -41,6 +99,18 @@ export function StoneCard({ stone }: { stone: StoneCardData }) {
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No image</div>
         )}
         <span className="shimmer-overlay" aria-hidden />
+        {isJeweller && (
+          <button
+            type="button"
+            onClick={toggleWishlist}
+            aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
+            className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background"
+          >
+            <Heart
+              className={`h-4 w-4 transition ${saved ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "text-foreground"}`}
+            />
+          </button>
+        )}
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between text-xs">
@@ -81,3 +151,5 @@ export function StoneCard({ stone }: { stone: StoneCardData }) {
     </motion.div>
   );
 }
+
+export const StoneCard = React.memo(StoneCardImpl);
