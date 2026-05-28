@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"pending" | "all" | "reports" | "fees">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "reports" | "fees" | "referrals">("pending");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports" || tab === "fees") return;
+    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals") return;
     setError(null);
     let query = supabase
       .from("profiles")
@@ -190,10 +190,16 @@ function AdminPage() {
             >
               Fees
             </button>
+            <button
+              onClick={() => setTab("referrals")}
+              className={`rounded px-3 py-1 ${tab === "referrals" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              Referrals
+            </button>
           </div>
         </div>
 
-        {tab !== "reports" && tab !== "fees" && (
+        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && (
         <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -227,6 +233,8 @@ function AdminPage() {
           <ReportsPanel />
         ) : tab === "fees" ? (
           <FeesPanel />
+        ) : tab === "referrals" ? (
+          <ReferralsPanel />
         ) : (
         <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
           {rows.length === 0 ? (
