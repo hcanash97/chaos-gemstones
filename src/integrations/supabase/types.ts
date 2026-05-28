@@ -85,6 +85,8 @@ export type Database = {
           bio: string | null
           created_at: string
           directory_url: string | null
+          external_feed_body: string | null
+          external_feed_method: string
           external_feed_url: string | null
           featured: boolean
           gia_member: boolean | null
@@ -103,6 +105,8 @@ export type Database = {
           bio?: string | null
           created_at?: string
           directory_url?: string | null
+          external_feed_body?: string | null
+          external_feed_method?: string
           external_feed_url?: string | null
           featured?: boolean
           gia_member?: boolean | null
@@ -121,6 +125,8 @@ export type Database = {
           bio?: string | null
           created_at?: string
           directory_url?: string | null
+          external_feed_body?: string | null
+          external_feed_method?: string
           external_feed_url?: string | null
           featured?: boolean
           gia_member?: boolean | null
@@ -456,6 +462,7 @@ export type Database = {
       }
       stone_images: {
         Row: {
+          external_image_url: string | null
           id: string
           is_primary: boolean
           sort_order: number
@@ -463,6 +470,7 @@ export type Database = {
           storage_url: string
         }
         Insert: {
+          external_image_url?: string | null
           id?: string
           is_primary?: boolean
           sort_order?: number
@@ -470,6 +478,7 @@ export type Database = {
           storage_url: string
         }
         Update: {
+          external_image_url?: string | null
           id?: string
           is_primary?: boolean
           sort_order?: number
@@ -502,6 +511,7 @@ export type Database = {
           colour_tone: string | null
           country_of_origin: string | null
           created_at: string
+          crown_angle: number | null
           culet_condition: string | null
           culet_size: string | null
           cut_grade: string | null
@@ -530,6 +540,7 @@ export type Database = {
           notes_for_buyers: string | null
           origin: string | null
           parcel_quantity: number | null
+          pavilion_angle: number | null
           phenomenon: string | null
           polish: string | null
           provenance_report: string | null
@@ -562,6 +573,7 @@ export type Database = {
           colour_tone?: string | null
           country_of_origin?: string | null
           created_at?: string
+          crown_angle?: number | null
           culet_condition?: string | null
           culet_size?: string | null
           cut_grade?: string | null
@@ -590,6 +602,7 @@ export type Database = {
           notes_for_buyers?: string | null
           origin?: string | null
           parcel_quantity?: number | null
+          pavilion_angle?: number | null
           phenomenon?: string | null
           polish?: string | null
           provenance_report?: string | null
@@ -622,6 +635,7 @@ export type Database = {
           colour_tone?: string | null
           country_of_origin?: string | null
           created_at?: string
+          crown_angle?: number | null
           culet_condition?: string | null
           culet_size?: string | null
           cut_grade?: string | null
@@ -650,6 +664,7 @@ export type Database = {
           notes_for_buyers?: string | null
           origin?: string | null
           parcel_quantity?: number | null
+          pavilion_angle?: number | null
           phenomenon?: string | null
           polish?: string | null
           provenance_report?: string | null
