@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -73,6 +74,11 @@ export const Route = createFileRoute("/stone/$id")({
 
 function StoneDetail() {
   const { id } = Route.useParams();
+  const { user, profile } = useAuth();
+  const { format } = useCurrency();
+  const isJeweller = profile?.account_type === "jeweller" && profile?.is_approved;
+  const showWholesale =
+    profile?.account_type === "dealer" || profile?.account_type === "admin" || isJeweller;
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -301,10 +307,24 @@ function StoneDetail() {
                   {stone.status === "sold" ? "Sold — no longer available" : "Reserved — currently under offer"}
                 </div>
               )}
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Wholesale price</div>
-              <div className="mt-1 font-mono text-3xl font-semibold">
-                {stone.wholesale_price_usd ? `$${Number(stone.wholesale_price_usd).toLocaleString()} USD` : "POA"}
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                {showWholesale ? "Wholesale price" : "Price"}
               </div>
+              {showWholesale ? (
+                <div className="mt-1 font-mono text-3xl font-semibold">
+                  {format(stone.wholesale_price_usd)}
+                </div>
+              ) : user ? (
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Pricing visible to approved jewellers.
+                </div>
+              ) : (
+                <div className="mt-1 text-sm">
+                  <Link to="/login" className="text-[var(--color-gold)] hover:underline">
+                    Sign in to view pricing →
+                  </Link>
+                </div>
+              )}
               <div className="mt-4">
                 {stone.status === "available" ? (
                   <EnquireDialog
