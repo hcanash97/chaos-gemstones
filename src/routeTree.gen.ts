@@ -49,6 +49,7 @@ import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
 import { Route as ApiDealerV1StonesRouteImport } from './routes/api/dealer/v1/stones'
 import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
+import { Route as ApiDealerV1StonesBulkRouteImport } from './routes/api/dealer/v1/stones/bulk'
 import { Route as ApiDealerV1StonesIdRouteImport } from './routes/api/dealer/v1/stones/$id'
 import { Route as ApiDealerV1StonesIdMarkSoldRouteImport } from './routes/api/dealer/v1/stones/$id/mark-sold'
 
@@ -256,6 +257,11 @@ const ApiPublicHooksEmailNotifyRoute =
     path: '/api/public/hooks/email/notify',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiDealerV1StonesBulkRoute = ApiDealerV1StonesBulkRouteImport.update({
+  id: '/bulk',
+  path: '/bulk',
+  getParentRoute: () => ApiDealerV1StonesRoute,
+} as any)
 const ApiDealerV1StonesIdRoute = ApiDealerV1StonesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -309,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
+  '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
   '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
@@ -352,6 +359,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
+  '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
   '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
+  '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
   '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
@@ -443,6 +452,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/dealer/v1/stones/$id'
+    | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
     | '/api/dealer/v1/stones/$id/mark-sold'
   fileRoutesByTo: FileRoutesByTo
@@ -486,6 +496,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/dealer/v1/stones/$id'
+    | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
     | '/api/dealer/v1/stones/$id/mark-sold'
   id:
@@ -530,6 +541,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/dealer/v1/stones/$id'
+    | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
     | '/api/dealer/v1/stones/$id/mark-sold'
   fileRoutesById: FileRoutesById
@@ -845,6 +857,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksEmailNotifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/dealer/v1/stones/bulk': {
+      id: '/api/dealer/v1/stones/bulk'
+      path: '/bulk'
+      fullPath: '/api/dealer/v1/stones/bulk'
+      preLoaderRoute: typeof ApiDealerV1StonesBulkRouteImport
+      parentRoute: typeof ApiDealerV1StonesRoute
+    }
     '/api/dealer/v1/stones/$id': {
       id: '/api/dealer/v1/stones/$id'
       path: '/$id'
@@ -921,10 +940,12 @@ const ApiDealerV1StonesIdRouteWithChildren =
 
 interface ApiDealerV1StonesRouteChildren {
   ApiDealerV1StonesIdRoute: typeof ApiDealerV1StonesIdRouteWithChildren
+  ApiDealerV1StonesBulkRoute: typeof ApiDealerV1StonesBulkRoute
 }
 
 const ApiDealerV1StonesRouteChildren: ApiDealerV1StonesRouteChildren = {
   ApiDealerV1StonesIdRoute: ApiDealerV1StonesIdRouteWithChildren,
+  ApiDealerV1StonesBulkRoute: ApiDealerV1StonesBulkRoute,
 }
 
 const ApiDealerV1StonesRouteWithChildren =
