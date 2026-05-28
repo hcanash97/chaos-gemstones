@@ -1081,6 +1081,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_referral_code: {
+        Args: { _code: string; _user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1090,6 +1094,10 @@ export type Database = {
       }
       increment_stone_share: { Args: { _stone_id: string }; Returns: undefined }
       increment_stone_view: { Args: { _stone_id: string }; Returns: undefined }
+      issue_referral_credits: {
+        Args: { _new_user_id: string; _qualifying_event: string }
+        Returns: undefined
+      }
       notify_email_event: {
         Args: { p_record_id: string; p_type: string }
         Returns: undefined
