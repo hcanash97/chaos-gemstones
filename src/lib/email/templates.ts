@@ -71,6 +71,10 @@ export async function buildEmail(
       return await buildOrderShipped(recordId, sb);
     case "order_received_dealer":
       return await buildOrderReceived(recordId, sb);
+    case "referral_qualified_referrer":
+      return await buildReferralReferrer(recordId, sb);
+    case "referral_welcome_bonus":
+      return await buildReferralWelcome(recordId, sb);
     default:
       console.warn("[email] unknown template type", type);
       return null;
