@@ -140,6 +140,9 @@ function JewellerSignUp() {
         .from("jeweller_profiles")
         .update({
           website: form.website || null,
+          primary_market: form.primary_market || null,
+          sourcing_method: form.sourcing || null,
+          primary_interests: form.interests,
         })
         .eq("id", uid);
     }
