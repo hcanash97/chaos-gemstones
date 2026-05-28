@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getCertLabel } from "@/lib/cert.functions";
+import { SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export type StoneFormValues = {
   stone_type: string;
@@ -18,6 +20,7 @@ export type StoneFormValues = {
   country_of_origin: string;
   treatment: string;
   wholesale_price_usd: string;
+  price_currency: string;
   available_qty: string;
   status: "available" | "reserved" | "sold";
   cert_lab: string;
@@ -73,6 +76,7 @@ export const emptyStone: StoneFormValues = {
   country_of_origin: "",
   treatment: "",
   wholesale_price_usd: "",
+  price_currency: "USD",
   available_qty: "1",
   status: "available",
   cert_lab: "",
@@ -177,6 +181,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
       country_of_origin: values.country_of_origin.trim() || null,
       treatment: values.treatment.trim() || null,
       wholesale_price_usd: values.wholesale_price_usd ? Number(values.wholesale_price_usd) : null,
+      price_currency: values.price_currency || "USD",
       available_qty: values.available_qty ? Number(values.available_qty) : 1,
       status: values.status,
       cert_lab: values.cert_lab.trim() || null,
