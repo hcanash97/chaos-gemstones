@@ -60,6 +60,8 @@ const KODLLIN: FeedPreset = {
 
     // Nancy Diamond / Kodllin only returns lab-grown diamonds.
     stone.stone_type = "Diamond";
+    // Kodllin feeds are quoted in USD.
+    stone.price_currency = "USD";
 
     const stockNote = s(row.stockNo) ? `Stock ref: ${s(row.stockNo)}` : "";
     const certComment = s(row.certiComment);
