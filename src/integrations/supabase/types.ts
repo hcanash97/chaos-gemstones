@@ -745,6 +745,148 @@ export type Database = {
         }
         Relationships: []
       }
+      shopify_connections: {
+        Row: {
+          access_token: string
+          auto_sync: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          jeweller_id: string
+          last_sync_at: string | null
+          last_sync_status: string | null
+          products_synced: number
+          shop_domain: string
+          shop_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          auto_sync?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          jeweller_id: string
+          last_sync_at?: string | null
+          last_sync_status?: string | null
+          products_synced?: number
+          shop_domain: string
+          shop_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          auto_sync?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          jeweller_id?: string
+          last_sync_at?: string | null
+          last_sync_status?: string | null
+          products_synced?: number
+          shop_domain?: string
+          shop_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_connections_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_product_map: {
+        Row: {
+          id: string
+          jeweller_id: string
+          last_synced_at: string
+          shopify_handle: string | null
+          shopify_product_id: string
+          shopify_product_status: string
+          stone_id: string
+        }
+        Insert: {
+          id?: string
+          jeweller_id: string
+          last_synced_at?: string
+          shopify_handle?: string | null
+          shopify_product_id: string
+          shopify_product_status?: string
+          stone_id: string
+        }
+        Update: {
+          id?: string
+          jeweller_id?: string
+          last_synced_at?: string
+          shopify_handle?: string | null
+          shopify_product_id?: string
+          shopify_product_status?: string
+          stone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_product_map_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_product_map_stone_id_fkey"
+            columns: ["stone_id"]
+            isOneToOne: false
+            referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shopify_sync_logs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          jeweller_id: string
+          started_at: string
+          status: string
+          stones_added: number
+          stones_archived: number
+          stones_updated: number
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          jeweller_id: string
+          started_at?: string
+          status?: string
+          stones_added?: number
+          stones_archived?: number
+          stones_updated?: number
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          jeweller_id?: string
+          started_at?: string
+          status?: string
+          stones_added?: number
+          stones_archived?: number
+          stones_updated?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_sync_logs_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stone_images: {
         Row: {
           external_image_url: string | null
