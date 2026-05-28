@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { FALLBACK_RATES, convertPrice } from "@/lib/currency";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,22 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
 // Per-worker in-memory rate limiter (approximate — resets on CF Worker cold start).
 const RATE_LIMIT = 60; // requests per minute per key
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+// In-memory exchange-rate cache, valid for one hour per worker.
+let cachedRates: Record<string, number> | null = null;
+let ratesCachedAt = 0;
+async function getServerRates(): Promise<Record<string, number>> {
+  if (cachedRates && Date.now() - ratesCachedAt < 3_600_000) return cachedRates;
+  try {
+    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    const json = (await res.json()) as { rates: Record<string, number> };
+    cachedRates = json.rates;
+    ratesCachedAt = Date.now();
+    return cachedRates;
+  } catch {
+    return { ...FALLBACK_RATES };
+  }
+}
 
 function checkRateLimit(keyId: string): boolean {
   const now = Date.now();
@@ -70,10 +87,13 @@ export const Route = createFileRoute("/api/public/feed")({
 
           const { data: jProfile } = await supabaseAdmin
             .from("jeweller_profiles")
-            .select("markup_global")
+            .select("markup_global, feed_currency")
             .eq("id", apiKey.jeweller_id)
             .maybeSingle();
           const globalMarkup = Number(jProfile?.markup_global ?? 2);
+          const feedCurrency =
+            (jProfile as { feed_currency?: string } | null)?.feed_currency ?? "USD";
+          const rates = await getServerRates();
 
           const { data: selections } = await supabaseAdmin
             .from("feed_selections")
@@ -86,6 +106,7 @@ export const Route = createFileRoute("/api/public/feed")({
           type StoneRow = Record<string, unknown> & {
             id: string;
             wholesale_price_usd?: number | null;
+            price_currency?: string | null;
             stone_images?: Array<{
               storage_url: string | null;
               external_image_url: string | null;
@@ -101,6 +122,15 @@ export const Route = createFileRoute("/api/public/feed")({
             if (seen.has(s.id)) return;
             seen.add(s.id);
             const wholesale = s.wholesale_price_usd != null ? Number(s.wholesale_price_usd) : null;
+            const sourceCurrency = s.price_currency ?? "USD";
+            const wholesaleInFeedCurrency =
+              wholesale != null
+                ? convertPrice(wholesale, sourceCurrency, feedCurrency, rates)
+                : null;
+            const retailInFeedCurrency =
+              wholesaleInFeedCurrency != null
+                ? Math.round(wholesaleInFeedCurrency * markup * 100) / 100
+                : null;
 
             // Resolve primary image from storage_url, falling back to external_image_url.
             const sortedImages = [...(s.stone_images ?? [])].sort(
@@ -114,7 +144,8 @@ export const Route = createFileRoute("/api/public/feed")({
             stones.push({
               ...stoneData,
               image_url,
-              retail_price: wholesale != null ? Math.round(wholesale * markup * 100) / 100 : null,
+              retail_price: retailInFeedCurrency,
+              retail_currency: feedCurrency,
               markup_applied: markup,
             });
           };
