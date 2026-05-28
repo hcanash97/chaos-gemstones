@@ -45,6 +45,7 @@ import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.j
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
 import { Route as DashboardJewellerWishlistRouteImport } from './routes/dashboard.jeweller.wishlist'
+import { Route as DashboardJewellerShopifyRouteImport } from './routes/dashboard.jeweller.shopify'
 import { Route as DashboardJewellerSavedSearchesRouteImport } from './routes/dashboard.jeweller.saved-searches'
 import { Route as DashboardJewellerOrdersRouteImport } from './routes/dashboard.jeweller.orders'
 import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.jeweller.markup'
@@ -55,6 +56,7 @@ import { Route as DashboardDealerPricingRouteImport } from './routes/dashboard.d
 import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.dealer.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
+import { Route as ApiPublicCronShopifySyncRouteImport } from './routes/api/public/cron/shopify-sync'
 import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
 import { Route as ApiDealerV1StonesRouteImport } from './routes/api/dealer/v1/stones'
@@ -244,6 +246,12 @@ const DashboardJewellerWishlistRoute =
     path: '/jeweller/wishlist',
     getParentRoute: () => DashboardRoute,
   } as any)
+const DashboardJewellerShopifyRoute =
+  DashboardJewellerShopifyRouteImport.update({
+    id: '/jeweller/shopify',
+    path: '/jeweller/shopify',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardJewellerSavedSearchesRoute =
   DashboardJewellerSavedSearchesRouteImport.update({
     id: '/jeweller/saved-searches',
@@ -296,6 +304,12 @@ const ApiPublicChaosDotjsRoute = ApiPublicChaosDotjsRouteImport.update({
   path: '/api/public/chaos.js',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronShopifySyncRoute =
+  ApiPublicCronShopifySyncRouteImport.update({
+    id: '/api/public/cron/shopify-sync',
+    path: '/api/public/cron/shopify-sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronSavedSearchDigestRoute =
   ApiPublicCronSavedSearchDigestRouteImport.update({
     id: '/api/public/cron/saved-search-digest',
@@ -377,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/shopify': typeof DashboardJewellerShopifyRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
@@ -385,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
+  '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
@@ -431,6 +447,7 @@ export interface FileRoutesByTo {
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/shopify': typeof DashboardJewellerShopifyRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
@@ -439,6 +456,7 @@ export interface FileRoutesByTo {
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
+  '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
@@ -487,6 +505,7 @@ export interface FileRoutesById {
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/orders': typeof DashboardJewellerOrdersRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/shopify': typeof DashboardJewellerShopifyRoute
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
@@ -495,6 +514,7 @@ export interface FileRoutesById {
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
+  '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
@@ -544,6 +564,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/shopify'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
@@ -552,6 +573,7 @@ export interface FileRouteTypes {
     | '/api/dealer/v1/stones'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
+    | '/api/public/cron/shopify-sync'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
@@ -598,6 +620,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/shopify'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
@@ -606,6 +629,7 @@ export interface FileRouteTypes {
     | '/api/dealer/v1/stones'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
+    | '/api/public/cron/shopify-sync'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
@@ -653,6 +677,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/orders'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/shopify'
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
@@ -661,6 +686,7 @@ export interface FileRouteTypes {
     | '/api/dealer/v1/stones'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
+    | '/api/public/cron/shopify-sync'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
@@ -697,6 +723,7 @@ export interface RootRouteChildren {
   ApiDealerV1StonesRoute: typeof ApiDealerV1StonesRouteWithChildren
   ApiPublicCronDigestRoute: typeof ApiPublicCronDigestRoute
   ApiPublicCronSavedSearchDigestRoute: typeof ApiPublicCronSavedSearchDigestRoute
+  ApiPublicCronShopifySyncRoute: typeof ApiPublicCronShopifySyncRoute
   ApiPublicHooksEmailNotifyRoute: typeof ApiPublicHooksEmailNotifyRoute
 }
 
@@ -954,6 +981,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardJewellerWishlistRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/jeweller/shopify': {
+      id: '/dashboard/jeweller/shopify'
+      path: '/jeweller/shopify'
+      fullPath: '/dashboard/jeweller/shopify'
+      preLoaderRoute: typeof DashboardJewellerShopifyRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/jeweller/saved-searches': {
       id: '/dashboard/jeweller/saved-searches'
       path: '/jeweller/saved-searches'
@@ -1022,6 +1056,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/chaos.js'
       fullPath: '/api/public/chaos.js'
       preLoaderRoute: typeof ApiPublicChaosDotjsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/shopify-sync': {
+      id: '/api/public/cron/shopify-sync'
+      path: '/api/public/cron/shopify-sync'
+      fullPath: '/api/public/cron/shopify-sync'
+      preLoaderRoute: typeof ApiPublicCronShopifySyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cron/saved-search-digest': {
@@ -1101,6 +1142,7 @@ interface DashboardRouteChildren {
   DashboardJewellerMarkupRoute: typeof DashboardJewellerMarkupRoute
   DashboardJewellerOrdersRoute: typeof DashboardJewellerOrdersRoute
   DashboardJewellerSavedSearchesRoute: typeof DashboardJewellerSavedSearchesRoute
+  DashboardJewellerShopifyRoute: typeof DashboardJewellerShopifyRoute
   DashboardJewellerWishlistRoute: typeof DashboardJewellerWishlistRoute
   DashboardStonesIdRoute: typeof DashboardStonesIdRoute
   DashboardStonesNewRoute: typeof DashboardStonesNewRoute
@@ -1123,6 +1165,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardJewellerMarkupRoute: DashboardJewellerMarkupRoute,
   DashboardJewellerOrdersRoute: DashboardJewellerOrdersRoute,
   DashboardJewellerSavedSearchesRoute: DashboardJewellerSavedSearchesRoute,
+  DashboardJewellerShopifyRoute: DashboardJewellerShopifyRoute,
   DashboardJewellerWishlistRoute: DashboardJewellerWishlistRoute,
   DashboardStonesIdRoute: DashboardStonesIdRoute,
   DashboardStonesNewRoute: DashboardStonesNewRoute,
@@ -1188,6 +1231,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDealerV1StonesRoute: ApiDealerV1StonesRouteWithChildren,
   ApiPublicCronDigestRoute: ApiPublicCronDigestRoute,
   ApiPublicCronSavedSearchDigestRoute: ApiPublicCronSavedSearchDigestRoute,
+  ApiPublicCronShopifySyncRoute: ApiPublicCronShopifySyncRoute,
   ApiPublicHooksEmailNotifyRoute: ApiPublicHooksEmailNotifyRoute,
 }
 export const routeTree = rootRouteImport
