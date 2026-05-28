@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
+import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
 
 async function ensureApprovedDealer(supabase: any, userId: string) {
   const { data: profile } = await supabase
@@ -34,7 +35,7 @@ export const getDealerApiStatus = createServerFn({ method: "GET" })
         .maybeSingle(),
       supabase
         .from("dealer_profiles")
-        .select("external_feed_url, auto_sync_enabled, last_synced_at")
+        .select("external_feed_url, auto_sync_enabled, last_synced_at, external_feed_method, external_feed_body")
         .eq("id", userId)
         .maybeSingle(),
       supabase
@@ -89,6 +90,8 @@ export const generateDealerApiKey = createServerFn({ method: "POST" })
 const syncSettingsSchema = z.object({
   external_feed_url: z.string().url().max(500).nullable(),
   auto_sync_enabled: z.boolean(),
+  external_feed_method: z.enum(["GET", "POST"]).default("GET"),
+  external_feed_body: z.string().max(4000).nullable().optional(),
 });
 
 export const updateDealerSyncSettings = createServerFn({ method: "POST" })
@@ -103,7 +106,9 @@ export const updateDealerSyncSettings = createServerFn({ method: "POST" })
       .update({
         external_feed_url: data.external_feed_url,
         auto_sync_enabled: data.auto_sync_enabled,
-      })
+        external_feed_method: data.external_feed_method,
+        external_feed_body: data.external_feed_body ?? null,
+      } as never)
       .eq("id", userId);
 
     if (error) throw new Error(error.message);
@@ -124,11 +129,12 @@ export const runDealerSync = createServerFn({ method: "POST" })
 
     const { data: dealer } = await supabaseAdmin
       .from("dealer_profiles")
-      .select("external_feed_url")
+      .select("external_feed_url, external_feed_method, external_feed_body")
       .eq("id", userId)
       .maybeSingle();
 
-    if (!dealer?.external_feed_url) {
+    const dealerRow = dealer as { external_feed_url?: string | null; external_feed_method?: string | null; external_feed_body?: string | null } | null;
+    if (!dealerRow?.external_feed_url) {
       throw new Error("No sync URL configured.");
     }
 
@@ -140,9 +146,16 @@ export const runDealerSync = createServerFn({ method: "POST" })
     const logId = logRow!.id;
 
     try {
-      const res = await fetch(dealer.external_feed_url, {
+      const method = (dealerRow.external_feed_method ?? "GET").toUpperCase();
+      const init: RequestInit = {
+        method,
         headers: { Accept: "application/json,text/csv" },
-      });
+      };
+      if (method === "POST" && dealerRow.external_feed_body) {
+        (init.headers as Record<string, string>)["Content-Type"] = "application/json";
+        init.body = dealerRow.external_feed_body;
+      }
+      const res = await fetch(dealerRow.external_feed_url, init);
       if (!res.ok) throw new Error(`Source returned HTTP ${res.status}`);
 
       const contentType = res.headers.get("content-type") ?? "";
@@ -150,7 +163,15 @@ export const runDealerSync = createServerFn({ method: "POST" })
 
       if (contentType.includes("json")) {
         const data = await res.json();
-        rows = Array.isArray(data) ? data : Array.isArray((data as any)?.stones) ? (data as any).stones : [];
+        rows = Array.isArray(data)
+          ? data
+          : Array.isArray((data as any)?.stones)
+          ? (data as any).stones
+          : Array.isArray((data as any)?.data)
+          ? (data as any).data
+          : Array.isArray((data as any)?.result)
+          ? (data as any).result
+          : [];
       } else {
         const text = await res.text();
         rows = parseCsv(text);
@@ -159,6 +180,8 @@ export const runDealerSync = createServerFn({ method: "POST" })
       if (rows.length > 2000) {
         throw new Error(`Feed contains ${rows.length} rows; maximum supported is 2000`);
       }
+
+      const preset = detectPreset(rows);
 
       // Load existing cert_numbers
       const { data: existing } = await supabaseAdmin
@@ -170,12 +193,15 @@ export const runDealerSync = createServerFn({ method: "POST" })
       for (const s of existing ?? []) if (s.cert_number) certToId.set(s.cert_number, s.id);
 
       const errors: Array<{ row: number; field: string; message: string }> = [];
-      const toCreate: Array<Record<string, unknown>> = [];
-      const toUpdate: Array<{ id: string; data: Record<string, unknown> }> = [];
+      const toCreate: Array<{ data: Record<string, unknown>; image_url?: string }> = [];
+      const toUpdate: Array<{ id: string; data: Record<string, unknown>; image_url?: string }> = [];
       const seenCerts = new Set<string>();
+      let cityFromFeed: string | undefined;
 
       rows.forEach((raw, idx) => {
-        const payload = raw as Record<string, unknown>;
+        const mapped = mapRow(raw as Record<string, unknown>, preset);
+        if (!cityFromFeed && mapped.city) cityFromFeed = mapped.city;
+        const payload = mapped.stone;
         const cert = payload.cert_number ? String(payload.cert_number).trim() : "";
         if (cert) seenCerts.add(cert);
         const existingId = cert ? certToId.get(cert) : undefined;
@@ -185,16 +211,31 @@ export const runDealerSync = createServerFn({ method: "POST" })
           result.errors.forEach((e) => errors.push({ row: idx, field: e.field, message: e.message }));
           return;
         }
-        if (existingId) toUpdate.push({ id: existingId, data: result.data });
-        else toCreate.push({ ...result.data, dealer_id: userId });
+        if (existingId) toUpdate.push({ id: existingId, data: result.data, image_url: mapped.image_url });
+        else toCreate.push({ data: { ...result.data, dealer_id: userId }, image_url: mapped.image_url });
       });
 
       let created = 0;
       let updated = 0;
+      const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
       if (toCreate.length) {
-        const { data, error } = await supabaseAdmin.from("stones").insert(toCreate as never).select("id");
+        const insertData = toCreate.map((c) => c.data);
+        const { data, error } = await supabaseAdmin.from("stones").insert(insertData as never).select("id");
         if (error) throw new Error(error.message);
         created = data?.length ?? 0;
+        (data ?? []).forEach((row: any, i: number) => {
+          const img = toCreate[i]?.image_url;
+          if (img) createdImageRows.push({
+            stone_id: row.id,
+            storage_url: img,
+            external_image_url: img,
+            is_primary: true,
+            sort_order: 0,
+          });
+        });
+      }
+      if (createdImageRows.length) {
+        await supabaseAdmin.from("stone_images").insert(createdImageRows as never);
       }
       for (const u of toUpdate) {
         const { error } = await supabaseAdmin
@@ -204,6 +245,23 @@ export const runDealerSync = createServerFn({ method: "POST" })
           .eq("dealer_id", userId);
         if (error) errors.push({ row: -1, field: "_update", message: error.message });
         else updated += 1;
+        if (u.image_url) {
+          const { data: existingImg } = await supabaseAdmin
+            .from("stone_images")
+            .select("id")
+            .eq("stone_id", u.id)
+            .limit(1)
+            .maybeSingle();
+          if (!existingImg) {
+            await supabaseAdmin.from("stone_images").insert({
+              stone_id: u.id,
+              storage_url: u.image_url,
+              external_image_url: u.image_url,
+              is_primary: true,
+              sort_order: 0,
+            } as never);
+          }
+        }
       }
 
       // Mark stones with cert_numbers not seen in this feed as feed_inactive
@@ -236,10 +294,28 @@ export const runDealerSync = createServerFn({ method: "POST" })
 
       await supabaseAdmin
         .from("dealer_profiles")
-        .update({ last_synced_at: new Date().toISOString() })
+        .update({
+          last_synced_at: new Date().toISOString(),
+        })
         .eq("id", userId);
 
-      return { ok: true, created, updated, markedInactive, errors };
+      // Optionally update dealer city from feed (only if currently empty)
+      if (cityFromFeed) {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ city: cityFromFeed } as never)
+          .eq("id", userId)
+          .is("city", null);
+      }
+
+      return {
+        ok: true,
+        created,
+        updated,
+        markedInactive,
+        errors,
+        preset: preset ? { id: preset.id, label: preset.label } : null,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       await supabaseAdmin
