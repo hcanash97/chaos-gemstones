@@ -129,7 +129,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
   const [draftRestorable, setDraftRestorable] = useState<{ when: string; values: StoneFormValues } | null>(null);
   const submittedRef = useRef(false);
   const navigate = useNavigate();
-  const { rates, convert } = useCurrency();
+  const { rates } = useCurrency();
 
   // Default the price currency from the dealer's profile (only when not editing an existing stone).
   useEffect(() => {
