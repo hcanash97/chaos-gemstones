@@ -34,11 +34,13 @@ import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardSalesRouteImport } from './routes/dashboard.sales'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
+import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
 import { Route as AdminImportTestRouteImport } from './routes/admin.import-test'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
 import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
+import { Route as DashboardJewellerWishlistRouteImport } from './routes/dashboard.jeweller.wishlist'
 import { Route as DashboardJewellerSavedSearchesRouteImport } from './routes/dashboard.jeweller.saved-searches'
 import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.jeweller.markup'
 import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
@@ -180,6 +182,11 @@ const DashboardEnquiriesRoute = DashboardEnquiriesRouteImport.update({
   path: '/enquiries',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardAccountRoute = DashboardAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const AdminImportTestRoute = AdminImportTestRouteImport.update({
   id: '/import-test',
   path: '/import-test',
@@ -205,6 +212,12 @@ const DashboardStonesIdRoute = DashboardStonesIdRouteImport.update({
   path: '/stones/$id',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardJewellerWishlistRoute =
+  DashboardJewellerWishlistRouteImport.update({
+    id: '/jeweller/wishlist',
+    path: '/jeweller/wishlist',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardJewellerSavedSearchesRoute =
   DashboardJewellerSavedSearchesRouteImport.update({
     id: '/jeweller/saved-searches',
@@ -296,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -321,6 +335,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
@@ -342,6 +357,7 @@ export interface FileRoutesByTo {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -367,6 +383,7 @@ export interface FileRoutesByTo {
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
@@ -390,6 +407,7 @@ export interface FileRoutesById {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
@@ -415,6 +433,7 @@ export interface FileRoutesById {
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
   '/dashboard/jeweller/markup': typeof DashboardJewellerMarkupRoute
   '/dashboard/jeweller/saved-searches': typeof DashboardJewellerSavedSearchesRoute
+  '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
@@ -439,6 +458,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -464,6 +484,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
@@ -485,6 +506,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -510,6 +532,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
     | '/dashboard/jeweller'
@@ -532,6 +555,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
     | '/dashboard/sales'
@@ -557,6 +581,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/feeds'
     | '/dashboard/jeweller/markup'
     | '/dashboard/jeweller/saved-searches'
+    | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
@@ -777,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardEnquiriesRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/account': {
+      id: '/dashboard/account'
+      path: '/account'
+      fullPath: '/dashboard/account'
+      preLoaderRoute: typeof DashboardAccountRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/admin/import-test': {
       id: '/admin/import-test'
       path: '/import-test'
@@ -810,6 +842,13 @@ declare module '@tanstack/react-router' {
       path: '/stones/$id'
       fullPath: '/dashboard/stones/$id'
       preLoaderRoute: typeof DashboardStonesIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/jeweller/wishlist': {
+      id: '/dashboard/jeweller/wishlist'
+      path: '/jeweller/wishlist'
+      fullPath: '/dashboard/jeweller/wishlist'
+      preLoaderRoute: typeof DashboardJewellerWishlistRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/jeweller/saved-searches': {
@@ -931,6 +970,7 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface DashboardRouteChildren {
+  DashboardAccountRoute: typeof DashboardAccountRoute
   DashboardEnquiriesRoute: typeof DashboardEnquiriesRoute
   DashboardImportRoute: typeof DashboardImportRoute
   DashboardSalesRoute: typeof DashboardSalesRoute
@@ -941,6 +981,7 @@ interface DashboardRouteChildren {
   DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
   DashboardJewellerMarkupRoute: typeof DashboardJewellerMarkupRoute
   DashboardJewellerSavedSearchesRoute: typeof DashboardJewellerSavedSearchesRoute
+  DashboardJewellerWishlistRoute: typeof DashboardJewellerWishlistRoute
   DashboardStonesIdRoute: typeof DashboardStonesIdRoute
   DashboardStonesNewRoute: typeof DashboardStonesNewRoute
   DashboardJewellerIndexRoute: typeof DashboardJewellerIndexRoute
@@ -948,6 +989,7 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAccountRoute: DashboardAccountRoute,
   DashboardEnquiriesRoute: DashboardEnquiriesRoute,
   DashboardImportRoute: DashboardImportRoute,
   DashboardSalesRoute: DashboardSalesRoute,
@@ -958,6 +1000,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
   DashboardJewellerMarkupRoute: DashboardJewellerMarkupRoute,
   DashboardJewellerSavedSearchesRoute: DashboardJewellerSavedSearchesRoute,
+  DashboardJewellerWishlistRoute: DashboardJewellerWishlistRoute,
   DashboardStonesIdRoute: DashboardStonesIdRoute,
   DashboardStonesNewRoute: DashboardStonesNewRoute,
   DashboardJewellerIndexRoute: DashboardJewellerIndexRoute,

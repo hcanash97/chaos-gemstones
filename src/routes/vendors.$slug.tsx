@@ -93,6 +93,17 @@ function VendorProfile() {
         if (within) responded += 1;
       }
       const responseRate = total === 0 ? null : Math.round((responded / total) * 100);
+      const { data: reviewsData } = await (supabase as any)
+        .from("reviews")
+        .select("id, rating, comment, created_at, jeweller:jeweller_id(full_name, company_name)")
+        .eq("dealer_id", vendor.id)
+        .order("created_at", { ascending: false });
+      const reviews = reviewsData ?? [];
+      const reviewCount = reviews.length;
+      const avgRating =
+        reviewCount > 0
+          ? reviews.reduce((a: number, r: any) => a + Number(r.rating || 0), 0) / reviewCount
+          : null;
       return {
         vendor,
         stones: (stones ?? []).map((s: any) => ({
@@ -102,6 +113,9 @@ function VendorProfile() {
         })),
         responseRate,
         enquiryCount: total,
+        reviews,
+        reviewCount,
+        avgRating,
       };
     },
   });
@@ -200,7 +214,63 @@ function VendorProfile() {
           {data.stones.map((s) => <StoneCard key={s.id} stone={s} />)}
         </div>
       </section>
+      {(data.reviewCount ?? 0) > 0 && (
+        <section className="border-t border-border bg-secondary/20">
+          <div className="mx-auto max-w-7xl px-6 py-12">
+            <h2 className="font-serif text-2xl">Buyer reviews</h2>
+            <div className="mt-3 flex items-center gap-3">
+              <StarRating value={data.avgRating ?? 0} />
+              <span className="text-sm text-muted-foreground">
+                {(data.avgRating ?? 0).toFixed(1)} · {data.reviewCount} review{data.reviewCount === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {(data.reviews ?? []).slice(0, 3).map((r: any) => {
+                const name = r.jeweller?.company_name || r.jeweller?.full_name || "Buyer";
+                const initials = name
+                  .split(/\s+/)
+                  .map((w: string) => w[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+                return (
+                  <div key={r.id} className="rounded-md border border-border bg-card p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+                        {initials}
+                      </div>
+                      <StarRating value={Number(r.rating)} small />
+                    </div>
+                    {r.comment && (
+                      <p className="mt-3 text-sm leading-relaxed text-foreground/85">{r.comment}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
       <SiteFooter />
+    </div>
+  );
+}
+
+function StarRating({ value, small = false }: { value: number; small?: boolean }) {
+  const size = small ? "h-3.5 w-3.5" : "h-4 w-4";
+  return (
+    <div className="flex items-center" aria-label={`Rating ${value.toFixed(1)} out of 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg
+          key={i}
+          className={`${size} ${i <= Math.round(value) ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "fill-none text-muted-foreground"}`}
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.88-5-4.87 6.91-1.01L12 2z" />
+        </svg>
+      ))}
     </div>
   );
 }

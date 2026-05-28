@@ -12,6 +12,10 @@ import { useState } from "react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { certLink, countryFlag } from "@/lib/countries";
 import { getCertSignedUrl, getCertLabel } from "@/lib/cert.functions";
+import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -314,6 +318,7 @@ function StoneDetail() {
                   </Button>
                 )}
               </div>
+              <ReportListing stoneId={stone.id} />
             </div>
 
             {/* Vendor card */}
@@ -397,5 +402,82 @@ function StoneDetail() {
       </div>
       <SiteFooter />
     </div>
+  );
+}
+
+const REPORT_REASONS = [
+  "Incorrect certification details",
+  "Stone appears misrepresented",
+  "Pricing appears fraudulent",
+  "Other",
+];
+
+function ReportListing({ stoneId }: { stoneId: string }) {
+  const { user, profile } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState(REPORT_REASONS[0]);
+  const [details, setDetails] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!user || profile?.account_type !== "jeweller") return null;
+
+  async function submit() {
+    setBusy(true);
+    const { error } = await (supabase as any)
+      .from("reports")
+      .insert({ stone_id: stoneId, reporter_id: user!.id, reason, details: details || null });
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Report submitted. Thank you.");
+    setOpen(false);
+    setDetails("");
+    setReason(REPORT_REASONS[0]);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="mt-3 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+          Report listing
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Report this listing</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          {REPORT_REASONS.map((r) => (
+            <label key={r} className="flex cursor-pointer items-center gap-2.5 text-sm">
+              <input
+                type="radio"
+                name="report-reason"
+                value={r}
+                checked={reason === r}
+                onChange={() => setReason(r)}
+                className="accent-[var(--color-gold)]"
+              />
+              {r}
+            </label>
+          ))}
+          <Textarea
+            placeholder="Optional details (what should we look at?)"
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            rows={3}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={busy} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">
+            {busy ? "Submitting…" : "Submit report"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

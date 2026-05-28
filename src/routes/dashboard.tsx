@@ -44,6 +44,8 @@ function DashboardLayout() {
         { to: "/dashboard/jeweller/api", label: "API Feed", exact: false },
         { to: "/dashboard/jeweller/enquiries", label: "My Enquiries", exact: false },
         { to: "/dashboard/jeweller/saved-searches", label: "Saved Searches", exact: false },
+        { to: "/dashboard/jeweller/wishlist", label: "Wishlist", exact: false },
+        { to: "/dashboard/account", label: "Account", exact: false },
       ]
     : [
         { to: "/dashboard", label: "Overview", exact: true },
@@ -52,6 +54,7 @@ function DashboardLayout() {
         { to: "/dashboard/sales", label: "Sales", exact: false },
         { to: "/dashboard/import", label: "CSV Import", exact: false },
         { to: "/dashboard/dealer/api", label: "Developer API", exact: false },
+        { to: "/dashboard/account", label: "Account", exact: false },
       ];
 
   return (
