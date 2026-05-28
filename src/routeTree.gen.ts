@@ -29,6 +29,7 @@ import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as HowItWorksShippingRouteImport } from './routes/how-it-works.shipping'
 import { Route as HowItWorksPaymentsRouteImport } from './routes/how-it-works.payments'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
+import { Route as DocsDealerApiRouteImport } from './routes/docs.dealer-api'
 import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardSalesRouteImport } from './routes/dashboard.sales'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
@@ -43,11 +44,16 @@ import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.
 import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
 import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboard.jeweller.enquiries'
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
+import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.dealer.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
 import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
+import { Route as ApiDealerV1StonesRouteImport } from './routes/api/dealer/v1/stones'
 import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
+import { Route as ApiDealerV1StonesBulkRouteImport } from './routes/api/dealer/v1/stones/bulk'
+import { Route as ApiDealerV1StonesIdRouteImport } from './routes/api/dealer/v1/stones/$id'
+import { Route as ApiDealerV1StonesIdMarkSoldRouteImport } from './routes/api/dealer/v1/stones/$id/mark-sold'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -149,6 +155,11 @@ const EmbedKeyRoute = EmbedKeyRouteImport.update({
   path: '/embed/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsDealerApiRoute = DocsDealerApiRouteImport.update({
+  id: '/docs/dealer-api',
+  path: '/docs/dealer-api',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocsApiRoute = DocsApiRouteImport.update({
   id: '/docs/api',
   path: '/docs/api',
@@ -221,6 +232,11 @@ const DashboardJewellerApiRoute = DashboardJewellerApiRouteImport.update({
   path: '/jeweller/api',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardDealerApiRoute = DashboardDealerApiRouteImport.update({
+  id: '/dealer/api',
+  path: '/dealer/api',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const ApiPublicFeedRoute = ApiPublicFeedRouteImport.update({
   id: '/api/public/feed',
   path: '/api/public/feed',
@@ -242,11 +258,32 @@ const ApiPublicCronDigestRoute = ApiPublicCronDigestRouteImport.update({
   path: '/api/public/cron/digest',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDealerV1StonesRoute = ApiDealerV1StonesRouteImport.update({
+  id: '/api/dealer/v1/stones',
+  path: '/api/dealer/v1/stones',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksEmailNotifyRoute =
   ApiPublicHooksEmailNotifyRouteImport.update({
     id: '/api/public/hooks/email/notify',
     path: '/api/public/hooks/email/notify',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDealerV1StonesBulkRoute = ApiDealerV1StonesBulkRouteImport.update({
+  id: '/bulk',
+  path: '/bulk',
+  getParentRoute: () => ApiDealerV1StonesRoute,
+} as any)
+const ApiDealerV1StonesIdRoute = ApiDealerV1StonesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiDealerV1StonesRoute,
+} as any)
+const ApiDealerV1StonesIdMarkSoldRoute =
+  ApiDealerV1StonesIdMarkSoldRouteImport.update({
+    id: '/mark-sold',
+    path: '/mark-sold',
+    getParentRoute: () => ApiDealerV1StonesIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -263,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
+  '/docs/dealer-api': typeof DocsDealerApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
@@ -277,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/vendors/': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -286,9 +325,13 @@ export interface FileRoutesByFullPath {
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
+  '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
+  '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
+  '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
+  '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -303,6 +346,7 @@ export interface FileRoutesByTo {
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
+  '/docs/dealer-api': typeof DocsDealerApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
@@ -317,6 +361,7 @@ export interface FileRoutesByTo {
   '/vendors': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -326,9 +371,13 @@ export interface FileRoutesByTo {
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
+  '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
+  '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
+  '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
+  '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -345,6 +394,7 @@ export interface FileRoutesById {
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
+  '/docs/dealer-api': typeof DocsDealerApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
@@ -359,6 +409,7 @@ export interface FileRoutesById {
   '/vendors/': typeof VendorsIndexRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
+  '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -368,9 +419,13 @@ export interface FileRoutesById {
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
+  '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
+  '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
+  '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
+  '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -388,6 +443,7 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/dashboard/sales'
     | '/docs/api'
+    | '/docs/dealer-api'
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
@@ -402,6 +458,7 @@ export interface FileRouteTypes {
     | '/vendors/'
     | '/api/public/chaos.js'
     | '/api/public/feed'
+    | '/dashboard/dealer/api'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -411,9 +468,13 @@ export interface FileRouteTypes {
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
+    | '/api/dealer/v1/stones'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
+    | '/api/dealer/v1/stones/$id'
+    | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
+    | '/api/dealer/v1/stones/$id/mark-sold'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -428,6 +489,7 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/dashboard/sales'
     | '/docs/api'
+    | '/docs/dealer-api'
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
@@ -442,6 +504,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/api/public/chaos.js'
     | '/api/public/feed'
+    | '/dashboard/dealer/api'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -451,9 +514,13 @@ export interface FileRouteTypes {
     | '/dashboard/stones/new'
     | '/dashboard/jeweller'
     | '/dashboard/stones'
+    | '/api/dealer/v1/stones'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
+    | '/api/dealer/v1/stones/$id'
+    | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
+    | '/api/dealer/v1/stones/$id/mark-sold'
   id:
     | '__root__'
     | '/'
@@ -469,6 +536,7 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/dashboard/sales'
     | '/docs/api'
+    | '/docs/dealer-api'
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
@@ -483,6 +551,7 @@ export interface FileRouteTypes {
     | '/vendors/'
     | '/api/public/chaos.js'
     | '/api/public/feed'
+    | '/dashboard/dealer/api'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -492,9 +561,13 @@ export interface FileRouteTypes {
     | '/dashboard/stones/new'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
+    | '/api/dealer/v1/stones'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
+    | '/api/dealer/v1/stones/$id'
+    | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
+    | '/api/dealer/v1/stones/$id/mark-sold'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -507,6 +580,7 @@ export interface RootRouteChildren {
   PendingApprovalRoute: typeof PendingApprovalRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
+  DocsDealerApiRoute: typeof DocsDealerApiRoute
   EmbedKeyRoute: typeof EmbedKeyRoute
   HowItWorksPaymentsRoute: typeof HowItWorksPaymentsRoute
   HowItWorksShippingRoute: typeof HowItWorksShippingRoute
@@ -520,6 +594,7 @@ export interface RootRouteChildren {
   VendorsIndexRoute: typeof VendorsIndexRoute
   ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
+  ApiDealerV1StonesRoute: typeof ApiDealerV1StonesRouteWithChildren
   ApiPublicCronDigestRoute: typeof ApiPublicCronDigestRoute
   ApiPublicCronSavedSearchDigestRoute: typeof ApiPublicCronSavedSearchDigestRoute
   ApiPublicHooksEmailNotifyRoute: typeof ApiPublicHooksEmailNotifyRoute
@@ -667,6 +742,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmbedKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/dealer-api': {
+      id: '/docs/dealer-api'
+      path: '/docs/dealer-api'
+      fullPath: '/docs/dealer-api'
+      preLoaderRoute: typeof DocsDealerApiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/docs/api': {
       id: '/docs/api'
       path: '/docs/api'
@@ -765,6 +847,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardJewellerApiRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/dealer/api': {
+      id: '/dashboard/dealer/api'
+      path: '/dealer/api'
+      fullPath: '/dashboard/dealer/api'
+      preLoaderRoute: typeof DashboardDealerApiRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/api/public/feed': {
       id: '/api/public/feed'
       path: '/api/public/feed'
@@ -793,12 +882,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/dealer/v1/stones': {
+      id: '/api/dealer/v1/stones'
+      path: '/api/dealer/v1/stones'
+      fullPath: '/api/dealer/v1/stones'
+      preLoaderRoute: typeof ApiDealerV1StonesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/email/notify': {
       id: '/api/public/hooks/email/notify'
       path: '/api/public/hooks/email/notify'
       fullPath: '/api/public/hooks/email/notify'
       preLoaderRoute: typeof ApiPublicHooksEmailNotifyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/dealer/v1/stones/bulk': {
+      id: '/api/dealer/v1/stones/bulk'
+      path: '/bulk'
+      fullPath: '/api/dealer/v1/stones/bulk'
+      preLoaderRoute: typeof ApiDealerV1StonesBulkRouteImport
+      parentRoute: typeof ApiDealerV1StonesRoute
+    }
+    '/api/dealer/v1/stones/$id': {
+      id: '/api/dealer/v1/stones/$id'
+      path: '/$id'
+      fullPath: '/api/dealer/v1/stones/$id'
+      preLoaderRoute: typeof ApiDealerV1StonesIdRouteImport
+      parentRoute: typeof ApiDealerV1StonesRoute
+    }
+    '/api/dealer/v1/stones/$id/mark-sold': {
+      id: '/api/dealer/v1/stones/$id/mark-sold'
+      path: '/mark-sold'
+      fullPath: '/api/dealer/v1/stones/$id/mark-sold'
+      preLoaderRoute: typeof ApiDealerV1StonesIdMarkSoldRouteImport
+      parentRoute: typeof ApiDealerV1StonesIdRoute
     }
   }
 }
@@ -818,6 +935,7 @@ interface DashboardRouteChildren {
   DashboardImportRoute: typeof DashboardImportRoute
   DashboardSalesRoute: typeof DashboardSalesRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardDealerApiRoute: typeof DashboardDealerApiRoute
   DashboardJewellerApiRoute: typeof DashboardJewellerApiRoute
   DashboardJewellerEnquiriesRoute: typeof DashboardJewellerEnquiriesRoute
   DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
@@ -834,6 +952,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardImportRoute: DashboardImportRoute,
   DashboardSalesRoute: DashboardSalesRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardDealerApiRoute: DashboardDealerApiRoute,
   DashboardJewellerApiRoute: DashboardJewellerApiRoute,
   DashboardJewellerEnquiriesRoute: DashboardJewellerEnquiriesRoute,
   DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
@@ -849,6 +968,30 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface ApiDealerV1StonesIdRouteChildren {
+  ApiDealerV1StonesIdMarkSoldRoute: typeof ApiDealerV1StonesIdMarkSoldRoute
+}
+
+const ApiDealerV1StonesIdRouteChildren: ApiDealerV1StonesIdRouteChildren = {
+  ApiDealerV1StonesIdMarkSoldRoute: ApiDealerV1StonesIdMarkSoldRoute,
+}
+
+const ApiDealerV1StonesIdRouteWithChildren =
+  ApiDealerV1StonesIdRoute._addFileChildren(ApiDealerV1StonesIdRouteChildren)
+
+interface ApiDealerV1StonesRouteChildren {
+  ApiDealerV1StonesIdRoute: typeof ApiDealerV1StonesIdRouteWithChildren
+  ApiDealerV1StonesBulkRoute: typeof ApiDealerV1StonesBulkRoute
+}
+
+const ApiDealerV1StonesRouteChildren: ApiDealerV1StonesRouteChildren = {
+  ApiDealerV1StonesIdRoute: ApiDealerV1StonesIdRouteWithChildren,
+  ApiDealerV1StonesBulkRoute: ApiDealerV1StonesBulkRoute,
+}
+
+const ApiDealerV1StonesRouteWithChildren =
+  ApiDealerV1StonesRoute._addFileChildren(ApiDealerV1StonesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -859,6 +1002,7 @@ const rootRouteChildren: RootRouteChildren = {
   PendingApprovalRoute: PendingApprovalRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
+  DocsDealerApiRoute: DocsDealerApiRoute,
   EmbedKeyRoute: EmbedKeyRoute,
   HowItWorksPaymentsRoute: HowItWorksPaymentsRoute,
   HowItWorksShippingRoute: HowItWorksShippingRoute,
@@ -872,6 +1016,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendorsIndexRoute: VendorsIndexRoute,
   ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
   ApiPublicFeedRoute: ApiPublicFeedRoute,
+  ApiDealerV1StonesRoute: ApiDealerV1StonesRouteWithChildren,
   ApiPublicCronDigestRoute: ApiPublicCronDigestRoute,
   ApiPublicCronSavedSearchDigestRoute: ApiPublicCronSavedSearchDigestRoute,
   ApiPublicHooksEmailNotifyRoute: ApiPublicHooksEmailNotifyRoute,
