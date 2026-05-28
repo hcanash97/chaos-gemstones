@@ -302,6 +302,9 @@ export type Database = {
           created_at: string
           id: string
           markup_global: number
+          primary_interests: string[] | null
+          primary_market: string | null
+          sourcing_method: string | null
           website: string | null
         }
         Insert: {
@@ -309,6 +312,9 @@ export type Database = {
           created_at?: string
           id: string
           markup_global?: number
+          primary_interests?: string[] | null
+          primary_market?: string | null
+          sourcing_method?: string | null
           website?: string | null
         }
         Update: {
@@ -316,6 +322,9 @@ export type Database = {
           created_at?: string
           id?: string
           markup_global?: number
+          primary_interests?: string[] | null
+          primary_market?: string | null
+          sourcing_method?: string | null
           website?: string | null
         }
         Relationships: [
@@ -386,6 +395,7 @@ export type Database = {
           company_name: string | null
           country: string | null
           created_at: string
+          deleted_at: string | null
           email: string | null
           full_name: string | null
           id: string
@@ -402,6 +412,7 @@ export type Database = {
           company_name?: string | null
           country?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           full_name?: string | null
           id: string
@@ -418,6 +429,7 @@ export type Database = {
           company_name?: string | null
           country?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
@@ -429,6 +441,100 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          reason: string
+          reporter_id: string
+          stone_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason: string
+          reporter_id: string
+          stone_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string
+          stone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_stone_id_fkey"
+            columns: ["stone_id"]
+            isOneToOne: false
+            referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          dealer_id: string
+          id: string
+          jeweller_id: string
+          rating: number
+          stone_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          dealer_id: string
+          id?: string
+          jeweller_id: string
+          rating: number
+          stone_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          dealer_id?: string
+          id?: string
+          jeweller_id?: string
+          rating?: number
+          stone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_stone_id_fkey"
+            columns: ["stone_id"]
+            isOneToOne: false
+            referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       saved_searches: {
         Row: {
@@ -751,6 +857,42 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      wishlists: {
+        Row: {
+          created_at: string
+          id: string
+          jeweller_id: string
+          stone_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          jeweller_id: string
+          stone_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          jeweller_id?: string
+          stone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wishlists_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wishlists_stone_id_fkey"
+            columns: ["stone_id"]
+            isOneToOne: false
+            referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
