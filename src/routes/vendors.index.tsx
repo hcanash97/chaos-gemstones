@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { StaggerGroup } from "@/components/anim/Motion";
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/vendors/")({
 
 function Vendors() {
   const [q, setQ] = useState("");
-  const { data: vendors } = useQuery({
+  const { data: vendors, isLoading } = useQuery({
     queryKey: ["vendors"],
     queryFn: async () => {
       const { data } = await supabase
@@ -60,6 +61,24 @@ function Vendors() {
         <h1 className="font-serif text-4xl">Vendors</h1>
         <p className="mt-1 text-sm text-muted-foreground">Independent dealers across the gemstone trade.</p>
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, city, country or speciality…" className="mt-6 max-w-md" />
+        {isLoading ? (
+          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="rounded-md border border-border bg-card p-6">
+                <Skeleton className="h-6 w-2/3" />
+                <Skeleton className="mt-2 h-3 w-1/2" />
+                <Skeleton className="mt-1 h-3 w-1/3" />
+                <Skeleton className="mt-4 h-3 w-full" />
+                <Skeleton className="mt-1.5 h-3 w-5/6" />
+                <div className="mt-4 flex gap-1.5">
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-12 rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
         <StaggerGroup className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3" delay={0.06}>
           {filtered.map((v: any) => (
             <motion.div
@@ -101,6 +120,7 @@ function Vendors() {
             </motion.div>
           ))}
         </StaggerGroup>
+        )}
       </div>
       <SiteFooter />
     </div>
