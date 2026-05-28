@@ -23,6 +23,7 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
     const host = target.hostname.toLowerCase();
     if (
       host === "localhost" ||
+      host === "::1" ||
       host === "127.0.0.1" ||
       host === "0.0.0.0" ||
       host.endsWith(".local") ||
@@ -30,7 +31,9 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
       host.startsWith("10.") ||
       host.startsWith("192.168.") ||
       /^169\.254\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      /^fd[0-9a-f]{2}:/i.test(host) ||
+      /^fe80:/i.test(host)
     ) {
       throw new Error("Private or local hosts are not allowed");
     }
@@ -54,6 +57,11 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
     const contentType = (res.headers.get("content-type") || "").toLowerCase();
     let format: FeedFetchResult["format"] = "unknown";
     if (contentType.includes("json") || text.trim().startsWith("[") || text.trim().startsWith("{")) format = "json";
-    else if (contentType.includes("csv") || contentType.includes("text/plain") || /,|\t/.test(text.split("\n")[0] || "")) format = "csv";
+    else if (
+      contentType.includes("csv") ||
+      contentType.includes("text/plain") ||
+      /,|\t/.test(text.split("\n")[0] || "")
+    )
+      format = "csv";
     return { contentType, format, body: text, bytes: text.length };
   });
