@@ -4,10 +4,12 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { countryFlag } from "@/lib/countries";
 import { fadeUp } from "@/components/anim/Motion";
-import { ShieldCheck, Heart } from "lucide-react";
+import { ShieldCheck, Heart, Scale } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useCompare } from "@/contexts/CompareContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export type StoneCardData = {
   id: string;
@@ -23,11 +25,28 @@ export type StoneCardData = {
   image?: string | null;
   dealer_country?: string | null;
   dealer_verified?: boolean | null;
+  dealer_id?: string | null;
 };
 
-function StoneCardImpl({ stone }: { stone: StoneCardData }) {
+function StoneCardImpl({
+  stone,
+  followedDealerIds,
+}: {
+  stone: StoneCardData;
+  followedDealerIds?: Set<string>;
+}) {
   const { user, profile } = useAuth();
   const isJeweller = profile?.account_type === "jeweller";
+  const isApprovedJeweller = isJeweller && profile?.is_approved;
+  const isDealer = profile?.account_type === "dealer";
+  const isAdmin = profile?.account_type === "admin";
+  const showWholesale = isDealer || isAdmin || isApprovedJeweller;
+  const compare = useCompare();
+  const inCompare = compare.has(stone.id);
+  const compareDisabled = !inCompare && compare.ids.length >= compare.max;
+  const { format } = useCurrency();
+  const inFeed =
+    isJeweller && stone.dealer_id && followedDealerIds?.has(stone.dealer_id);
   const [saved, setSaved] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -80,6 +99,16 @@ function StoneCardImpl({ stone }: { stone: StoneCardData }) {
     }
   }
 
+  function onCompare(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (compareDisabled) {
+      toast.error(`You can compare up to ${compare.max} stones.`);
+      return;
+    }
+    compare.toggle(stone.id);
+  }
+
   return (
     <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
     <Link
@@ -99,18 +128,42 @@ function StoneCardImpl({ stone }: { stone: StoneCardData }) {
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No image</div>
         )}
         <span className="shimmer-overlay" aria-hidden />
-        {isJeweller && (
+        {inFeed && (
+          <span className="absolute bottom-2 left-2 z-10 rounded-full bg-[var(--color-gold)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-gold-foreground)] shadow">
+            In feed
+          </span>
+        )}
+        <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
           <button
             type="button"
-            onClick={toggleWishlist}
-            aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
-            className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background"
+            onClick={onCompare}
+            aria-label={inCompare ? "Remove from comparison" : "Add to comparison"}
+            title={
+              compareDisabled
+                ? `Up to ${compare.max} stones`
+                : inCompare
+                  ? "Remove from comparison"
+                  : "Add to comparison"
+            }
+            className={`flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background ${compareDisabled ? "opacity-50" : ""}`}
           >
-            <Heart
-              className={`h-4 w-4 transition ${saved ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "text-foreground"}`}
+            <Scale
+              className={`h-4 w-4 transition ${inCompare ? "fill-[var(--color-gold)]/30 text-[var(--color-gold)]" : "text-foreground"}`}
             />
           </button>
-        )}
+          {isJeweller && (
+            <button
+              type="button"
+              onClick={toggleWishlist}
+              aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background"
+            >
+              <Heart
+                className={`h-4 w-4 transition ${saved ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "text-foreground"}`}
+              />
+            </button>
+          )}
+        </div>
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between text-xs">
@@ -140,10 +193,21 @@ function StoneCardImpl({ stone }: { stone: StoneCardData }) {
             {stone.clarity_grade && <Badge variant="outline" className="font-mono">{stone.clarity_grade}</Badge>}
           </div>
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Wholesale</div>
-            <div className="font-mono text-sm font-semibold">
-              {stone.wholesale_price_usd ? `$${Number(stone.wholesale_price_usd).toLocaleString()}` : "POA"}
-            </div>
+            {showWholesale ? (
+              <>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Wholesale</div>
+                <div className="font-mono text-sm font-semibold">
+                  {format(stone.wholesale_price_usd)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Price</div>
+                <div className="font-mono text-xs font-medium text-muted-foreground">
+                  {user ? "Pending approval" : "Sign in to view"}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
