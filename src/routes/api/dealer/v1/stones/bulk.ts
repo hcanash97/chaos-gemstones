@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { authenticateDealer, corsHeaders, json } from "@/lib/dealer-api-auth.server";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
+import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
 
 export const Route = createFileRoute("/api/dealer/v1/stones/bulk")({
   server: {
@@ -45,7 +46,13 @@ export const Route = createFileRoute("/api/dealer/v1/stones/bulk")({
             errors.push({ row: idx, field: "_root", message: "Each entry must be an object" });
             return;
           }
-          const payload = raw as Record<string, unknown>;
+          // Normalise known string fields before validation.
+          const rawPayload = raw as Record<string, unknown>;
+          const payload: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(rawPayload)) {
+            const fieldDef = FIELD_MAP[k];
+            payload[k] = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
+          }
           const cert = payload.cert_number ? String(payload.cert_number).trim() : "";
           const existingId = cert ? certToId.get(cert) : undefined;
 

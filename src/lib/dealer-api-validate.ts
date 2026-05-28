@@ -1,13 +1,9 @@
-import { CLARITY_VALUES, CERT_LABS, STONE_FIELDS } from "./import-fields";
+import { CLARITY_VALUES, CERT_LABS, STONE_FIELDS, FIELD_MAP, normaliseValue } from "./import-fields";
 
 export type FieldError = { field: string; message: string };
 
-const NUMERIC_FIELDS = new Set(
-  STONE_FIELDS.filter((f) => f.type === "number").map((f) => f.key),
-);
-const BOOLEAN_FIELDS = new Set(
-  STONE_FIELDS.filter((f) => f.type === "boolean").map((f) => f.key),
-);
+const NUMERIC_FIELDS = new Set(STONE_FIELDS.filter((f) => f.type === "number").map((f) => f.key));
+const BOOLEAN_FIELDS = new Set(STONE_FIELDS.filter((f) => f.type === "boolean").map((f) => f.key));
 const KNOWN_FIELDS = new Set(STONE_FIELDS.map((f) => f.key));
 
 /**
@@ -32,9 +28,11 @@ export function validateStonePayload(
     }
   }
 
-  for (const [key, raw] of Object.entries(payload)) {
+  for (const [key, rawValue] of Object.entries(payload)) {
     if (!KNOWN_FIELDS.has(key)) continue; // ignore unknown fields
-    if (raw === undefined || raw === null || raw === "") continue;
+    if (rawValue === undefined || rawValue === null || rawValue === "") continue;
+    const fieldDef = FIELD_MAP[key];
+    const raw = fieldDef?.type === "string" ? normaliseValue(fieldDef, rawValue) : rawValue;
 
     if (NUMERIC_FIELDS.has(key)) {
       const n = Number(raw);
