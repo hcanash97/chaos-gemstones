@@ -52,6 +52,7 @@ function DashboardLayout() {
         { to: "/dashboard/stones", label: "My Inventory", exact: false },
         { to: "/dashboard/enquiries", label: "Enquiries", exact: false },
         { to: "/dashboard/sales", label: "Sales", exact: false },
+        { to: "/dashboard/dealer/pricing", label: "Pricing rules", exact: false },
         { to: "/dashboard/import", label: "CSV Import", exact: false },
         { to: "/dashboard/dealer/api", label: "Developer API", exact: false },
         { to: "/dashboard/account", label: "Account", exact: false },
