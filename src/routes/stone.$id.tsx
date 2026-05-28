@@ -314,7 +314,7 @@ function StoneDetail() {
               </div>
               {showWholesale ? (
                 <div className="mt-1 font-mono text-3xl font-semibold">
-                  {format(stone.wholesale_price_usd)}
+                  {format(stone.wholesale_price_usd, (stone as { price_currency?: string }).price_currency ?? "USD")}
                 </div>
               ) : user ? (
                 <div className="mt-1 text-sm text-muted-foreground">
