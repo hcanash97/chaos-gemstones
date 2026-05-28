@@ -1,3 +1,27 @@
+export function getCertLabel(certLab: string | null | undefined): string {
+  if (!certLab) return "Certificate / Report number";
+  const lab = certLab.toUpperCase().trim();
+  const reportLabs = ["GIA", "IGI", "GRS", "AGL", "GÜBELIN", "GUBELIN", "SSEF", "AGS", "LOTUS", "GIT"];
+  const certLabs = ["HRD", "GCAL", "EGL"];
+  if (reportLabs.some((l) => lab.includes(l))) return "Report number";
+  if (certLabs.some((l) => lab.includes(l))) return "Certificate number";
+  return "Cert / Report number";
+}
+
+export function getCertVerificationUrl(
+  certLab: string | null | undefined,
+  certNumber: string | null | undefined,
+): string | null {
+  if (!certLab || !certNumber?.trim()) return null;
+  const lab = certLab.toUpperCase().trim();
+  const num = encodeURIComponent(certNumber.trim());
+  if (lab === "GIA") return `https://www.gia.edu/report-check?reportno=${num}`;
+  if (lab === "IGI") return `https://www.igi.org/verify-your-report/?r=${num}`;
+  if (lab === "HRD") return `https://my.hrdantwerp.com/?record_number=${num}`;
+  if (lab === "GCAL") return `https://gcalusa.com/certificate-search.html?certificate_id=${num}`;
+  return null;
+}
+
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -8,9 +32,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
  * available so anonymous browsers can't enumerate dealer cert paths.
  */
 export const getCertSignedUrl = createServerFn({ method: "GET" })
-  .inputValidator((input) =>
-    z.object({ stoneId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input) => z.object({ stoneId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { data: stone } = await supabaseAdmin
       .from("stones")
