@@ -681,7 +681,7 @@ function Marketplace() {
             <p className="mt-1 text-sm text-muted-foreground">
               {isLoading
                 ? "Loading…"
-                : `Showing ${Math.min(visible.length, filtered.length)} of ${filtered.length} matching · ${stones?.length ?? 0} total in feed`}
+                : `Showing ${visible.length} of ${total.toLocaleString()} results${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -798,14 +798,34 @@ function Marketplace() {
                 ))}
               </div>
             )}
-            {!isLoading && visible.length < filtered.length && (
-              <div className="mt-8 flex justify-center">
-                <Button variant="outline" onClick={() => setVisibleCount((n) => n + 48)}>
-                  Load more ({filtered.length - visible.length} remaining)
+            {!isLoading && totalPages > 1 && (
+              <div className="mt-8 flex items-center justify-center gap-3">
+                <Button
+                  variant="outline"
+                  disabled={page <= 1 || isFetching}
+                  onClick={() => {
+                    setPage((p) => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={page >= totalPages || isFetching}
+                  onClick={() => {
+                    setPage((p) => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Next
                 </Button>
               </div>
             )}
-            {!isLoading && filtered.length === 0 && (
+            {!isLoading && total === 0 && (
               <div className="rounded-md border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
                 No stones match your filters.
               </div>
