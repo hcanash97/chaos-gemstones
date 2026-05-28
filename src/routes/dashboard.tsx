@@ -51,6 +51,7 @@ function DashboardLayout() {
         { to: "/dashboard/enquiries", label: "Enquiries", exact: false },
         { to: "/dashboard/sales", label: "Sales", exact: false },
         { to: "/dashboard/import", label: "CSV Import", exact: false },
+        { to: "/dashboard/dealer/api", label: "Developer API", exact: false },
       ];
 
   return (
