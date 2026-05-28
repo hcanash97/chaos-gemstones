@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, AlertCircle } from "lucide-react";
 import { LaunchBanner } from "@/components/site/LaunchBanner";
 
 export const Route = createFileRoute("/sign-up/dealer")({
@@ -62,6 +62,7 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
   const isDealer = accountType === "dealer";
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<{ message: string; action?: "login" } | null>(null);
   const [form, setForm] = useState<any>({
     email: "", password: "", full_name: "", company_name: "", country: "", city: "",
     phone: "", website: "", bio: "", specialities: [] as string[], terms_accepted: false,
@@ -88,6 +89,7 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
 
   async function submit() {
     setLoading(true);
+    setFormError(null);
     const { data: signUp, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -101,7 +103,27 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
         },
       },
     });
-    if (error) { setLoading(false); return toast.error(error.message); }
+    if (error) {
+      setLoading(false);
+      const msg = error.message || "Sign-up failed";
+      const lower = msg.toLowerCase();
+      if (lower.includes("already") || lower.includes("registered") || lower.includes("exists")) {
+        setFormError({
+          message: "An account with this email already exists. Try logging in instead, or use the password reset link.",
+          action: "login",
+        });
+      } else if (lower.includes("password")) {
+        setFormError({ message: `${msg}. Try a longer, less common password (mix of letters, numbers, symbols).` });
+        setStep(0);
+      } else if (lower.includes("email") || lower.includes("invalid")) {
+        setFormError({ message: msg });
+        setStep(0);
+      } else {
+        setFormError({ message: msg });
+      }
+      toast.error(msg);
+      return;
+    }
 
     const uid = signUp.user?.id;
     if (uid) {
@@ -129,8 +151,13 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
   }
 
   function next() {
+    setFormError(null);
     const err = validateStep();
-    if (err) return toast.error(err);
+    if (err) {
+      setFormError({ message: err });
+      toast.error(err);
+      return;
+    }
     if (step < total - 1) setStep(step + 1);
     else submit();
   }
@@ -154,6 +181,23 @@ export function SignUpForm({ accountType }: { accountType: "dealer" | "jeweller"
 
         <div className="mt-10">
           <Progress step={step} total={total} labels={labels} />
+
+          {formError && (
+            <div
+              role="alert"
+              className="mb-6 flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                <p>{formError.message}</p>
+                {formError.action === "login" && (
+                  <Link to="/login" className="mt-1 inline-block font-medium underline underline-offset-4">
+                    Go to log in →
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             <motion.div
