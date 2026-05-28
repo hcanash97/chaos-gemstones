@@ -29,6 +29,7 @@ import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as HowItWorksShippingRouteImport } from './routes/how-it-works.shipping'
 import { Route as HowItWorksPaymentsRouteImport } from './routes/how-it-works.payments'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
+import { Route as DocsDealerApiRouteImport } from './routes/docs.dealer-api'
 import { Route as DocsApiRouteImport } from './routes/docs.api'
 import { Route as DashboardSalesRouteImport } from './routes/dashboard.sales'
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
@@ -152,6 +153,11 @@ const HowItWorksPaymentsRoute = HowItWorksPaymentsRouteImport.update({
 const EmbedKeyRoute = EmbedKeyRouteImport.update({
   id: '/embed/$key',
   path: '/embed/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsDealerApiRoute = DocsDealerApiRouteImport.update({
+  id: '/docs/dealer-api',
+  path: '/docs/dealer-api',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsApiRoute = DocsApiRouteImport.update({
@@ -294,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
+  '/docs/dealer-api': typeof DocsDealerApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
@@ -339,6 +346,7 @@ export interface FileRoutesByTo {
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
+  '/docs/dealer-api': typeof DocsDealerApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
@@ -386,6 +394,7 @@ export interface FileRoutesById {
   '/dashboard/import': typeof DashboardImportRoute
   '/dashboard/sales': typeof DashboardSalesRoute
   '/docs/api': typeof DocsApiRoute
+  '/docs/dealer-api': typeof DocsDealerApiRoute
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
@@ -434,6 +443,7 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/dashboard/sales'
     | '/docs/api'
+    | '/docs/dealer-api'
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
@@ -479,6 +489,7 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/dashboard/sales'
     | '/docs/api'
+    | '/docs/dealer-api'
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
@@ -525,6 +536,7 @@ export interface FileRouteTypes {
     | '/dashboard/import'
     | '/dashboard/sales'
     | '/docs/api'
+    | '/docs/dealer-api'
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
@@ -568,6 +580,7 @@ export interface RootRouteChildren {
   PendingApprovalRoute: typeof PendingApprovalRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
+  DocsDealerApiRoute: typeof DocsDealerApiRoute
   EmbedKeyRoute: typeof EmbedKeyRoute
   HowItWorksPaymentsRoute: typeof HowItWorksPaymentsRoute
   HowItWorksShippingRoute: typeof HowItWorksShippingRoute
@@ -727,6 +740,13 @@ declare module '@tanstack/react-router' {
       path: '/embed/$key'
       fullPath: '/embed/$key'
       preLoaderRoute: typeof EmbedKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/dealer-api': {
+      id: '/docs/dealer-api'
+      path: '/docs/dealer-api'
+      fullPath: '/docs/dealer-api'
+      preLoaderRoute: typeof DocsDealerApiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs/api': {
@@ -982,6 +1002,7 @@ const rootRouteChildren: RootRouteChildren = {
   PendingApprovalRoute: PendingApprovalRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
+  DocsDealerApiRoute: DocsDealerApiRoute,
   EmbedKeyRoute: EmbedKeyRoute,
   HowItWorksPaymentsRoute: HowItWorksPaymentsRoute,
   HowItWorksShippingRoute: HowItWorksShippingRoute,
