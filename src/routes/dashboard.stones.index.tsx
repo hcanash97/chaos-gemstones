@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Eye, Share2 } from "lucide-react";
+import { Eye, Share2, Copy, X } from "lucide-react";
 import { toast } from "sonner";
 
 type Row = {
@@ -36,6 +36,24 @@ function StonesList() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [slug, setSlug] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setBannerDismissed(localStorage.getItem("chaos-share-banner-dismissed") === "1");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("dealer_profiles")
+      .select("slug")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setSlug((data as { slug?: string } | null)?.slug ?? null));
+  }, [user]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -78,6 +96,46 @@ function StonesList() {
 
   return (
     <div>
+      {!bannerDismissed && rows.length >= 10 && slug && (
+        <div className="mb-6 relative overflow-hidden rounded-lg border border-[var(--gold-border)] bg-[color-mix(in_oklab,var(--color-gold)_8%,var(--color-sand))] p-5">
+          <button
+            onClick={() => {
+              localStorage.setItem("chaos-share-banner-dismissed", "1");
+              setBannerDismissed(true);
+            }}
+            className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-black/5"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
+            Your catalogue is looking great
+          </div>
+          <h2 className="mt-1 font-serif text-xl text-foreground">Share your Chaos profile</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Share your profile with your existing contacts — they can browse your stones and integrate your
+            catalogue directly into their website.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <code className="rounded border border-border bg-background px-2 py-1 text-xs">
+              https://chaosgemstones.com/vendors/{slug}
+            </code>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                navigator.clipboard.writeText(`https://chaosgemstones.com/vendors/${slug}`);
+                toast.success("Profile URL copied");
+              }}
+            >
+              <Copy className="mr-1 h-3 w-3" /> Copy link
+            </Button>
+            <Link to="/vendors/$slug" params={{ slug }}>
+              <Button size="sm" variant="ghost">View public profile</Button>
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif text-3xl text-foreground">My Inventory</h1>
