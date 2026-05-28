@@ -315,6 +315,228 @@ function AdminPage() {
   );
 }
 
+type FeeOrderRow = {
+  id: string;
+  jeweller_id: string;
+  dealer_id: string;
+  platform_fee_usd: number | null;
+  fee_invoiced_at: string | null;
+  fee_paid_at: string | null;
+  received_at: string | null;
+  wholesale_price_usd: number | null;
+  sale_date: string;
+  jeweller?: { full_name: string | null; company_name: string | null; email: string | null } | null;
+  dealer?: { full_name: string | null; company_name: string | null } | null;
+};
+
+function FeesPanel() {
+  const [rows, setRows] = useState<FeeOrderRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await (supabase as any)
+      .from("orders")
+      .select(
+        "id, jeweller_id, dealer_id, platform_fee_usd, fee_invoiced_at, fee_paid_at, received_at, wholesale_price_usd, sale_date, jeweller:jeweller_id(full_name, company_name, email), dealer:dealer_id(full_name, company_name)",
+      )
+      .not("platform_fee_usd", "is", null)
+      .order("received_at", { ascending: false });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setRows((data as FeeOrderRow[]) ?? []);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const accrued = rows.filter((r) => !r.fee_invoiced_at && !r.fee_paid_at);
+  const invoiced = rows.filter((r) => r.fee_invoiced_at && !r.fee_paid_at);
+  const paid = rows.filter((r) => r.fee_paid_at);
+  const sum = (xs: FeeOrderRow[]) => xs.reduce((t, r) => t + Number(r.platform_fee_usd ?? 0), 0);
+
+  const byJeweller = new Map<
+    string,
+    { name: string; email: string | null; accrued: number; invoiced: number; paid: number; count: number }
+  >();
+  for (const r of rows) {
+    const key = r.jeweller_id;
+    const name = r.jeweller?.company_name || r.jeweller?.full_name || r.jeweller?.email || key.slice(0, 8);
+    const entry = byJeweller.get(key) ?? {
+      name,
+      email: r.jeweller?.email ?? null,
+      accrued: 0,
+      invoiced: 0,
+      paid: 0,
+      count: 0,
+    };
+    const fee = Number(r.platform_fee_usd ?? 0);
+    entry.count += 1;
+    if (r.fee_paid_at) entry.paid += fee;
+    else if (r.fee_invoiced_at) entry.invoiced += fee;
+    else entry.accrued += fee;
+    byJeweller.set(key, entry);
+  }
+
+  async function markInvoiced(id: string) {
+    setBusy(id);
+    const { error } = await (supabase as any)
+      .from("orders")
+      .update({ fee_invoiced_at: new Date().toISOString() })
+      .eq("id", id);
+    setBusy(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Marked invoiced");
+    load();
+  }
+
+  async function markPaid(id: string) {
+    setBusy(id);
+    const { error } = await (supabase as any)
+      .from("orders")
+      .update({ fee_paid_at: new Date().toISOString() })
+      .eq("id", id);
+    setBusy(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Marked paid");
+    load();
+  }
+
+  const fmt = (n: number) =>
+    `$${n.toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
+
+  if (loading) {
+    return <div className="mt-6 p-8 text-center text-sm text-muted-foreground">Loading fees…</div>;
+  }
+
+  return (
+    <div className="mt-6 space-y-6">
+      <div className="grid gap-3 sm:grid-cols-4">
+        <SummaryCard label="Accrued (uninvoiced)" value={fmt(sum(accrued))} sub={`${accrued.length} orders`} />
+        <SummaryCard label="Invoiced, unpaid" value={fmt(sum(invoiced))} sub={`${invoiced.length} orders`} />
+        <SummaryCard label="Paid" value={fmt(sum(paid))} sub={`${paid.length} orders`} />
+        <SummaryCard label="Total all-time" value={fmt(sum(rows))} sub={`${rows.length} orders`} />
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">
+          By jeweller
+        </div>
+        {byJeweller.size === 0 ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">No fees recorded yet.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Jeweller</th>
+                <th className="px-4 py-3 text-right">Orders</th>
+                <th className="px-4 py-3 text-right">Accrued</th>
+                <th className="px-4 py-3 text-right">Invoiced</th>
+                <th className="px-4 py-3 text-right">Paid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from(byJeweller.entries()).map(([id, e]) => (
+                <tr key={id} className="border-t border-border">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{e.name}</div>
+                    {e.email && <div className="text-xs text-muted-foreground">{e.email}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">{e.count}</td>
+                  <td className="px-4 py-3 text-right font-mono">{fmt(e.accrued)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{fmt(e.invoiced)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{fmt(e.paid)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">
+          All fee-bearing orders
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">Received</th>
+              <th className="px-4 py-3">Jeweller</th>
+              <th className="px-4 py-3">Dealer</th>
+              <th className="px-4 py-3 text-right">Sale (USD)</th>
+              <th className="px-4 py-3 text-right">Fee (USD)</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const status = r.fee_paid_at ? "paid" : r.fee_invoiced_at ? "invoiced" : "accrued";
+              return (
+                <tr key={r.id} className="border-t border-border align-top">
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {r.received_at ? new Date(r.received_at).toLocaleDateString() : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {r.jeweller?.company_name || r.jeweller?.full_name || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {r.dealer?.company_name || r.dealer?.full_name || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {r.wholesale_price_usd ? fmt(Number(r.wholesale_price_usd)) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold">
+                    {fmt(Number(r.platform_fee_usd ?? 0))}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs capitalize ${
+                        status === "paid"
+                          ? "bg-green-100 text-green-800"
+                          : status === "invoiced"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {status === "accrued" && (
+                      <Button size="sm" variant="ghost" disabled={busy === r.id} onClick={() => markInvoiced(r.id)}>
+                        Mark invoiced
+                      </Button>
+                    )}
+                    {status === "invoiced" && (
+                      <Button size="sm" variant="ghost" disabled={busy === r.id} onClick={() => markPaid(r.id)}>
+                        Mark paid
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+      <div className="mt-2 font-serif text-2xl text-foreground">{value}</div>
+      <div className="text-xs text-muted-foreground">{sub}</div>
+    </div>
+  );
+}
+
 type ReportRow = {
   id: string;
   stone_id: string;
