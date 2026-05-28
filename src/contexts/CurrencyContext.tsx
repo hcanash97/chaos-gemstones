@@ -1,78 +1,90 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  ALL_CURRENCY_CODES,
+  type CurrencyCode,
+  FALLBACK_RATES,
+  SUPPORTED_CURRENCIES,
+  convertPrice,
+  formatPrice,
+  getExchangeRates,
+} from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
 
-export type Currency = "USD" | "GBP" | "EUR" | "AUD" | "CAD";
-
-export const CURRENCIES: Currency[] = ["USD", "GBP", "EUR", "AUD", "CAD"];
-
-const SYMBOLS: Record<Currency, string> = {
-  USD: "$",
-  GBP: "£",
-  EUR: "€",
-  AUD: "A$",
-  CAD: "C$",
-};
-
-type Rates = Partial<Record<Currency, number>>;
+// Re-export for backwards compatibility with existing imports.
+export type Currency = CurrencyCode;
+export const CURRENCIES = ALL_CURRENCY_CODES;
 
 type CurrencyCtx = {
-  currency: Currency;
-  setCurrency: (c: Currency) => void;
-  rates: Rates;
-  convert: (usd: number | null | undefined) => number | null;
-  format: (usd: number | null | undefined) => string;
+  // New API
+  displayCurrency: CurrencyCode;
+  setDisplayCurrency: (c: CurrencyCode) => void;
+  rates: Record<string, number>;
+  ratesLoading: boolean;
+  convert: (amount: number | null | undefined, fromCurrency?: string) => number | null;
+  format: (
+    amount: number | null | undefined,
+    fromCurrency?: string,
+    indicative?: boolean,
+  ) => string;
+  // Backwards-compatible aliases
+  currency: CurrencyCode;
+  setCurrency: (c: CurrencyCode) => void;
   symbol: string;
   loading: boolean;
 };
 
 const Ctx = createContext<CurrencyCtx | null>(null);
 
-const STORAGE_CURRENCY = "chaos-currency";
-const STORAGE_RATES = "chaos-currency-rates";
+const STORAGE_CURRENCY = "chaos_display_currency";
+
+function isCurrencyCode(v: string | null | undefined): v is CurrencyCode {
+  return !!v && (ALL_CURRENCY_CODES as string[]).includes(v);
+}
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrencyState] = useState<Currency>("USD");
-  const [rates, setRates] = useState<Rates>({ USD: 1 });
-  const [loading, setLoading] = useState(false);
+  const [displayCurrency, setDisplayCurrencyState] = useState<CurrencyCode>("USD");
+  const [rates, setRates] = useState<Record<string, number>>({ ...FALLBACK_RATES });
+  const [ratesLoading, setRatesLoading] = useState(false);
 
+  // Load from localStorage + remote rates on mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const c = window.localStorage.getItem(STORAGE_CURRENCY) as Currency | null;
-      if (c && CURRENCIES.includes(c)) setCurrencyState(c);
-      const cached = window.sessionStorage.getItem(STORAGE_RATES);
-      if (cached) {
-        const { rates: r, ts } = JSON.parse(cached);
-        if (r && ts && Date.now() - ts < 12 * 3600 * 1000) {
-          setRates({ USD: 1, ...r });
-          return;
-        }
-      }
+      const stored = window.localStorage.getItem(STORAGE_CURRENCY);
+      if (isCurrencyCode(stored)) setDisplayCurrencyState(stored);
     } catch {
       /* ignore */
     }
-    setLoading(true);
-    fetch("https://api.exchangerate-api.com/v4/latest/USD")
-      .then((r) => r.json())
-      .then((data) => {
-        const r: Rates = { USD: 1 };
-        for (const c of CURRENCIES) {
-          if (data?.rates?.[c]) r[c] = Number(data.rates[c]);
-        }
-        setRates(r);
-        try {
-          window.sessionStorage.setItem(STORAGE_RATES, JSON.stringify({ rates: r, ts: Date.now() }));
-        } catch {
-          /* ignore */
-        }
-      })
-      .catch(() => {
-        // graceful fallback — show USD only
-      })
-      .finally(() => setLoading(false));
+    setRatesLoading(true);
+    getExchangeRates()
+      .then((r) => setRates(r))
+      .finally(() => setRatesLoading(false));
   }, []);
 
-  function setCurrency(c: Currency) {
-    setCurrencyState(c);
+  // If logged-in as a jeweller and no localStorage override, use their display_currency.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (typeof window === "undefined") return;
+      const stored = window.localStorage.getItem(STORAGE_CURRENCY);
+      if (stored) return; // user explicitly chose
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data } = await supabase
+        .from("jeweller_profiles")
+        .select("display_currency")
+        .eq("id", auth.user.id)
+        .maybeSingle();
+      const code = (data as { display_currency?: string } | null)?.display_currency;
+      if (!cancelled && isCurrencyCode(code)) setDisplayCurrencyState(code);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function setDisplayCurrency(c: CurrencyCode) {
+    setDisplayCurrencyState(c);
     try {
       window.localStorage.setItem(STORAGE_CURRENCY, c);
     } catch {
@@ -81,42 +93,60 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   }
 
   const value = useMemo<CurrencyCtx>(() => {
-    const rate = rates[currency] ?? 1;
-    const symbol = SYMBOLS[currency];
-    return {
-      currency,
-      setCurrency,
-      rates,
-      loading,
-      symbol,
-      convert: (usd) => {
-        if (usd === null || usd === undefined) return null;
-        return Number(usd) * rate;
-      },
-      format: (usd) => {
-        if (usd === null || usd === undefined) return "POA";
-        if (currency === "USD") return `$${Number(usd).toLocaleString()}`;
-        const v = Number(usd) * rate;
-        return `≈ ${symbol}${Math.round(v).toLocaleString()}`;
-      },
+    const symbol =
+      SUPPORTED_CURRENCIES.find((c) => c.code === displayCurrency)?.symbol ?? "$";
+    const convert = (amount: number | null | undefined, fromCurrency = "USD") => {
+      if (amount === null || amount === undefined) return null;
+      const n = Number(amount);
+      if (!isFinite(n)) return null;
+      return convertPrice(n, fromCurrency, displayCurrency, rates);
     };
-  }, [currency, rates, loading]);
+    const format = (
+      amount: number | null | undefined,
+      fromCurrency = "USD",
+      indicative?: boolean,
+    ) => {
+      if (amount === null || amount === undefined) return "POA";
+      const n = Number(amount);
+      if (!isFinite(n)) return "POA";
+      const converted = convertPrice(n, fromCurrency, displayCurrency, rates);
+      const isConverted = fromCurrency !== displayCurrency;
+      return formatPrice(converted, displayCurrency, {
+        indicative: indicative ?? isConverted,
+      });
+    };
+    return {
+      displayCurrency,
+      setDisplayCurrency,
+      rates,
+      ratesLoading,
+      convert,
+      format,
+      currency: displayCurrency,
+      setCurrency: setDisplayCurrency,
+      symbol,
+      loading: ratesLoading,
+    };
+  }, [displayCurrency, rates, ratesLoading]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useCurrency(): CurrencyCtx {
   const v = useContext(Ctx);
-  if (!v) {
-    return {
-      currency: "USD",
-      setCurrency: () => {},
-      rates: { USD: 1 },
-      convert: (usd) => (usd === null || usd === undefined ? null : Number(usd)),
-      format: (usd) => (usd === null || usd === undefined ? "POA" : `$${Number(usd).toLocaleString()}`),
-      symbol: "$",
-      loading: false,
-    };
-  }
-  return v;
+  if (v) return v;
+  // Fallback when used outside a provider (e.g. tests, SSR shells).
+  const noop = () => {};
+  return {
+    displayCurrency: "USD",
+    setDisplayCurrency: noop,
+    rates: { ...FALLBACK_RATES },
+    ratesLoading: false,
+    convert: (a, _from) => (a === null || a === undefined ? null : Number(a)),
+    format: (a) => (a === null || a === undefined ? "POA" : `$${Number(a).toLocaleString()}`),
+    currency: "USD",
+    setCurrency: noop,
+    symbol: "$",
+    loading: false,
+  };
 }
