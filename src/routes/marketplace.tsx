@@ -95,6 +95,7 @@ function reducer(s: FilterState, a: Action): FilterState {
 function Marketplace() {
   const [f, dispatch] = useReducer(reducer, defaultFilters);
   const { user, profile } = useAuth();
+  const [visibleCount, setVisibleCount] = useState(48);
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
 
@@ -138,6 +139,11 @@ function Marketplace() {
 
   const filtered = useMemo(() => applyFilters(stones ?? [], f), [stones, f]);
   const filterCount = activeFilterCount(f);
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(48);
+  }, [f]);
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
   const showDiamond = hasDiamondSelection(f.types);
   const showColoured = hasColouredSelection(f.types);
   const isJeweller = profile?.account_type === "jeweller";
