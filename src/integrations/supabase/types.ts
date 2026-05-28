@@ -348,36 +348,57 @@ export type Database = {
       }
       orders: {
         Row: {
+          carrier: string | null
           created_at: string
           dealer_id: string
           enquiry_id: string | null
+          expected_delivery: string | null
           id: string
+          jeweller_confirmed_receipt: boolean | null
           jeweller_id: string
+          jeweller_notes: string | null
           notes: string | null
+          received_at: string | null
           sale_date: string
+          shipping_status: string | null
           stone_id: string | null
+          tracking_number: string | null
           wholesale_price_usd: number | null
         }
         Insert: {
+          carrier?: string | null
           created_at?: string
           dealer_id: string
           enquiry_id?: string | null
+          expected_delivery?: string | null
           id?: string
+          jeweller_confirmed_receipt?: boolean | null
           jeweller_id: string
+          jeweller_notes?: string | null
           notes?: string | null
+          received_at?: string | null
           sale_date?: string
+          shipping_status?: string | null
           stone_id?: string | null
+          tracking_number?: string | null
           wholesale_price_usd?: number | null
         }
         Update: {
+          carrier?: string | null
           created_at?: string
           dealer_id?: string
           enquiry_id?: string | null
+          expected_delivery?: string | null
           id?: string
+          jeweller_confirmed_receipt?: boolean | null
           jeweller_id?: string
+          jeweller_notes?: string | null
           notes?: string | null
+          received_at?: string | null
           sale_date?: string
+          shipping_status?: string | null
           stone_id?: string | null
+          tracking_number?: string | null
           wholesale_price_usd?: number | null
         }
         Relationships: [
