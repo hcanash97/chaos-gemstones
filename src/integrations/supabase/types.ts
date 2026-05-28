@@ -504,6 +504,8 @@ export type Database = {
           is_approved: boolean
           is_verified: boolean
           phone: string | null
+          referral_code: string | null
+          referred_by: string | null
           terms_accepted_at: string | null
           terms_accepted_ip: string | null
           website: string | null
@@ -521,6 +523,8 @@ export type Database = {
           is_approved?: boolean
           is_verified?: boolean
           phone?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           terms_accepted_at?: string | null
           terms_accepted_ip?: string | null
           website?: string | null
@@ -538,11 +542,81 @@ export type Database = {
           is_approved?: boolean
           is_verified?: boolean
           phone?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           terms_accepted_at?: string | null
           terms_accepted_ip?: string | null
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_credits: {
+        Row: {
+          beneficiary_id: string
+          created_at: string
+          credit_gbp: number
+          credit_months: number
+          credit_type: string
+          cross_side: boolean
+          id: string
+          qualifying_event: string
+          qualifying_event_at: string | null
+          reason: string
+          referral_id: string | null
+          status: string
+        }
+        Insert: {
+          beneficiary_id: string
+          created_at?: string
+          credit_gbp?: number
+          credit_months?: number
+          credit_type: string
+          cross_side?: boolean
+          id?: string
+          qualifying_event: string
+          qualifying_event_at?: string | null
+          reason: string
+          referral_id?: string | null
+          status?: string
+        }
+        Update: {
+          beneficiary_id?: string
+          created_at?: string
+          credit_gbp?: number
+          credit_months?: number
+          credit_type?: string
+          cross_side?: boolean
+          id?: string
+          qualifying_event?: string
+          qualifying_event_at?: string | null
+          reason?: string
+          referral_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_credits_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_credits_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
