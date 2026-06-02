@@ -496,6 +496,7 @@ export type Database = {
       profiles: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"]
+          account_types: string[] | null
           city: string | null
           company_name: string | null
           country: string | null
@@ -515,6 +516,7 @@ export type Database = {
         }
         Insert: {
           account_type?: Database["public"]["Enums"]["account_type"]
+          account_types?: string[] | null
           city?: string | null
           company_name?: string | null
           country?: string | null
@@ -534,6 +536,7 @@ export type Database = {
         }
         Update: {
           account_type?: Database["public"]["Enums"]["account_type"]
+          account_types?: string[] | null
           city?: string | null
           company_name?: string | null
           country?: string | null
@@ -1229,6 +1232,10 @@ export type Database = {
       apply_referral_code: {
         Args: { _code: string; _user_id: string }
         Returns: undefined
+      }
+      has_account_type: {
+        Args: { _check_type: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
