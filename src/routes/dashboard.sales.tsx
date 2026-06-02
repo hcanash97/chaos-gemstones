@@ -16,7 +16,7 @@ export const Route = createFileRoute("/dashboard/sales")({
 function DealerSales() {
   const { user, profile } = useAuth();
   const { format, displayCurrency } = useCurrency();
-  if (profile?.account_type !== "dealer" && profile?.account_type !== "admin") {
+  if (!isDealerHelper(profile) && !isAdminHelper(profile)) {
     return <div>Dealers only.</div>;
   }
 

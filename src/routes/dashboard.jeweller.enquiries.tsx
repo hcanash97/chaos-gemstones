@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { EnquiriesList } from "@/components/dashboard/EnquiriesList";
+import { isJeweller } from "@/lib/auth.utils";
 
 export const Route = createFileRoute("/dashboard/jeweller/enquiries")({
   component: JewellerEnquiries,
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/dashboard/jeweller/enquiries")({
 
 function JewellerEnquiries() {
   const { user, profile } = useAuth();
-  if (profile?.account_type !== "jeweller") return <div>Jewellers only.</div>;
+  if (!isJeweller(profile)) return <div>Jewellers only.</div>;
 
   const { data } = useQuery({
     queryKey: ["my-enquiries-jeweller", user?.id],

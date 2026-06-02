@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { EnquiriesList } from "@/components/dashboard/EnquiriesList";
+import { isDealer, isAdmin } from "@/lib/auth.utils";
 
 export const Route = createFileRoute("/dashboard/enquiries")({
   component: DealerEnquiries,
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/dashboard/enquiries")({
 
 function DealerEnquiries() {
   const { user, profile } = useAuth();
-  if (profile?.account_type !== "dealer" && profile?.account_type !== "admin") {
+  if (!isDealer(profile) && !isAdmin(profile)) {
     return <div>Dealers only.</div>;
   }
 
