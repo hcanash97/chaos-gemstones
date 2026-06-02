@@ -72,14 +72,19 @@ export async function authenticateDealer(request: Request): Promise<
 
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("account_type, is_approved")
+    .select("account_type, account_types, is_approved")
     .eq("id", apiKey.jeweller_id)
     .maybeSingle();
 
-  if (!profile || profile.account_type !== "dealer") {
+  const isDealer =
+    profile &&
+    (profile.account_type === "dealer" ||
+      (Array.isArray((profile as any).account_types) &&
+        (profile as any).account_types.includes("dealer")));
+  if (!isDealer) {
     return { ok: false, response: json({ error: "API key is not associated with a dealer account" }, 403) };
   }
-  if (!profile.is_approved) {
+  if (!profile!.is_approved) {
     return { ok: false, response: json({ error: "Dealer account is not approved" }, 403) };
   }
 

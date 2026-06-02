@@ -35,11 +35,14 @@ function assertSafeFeedUrl(urlStr: string): void {
 async function ensureApprovedDealer(supabase: any, userId: string) {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("account_type, is_approved")
+    .select("account_type, account_types, is_approved")
     .eq("id", userId)
     .single();
   if (!profile) throw new Error("Profile not found.");
-  if (profile.account_type !== "dealer") throw new Error("Only dealer accounts can use this endpoint.");
+  const isDealer =
+    profile.account_type === "dealer" ||
+    (Array.isArray(profile.account_types) && profile.account_types.includes("dealer"));
+  if (!isDealer) throw new Error("Only dealer accounts can use this endpoint.");
   if (!profile.is_approved) throw new Error("Your account is pending approval.");
 }
 

@@ -8,14 +8,15 @@ import {
   runShopifySync,
   testShopifyConnection,
 } from "./shopify.server";
+import { isJeweller } from "@/lib/auth.utils";
 
 async function assertJeweller(supabase: any, userId: string) {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("account_type, is_approved")
+    .select("account_type, account_types, is_approved")
     .eq("id", userId)
     .single();
-  if (!profile || profile.account_type !== "jeweller") {
+  if (!isJeweller(profile as any)) {
     throw new Error("Only jeweller accounts can manage Shopify.");
   }
   if (!profile.is_approved) {
