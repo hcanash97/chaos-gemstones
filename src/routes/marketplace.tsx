@@ -184,6 +184,14 @@ function Marketplace() {
           onToggle={(v) => toggle("types", v)}
           labels={STONE_TYPE_LABELS}
         />
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Pill
+            active={f.matchingPairOnly}
+            onClick={() => set({ matchingPairOnly: !f.matchingPairOnly })}
+          >
+            ★ Matched Pairs only
+          </Pill>
+        </div>
       </CollapsibleSection>
 
       <CollapsibleSection title="Shape">
