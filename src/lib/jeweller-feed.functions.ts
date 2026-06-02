@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
+import { isJeweller } from "@/lib/auth.utils";
 
 const selectionSchema = z.object({
   dealerId: z.string().uuid().optional(),
