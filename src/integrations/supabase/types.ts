@@ -99,6 +99,7 @@ export type Database = {
           response_time_hours: number | null
           slug: string
           specialities: string[] | null
+          trade_memberships: string[] | null
           years_trading: number | null
         }
         Insert: {
@@ -120,6 +121,7 @@ export type Database = {
           response_time_hours?: number | null
           slug: string
           specialities?: string[] | null
+          trade_memberships?: string[] | null
           years_trading?: number | null
         }
         Update: {
@@ -141,6 +143,7 @@ export type Database = {
           response_time_hours?: number | null
           slug?: string
           specialities?: string[] | null
+          trade_memberships?: string[] | null
           years_trading?: number | null
         }
         Relationships: [

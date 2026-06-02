@@ -373,6 +373,8 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
               <option value="spinel">Spinel</option>
               <option value="tourmaline">Tourmaline</option>
               <option value="garnet">Garnet</option>
+              <option value="rough">Rough / Uncut</option>
+              <option value="mineral-specimen">Mineral Specimen</option>
               <option value="other">Other</option>
             </select>
           </div>

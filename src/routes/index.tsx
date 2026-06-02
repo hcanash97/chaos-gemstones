@@ -10,6 +10,10 @@ import { ArrowRight, ShieldCheck, Globe2, Boxes } from "lucide-react";
 import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Motion";
 import { LaunchBanner } from "@/components/site/LaunchBanner";
 import { GemParticles } from "@/components/site/GemParticles";
+import { CertLabBar } from "@/components/site/CertLabBar";
+import { FounderQuote } from "@/components/site/FounderQuote";
+import { TrustStrip } from "@/components/site/TrustStrip";
+import { BetaTopBanner } from "@/components/site/BetaTopBanner";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -75,7 +79,7 @@ function Home() {
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, stone_images(storage_url, is_primary)")
+        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, is_primary)")
         .eq("featured", true)
         .eq("status", "available")
         .limit(8);
@@ -100,6 +104,7 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      <BetaTopBanner />
       <SiteHeader />
 
       {/* Hero */}
@@ -142,6 +147,12 @@ function Home() {
         </div>
         <span className="gold-line-draw absolute bottom-0 left-0 right-0" aria-hidden />
       </section>
+
+      {/* Cert lab trust bar */}
+      <CertLabBar />
+
+      {/* Sourcing countries strip */}
+      <TrustStrip />
 
       {/* Two-sided explainer */}
       <section className="mx-auto max-w-7xl px-6 py-20">
@@ -191,6 +202,42 @@ function Home() {
               <StoneCard key={s.id} stone={s} />
             ))}
           </StaggerGroup>
+        </div>
+      </section>
+
+      {/* Matched pairs teaser */}
+      <section className="border-t border-border bg-background py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid items-center gap-8 rounded-lg border border-[var(--gold-border)] bg-card p-8 md:grid-cols-[1.4fr_1fr]">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
+                Matched Pairs
+              </div>
+              <h2 className="mt-2 font-serif text-3xl md:text-4xl">
+                Matched pairs &mdash; ideal for earrings and symmetric settings
+              </h2>
+              <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+                Browse colour-, cut- and weight-matched pairs from verified dealers.
+                Save hours of back-and-forth sourcing for symmetrical commissions.
+              </p>
+              <Link
+                to="/marketplace"
+                className="mt-5 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90"
+              >
+                Browse matched pairs <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </div>
+            <div
+              aria-hidden
+              className="relative hidden h-40 overflow-hidden rounded-md md:block"
+              style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #1B3A2D 100%)" }}
+            >
+              <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-90">
+                <span className="h-20 w-20 rotate-12 rounded-full bg-[var(--color-gold)]/30 ring-2 ring-[var(--color-gold)]/60" />
+                <span className="h-20 w-20 -rotate-12 rounded-full bg-[var(--color-gold)]/30 ring-2 ring-[var(--color-gold)]/60" />
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -244,6 +291,9 @@ function Home() {
           ))}
         </StaggerGroup>
       </section>
+
+      {/* Founder quote */}
+      <FounderQuote />
 
       {/* Trust strip */}
       <section className="border-t border-border bg-secondary/30 py-16">
