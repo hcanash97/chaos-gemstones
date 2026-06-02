@@ -2,53 +2,84 @@ import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-// Stable production URL — flip to a custom domain when one is set.
 const BASE_URL = "https://chaosgemstones.com";
+
+const STATIC_ROUTES: Array<{ path: string; priority: string; changefreq: string }> = [
+  { path: "/", priority: "1.0", changefreq: "daily" },
+  { path: "/marketplace", priority: "0.9", changefreq: "hourly" },
+  { path: "/vendors", priority: "0.8", changefreq: "daily" },
+  { path: "/about", priority: "0.6", changefreq: "monthly" },
+  { path: "/how-it-works/payments", priority: "0.5", changefreq: "monthly" },
+  { path: "/how-it-works/shipping", priority: "0.5", changefreq: "monthly" },
+  { path: "/docs/api", priority: "0.7", changefreq: "weekly" },
+  { path: "/docs/dealer-api", priority: "0.6", changefreq: "weekly" },
+  { path: "/requests", priority: "0.7", changefreq: "daily" },
+  { path: "/sign-up/dealer", priority: "0.8", changefreq: "monthly" },
+  { path: "/sign-up/jeweller", priority: "0.8", changefreq: "monthly" },
+  { path: "/learn", priority: "0.7", changefreq: "weekly" },
+  { path: "/learn/how-to-source-sapphires-wholesale", priority: "0.7", changefreq: "monthly" },
+  { path: "/learn/diamond-grading-explained", priority: "0.7", changefreq: "monthly" },
+  { path: "/learn/buying-unheated-rubies", priority: "0.7", changefreq: "monthly" },
+  { path: "/learn/gemstone-api-for-jewellers", priority: "0.8", changefreq: "monthly" },
+  { path: "/learn/understand-gemstone-treatments", priority: "0.6", changefreq: "monthly" },
+  { path: "/learn/jaipur-gemstone-market-guide", priority: "0.6", changefreq: "monthly" },
+  { path: "/learn/gemstones/sapphire", priority: "0.7", changefreq: "weekly" },
+  { path: "/learn/gemstones/ruby", priority: "0.7", changefreq: "weekly" },
+  { path: "/learn/gemstones/emerald", priority: "0.7", changefreq: "weekly" },
+  { path: "/learn/gemstones/alexandrite", priority: "0.7", changefreq: "weekly" },
+  { path: "/learn/gemstones/diamond", priority: "0.7", changefreq: "weekly" },
+  { path: "/learn/gemstones/spinel", priority: "0.6", changefreq: "weekly" },
+  { path: "/learn/gemstones/tanzanite", priority: "0.6", changefreq: "weekly" },
+  { path: "/learn/gemstones/tourmaline", priority: "0.6", changefreq: "weekly" },
+  { path: "/learn/gemstones/paraiba", priority: "0.6", changefreq: "weekly" },
+];
+
+function fmtDate(d: string | null | undefined): string | null {
+  if (!d) return null;
+  try {
+    return new Date(d).toISOString().slice(0, 10);
+  } catch {
+    return null;
+  }
+}
 
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const learnSlugs = [
-          "sourcing-coloured-gemstones",
-          "api-embedding-guide",
-          "jewellers-markup-strategy",
-          "gemstone-cert-labs",
-          "jaipur-bangkok-colombo-guide",
-          "wholesale-vs-retail",
-        ];
-        const staticPaths = [
-          "/",
-          "/marketplace",
-          "/vendors",
-          "/about",
-          "/learn",
-          ...learnSlugs.map((s) => `/learn/${s}`),
-          "/docs/api",
-          "/how-it-works/payments",
-          "/how-it-works/shipping",
-        ];
         const [{ data: vendors }, { data: stones }] = await Promise.all([
           supabaseAdmin
             .from("dealer_profiles")
-            .select("slug, profiles!inner(is_approved)")
+            .select("slug, updated_at, profiles!inner(is_approved)")
             .eq("profiles.is_approved", true),
           supabaseAdmin
             .from("stones")
-            .select("id")
+            .select("id, updated_at")
             .eq("status", "available")
-            .limit(5000),
+            .limit(10000),
         ]);
 
         const urls: string[] = [];
-        for (const p of staticPaths) {
-          urls.push(`  <url><loc>${BASE_URL}${p}</loc><changefreq>weekly</changefreq></url>`);
+        for (const r of STATIC_ROUTES) {
+          urls.push(
+            `  <url><loc>${BASE_URL}${r.path}</loc><changefreq>${r.changefreq}</changefreq><priority>${r.priority}</priority></url>`,
+          );
         }
         for (const v of vendors ?? []) {
-          urls.push(`  <url><loc>${BASE_URL}/vendors/${(v as any).slug}</loc><changefreq>weekly</changefreq></url>`);
+          const lastmod = fmtDate((v as any).updated_at);
+          urls.push(
+            `  <url><loc>${BASE_URL}/vendors/${(v as any).slug}</loc>${
+              lastmod ? `<lastmod>${lastmod}</lastmod>` : ""
+            }<changefreq>weekly</changefreq><priority>0.7</priority></url>`,
+          );
         }
         for (const s of stones ?? []) {
-          urls.push(`  <url><loc>${BASE_URL}/stone/${(s as any).id}</loc><changefreq>daily</changefreq></url>`);
+          const lastmod = fmtDate((s as any).updated_at);
+          urls.push(
+            `  <url><loc>${BASE_URL}/stone/${(s as any).id}</loc>${
+              lastmod ? `<lastmod>${lastmod}</lastmod>` : ""
+            }<changefreq>daily</changefreq><priority>0.6</priority></url>`,
+          );
         }
 
         const xml = [
