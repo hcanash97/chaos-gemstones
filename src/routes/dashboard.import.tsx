@@ -81,7 +81,7 @@ function ImportPage() {
     })();
   }, [user]);
 
-  if (profile?.account_type !== "dealer" && profile?.account_type !== "admin") {
+  if (!isDealerHelper(profile) && !isAdminHelper(profile)) {
     return <div>Dealers only.</div>;
   }
 

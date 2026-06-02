@@ -60,7 +60,7 @@ function JewellerOrders() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (profile && profile.account_type !== "jeweller") return <div>Jewellers only.</div>;
+  if (profile && !isJewellerHelper(profile)) return <div>Jewellers only.</div>;
 
   function statusFor(o: OrderRow): Tab {
     if (o.jeweller_confirmed_receipt) return "complete";
