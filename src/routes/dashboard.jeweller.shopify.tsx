@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Unlink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, RefreshCw, Unlink, XCircle, Eye, Plug } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
   getShopifyStatus,
   setShopifyAutoSync,
   syncShopifyNow,
+  testShopifyConnectionFn,
+  dryRunShopifySyncFn,
 } from "@/lib/shopify.functions";
 
 export const Route = createFileRoute("/dashboard/jeweller/shopify")({
@@ -30,11 +32,30 @@ function ShopifyPage() {
   const disconnect = useServerFn(disconnectShopify);
   const sync = useServerFn(syncShopifyNow);
   const toggleAuto = useServerFn(setShopifyAutoSync);
+  const testConn = useServerFn(testShopifyConnectionFn);
+  const dryRun = useServerFn(dryRunShopifySyncFn);
 
   const [shop, setShop] = useState("");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [busy, setBusy] = useState(false);
+  const [connectStatus, setConnectStatus] = useState<
+    | { kind: "success"; shopName: string }
+    | { kind: "error"; message: string }
+    | null
+  >(null);
+  const [testStatus, setTestStatus] = useState<
+    | { kind: "success"; shopName: string; productCount: number }
+    | { kind: "error"; message: string }
+    | null
+  >(null);
+  const [previewStatus, setPreviewStatus] = useState<{
+    wouldAdd: number;
+    wouldUpdate: number;
+    wouldArchive: number;
+    feedStoneCount: number;
+    errors: string[];
+  } | null>(null);
 
   const isJeweller = checkJ(profile);
 
@@ -55,6 +76,7 @@ function ShopifyPage() {
       return;
     }
     setBusy(true);
+    setConnectStatus(null);
     try {
       const res = await connect({
         data: {
@@ -64,13 +86,16 @@ function ShopifyPage() {
         },
       });
       toast.success(`Connected to ${res.shopName}`);
+      setConnectStatus({ kind: "success", shopName: res.shopName });
       setShop("");
       setClientId("");
       setClientSecret("");
       await refetch();
       qc.invalidateQueries({ queryKey: ["shopify-status"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not connect");
+      const message = e instanceof Error ? e.message : "Could not connect";
+      toast.error(message);
+      setConnectStatus({ kind: "error", message });
     } finally {
       setBusy(false);
     }
@@ -89,12 +114,50 @@ function ShopifyPage() {
     }
   }
 
+  async function handleTest() {
+    setBusy(true);
+    setTestStatus(null);
+    try {
+      const r = await testConn();
+      if (r.ok) {
+        setTestStatus({ kind: "success", shopName: r.shopName, productCount: r.productCount });
+        toast.success(`Connection verified — ${r.shopName}`);
+      } else {
+        setTestStatus({ kind: "error", message: r.error });
+        toast.error(r.error);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Test failed";
+      setTestStatus({ kind: "error", message: msg });
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePreview() {
+    setBusy(true);
+    setPreviewStatus(null);
+    try {
+      const r = await dryRun();
+      setPreviewStatus(r);
+      toast.success("Preview generated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Preview failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDisconnect() {
     if (!confirm("Disconnect Shopify? Existing products in Shopify will remain.")) return;
     setBusy(true);
     try {
       await disconnect();
       toast.success("Disconnected");
+      setConnectStatus(null);
+      setTestStatus(null);
+      setPreviewStatus(null);
       await refetch();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not disconnect");
@@ -121,6 +184,25 @@ function ShopifyPage() {
         </p>
       </div>
 
+      {connectStatus?.kind === "success" && (
+        <div className="flex items-start gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+          <div>
+            <div className="font-medium">Connected to {connectStatus.shopName}</div>
+            <div className="text-muted-foreground">Your store is ready to sync.</div>
+          </div>
+        </div>
+      )}
+      {connectStatus?.kind === "error" && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm">
+          <XCircle className="mt-0.5 h-4 w-4 text-destructive" />
+          <div>
+            <div className="font-medium">Connection failed</div>
+            <div className="text-muted-foreground">{connectStatus.message}</div>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Loading…</div>
       ) : conn ? (
@@ -131,6 +213,10 @@ function ShopifyPage() {
           onSync={handleSync}
           onDisconnect={handleDisconnect}
           onAutoSync={handleAutoSync}
+          onTest={handleTest}
+          onPreview={handlePreview}
+          testStatus={testStatus}
+          previewStatus={previewStatus}
         />
       ) : (
         <ConnectForm
@@ -231,6 +317,10 @@ function ConnectedView({
   onSync,
   onDisconnect,
   onAutoSync,
+  onTest,
+  onPreview,
+  testStatus,
+  previewStatus,
 }: {
   conn: any;
   logs: any[];
@@ -238,17 +328,47 @@ function ConnectedView({
   onSync: () => void;
   onDisconnect: () => void;
   onAutoSync: (enabled: boolean) => void;
+  onTest: () => void;
+  onPreview: () => void;
+  testStatus:
+    | { kind: "success"; shopName: string; productCount: number }
+    | { kind: "error"; message: string }
+    | null;
+  previewStatus: {
+    wouldAdd: number;
+    wouldUpdate: number;
+    wouldArchive: number;
+    feedStoneCount: number;
+    errors: string[];
+  } | null;
 }) {
+  const tokenValid =
+    conn.token_expires_at && new Date(conn.token_expires_at).getTime() > Date.now();
+  const incomplete = !conn.shop_name || !conn.shop_domain;
   return (
     <>
+      {incomplete && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+          <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+          <div>Connection details incomplete — try reconnecting.</div>
+        </div>
+      )}
       <div className="rounded-md border border-border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Connected store</div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-emerald-600">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Connected
+            </div>
             <div className="mt-1 font-serif text-xl">{conn.shop_name || conn.shop_domain}</div>
             <div className="text-xs text-muted-foreground">{conn.shop_domain}</div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={onTest} disabled={busy}>
+              <Plug className="mr-1 h-3 w-3" /> Test connection
+            </Button>
+            <Button size="sm" variant="outline" onClick={onPreview} disabled={busy}>
+              <Eye className="mr-1 h-3 w-3" /> Preview sync
+            </Button>
             <Button
               size="sm"
               onClick={onSync}
@@ -262,17 +382,23 @@ function ConnectedView({
             </Button>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3 text-sm">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+          <Stat label="Store" value={conn.shop_domain ?? "—"} />
+          <Stat label="Shop name" value={conn.shop_name ?? "—"} />
+          <Stat label="Connected" value={conn.created_at ? new Date(conn.created_at).toLocaleDateString() : "—"} />
           <Stat label="Last sync" value={conn.last_sync_at ? new Date(conn.last_sync_at).toLocaleString() : "Never"} />
-          <Stat label="Status" value={conn.last_sync_status ?? "—"} />
           <Stat label="Products synced" value={String(conn.products_synced ?? 0)} />
+          <Stat
+            label="Token"
+            value={
+              conn.token_expires_at
+                ? tokenValid
+                  ? `Valid until ${new Date(conn.token_expires_at).toLocaleTimeString()}`
+                  : "Expired (click Sync to refresh)"
+                : "—"
+            }
+          />
         </div>
-        {conn.token_expires_at && (
-          <div className="mt-3 text-xs text-muted-foreground">
-            Token valid until {new Date(conn.token_expires_at).toLocaleString()}
-            {conn.last_sync_at ? ` · Last refreshed ${timeAgo(conn.last_sync_at)}` : ""}
-          </div>
-        )}
         <div className="mt-4 flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
           <div>
             <div className="text-sm font-medium">Auto-sync</div>
@@ -281,6 +407,39 @@ function ConnectedView({
           <Switch checked={!!conn.auto_sync} onCheckedChange={onAutoSync} />
         </div>
       </div>
+
+      {testStatus?.kind === "success" && (
+        <div className="flex items-start gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+          <div>
+            Connection verified — connected to <strong>{testStatus.shopName}</strong>,{" "}
+            {testStatus.productCount} existing product
+            {testStatus.productCount === 1 ? "" : "s"} in store.
+          </div>
+        </div>
+      )}
+      {testStatus?.kind === "error" && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm">
+          <XCircle className="mt-0.5 h-4 w-4 text-destructive" />
+          <div>Test failed: {testStatus.message}</div>
+        </div>
+      )}
+
+      {previewStatus && (
+        <div className="rounded-md border border-border bg-card p-5 text-sm">
+          <div className="font-medium">Sync preview</div>
+          <ul className="mt-2 space-y-1 text-muted-foreground">
+            <li>• {previewStatus.feedStoneCount} stones currently in your feed</li>
+            <li>• {previewStatus.wouldAdd} would be created as new Shopify products</li>
+            <li>• {previewStatus.wouldUpdate} would be updated</li>
+            <li>• {previewStatus.wouldArchive} would be archived (no longer in feed)</li>
+            <li>• {previewStatus.errors.length} errors detected</li>
+          </ul>
+          {previewStatus.errors.length > 0 && (
+            <div className="mt-2 text-destructive">{previewStatus.errors.join(" · ")}</div>
+          )}
+        </div>
+      )}
 
       <div>
         <h2 className="font-serif text-xl">Recent syncs</h2>
