@@ -4,12 +4,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useServerFn } from "@tanstack/react-start";
+import { roleList, isDealer, isJeweller, isDualRole } from "@/lib/auth.utils";
+import { setImpersonation } from "@/lib/impersonation";
+import { EditRolesDialog } from "@/components/admin/EditRolesDialog";
+import { SendEmailDialog } from "@/components/admin/SendEmailDialog";
+import { StatsPanel } from "@/components/admin/StatsPanel";
+import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
 
 type ProfileRow = {
   id: string;
   email: string | null;
   full_name: string | null;
   account_type: "dealer" | "jeweller" | "admin";
+  account_types: string[] | null;
   company_name: string | null;
   country: string | null;
   is_approved: boolean;
@@ -24,12 +34,21 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"pending" | "all" | "reports" | "fees" | "referrals">("pending");
+  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals">("stats");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [testCount, setTestCount] = useState<number | null>(null);
   const [seeding, setSeeding] = useState(false);
+  // All Accounts toolbar state
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "dealers" | "jewellers" | "dual" | "suspended" | "pending">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "company">("newest");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editRolesFor, setEditRolesFor] = useState<ProfileRow | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const bulkFn = useServerFn(adminBulkUpdateAccounts);
+  const quickApproveFn = useServerFn(adminGenerateQuickApproveLink);
 
   useEffect(() => {
     if (loading) return;
@@ -38,16 +57,17 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals") return;
+    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats") return;
     setError(null);
     let query = supabase
       .from("profiles")
-      .select("id, email, full_name, account_type, company_name, country, is_approved, is_verified, created_at")
+      .select("id, email, full_name, account_type, account_types, company_name, country, is_approved, is_verified, created_at")
       .order("created_at", { ascending: false });
     if (tab === "pending") query = query.eq("is_approved", false);
     const { data, error } = await query;
     if (error) { setError(error.message); return; }
     setRows((data as ProfileRow[]) ?? []);
+    setSelected(new Set());
   }, [isAdmin, tab]);
 
   useEffect(() => { load(); }, [load]);
@@ -137,6 +157,65 @@ function AdminPage() {
   if (!isAdmin) return null;
 
   const pendingCount = tab === "pending" ? rows.length : null;
+
+  // Apply client-side filter/search/sort over the loaded rows for the All tab.
+  const visibleRows = (() => {
+    if (tab !== "all") return rows;
+    const q = search.trim().toLowerCase();
+    let out = rows;
+    if (q) {
+      out = out.filter((r) =>
+        [r.full_name, r.company_name, r.email].some((v) => v?.toLowerCase().includes(q)),
+      );
+    }
+    if (roleFilter === "dealers") out = out.filter((r) => isDealer(r));
+    else if (roleFilter === "jewellers") out = out.filter((r) => isJeweller(r));
+    else if (roleFilter === "dual") out = out.filter((r) => isDualRole(r));
+    else if (roleFilter === "suspended") out = out.filter((r) => !r.is_approved);
+    else if (roleFilter === "pending") out = out.filter((r) => !r.is_approved);
+    if (sortBy === "oldest") out = [...out].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    else if (sortBy === "company") out = [...out].sort((a, b) => (a.company_name || "").localeCompare(b.company_name || ""));
+    return out;
+  })();
+
+  function toggleSel(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleAllSel() {
+    if (selected.size === visibleRows.length) setSelected(new Set());
+    else setSelected(new Set(visibleRows.map((r) => r.id)));
+  }
+
+  async function bulkAction(action: "approve" | "suspend" | "toggle_verified") {
+    if (selected.size === 0) return;
+    try {
+      await bulkFn({ data: { ids: Array.from(selected), action } });
+      toast.success(`${action.replace("_", " ")} applied to ${selected.size} account(s).`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Bulk action failed.");
+    }
+  }
+
+  async function copyQuickApproveLink(id: string) {
+    try {
+      const { url } = await quickApproveFn({ data: { userId: id } });
+      await navigator.clipboard.writeText(url);
+      toast.success("Quick-approve link copied.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate link.");
+    }
+  }
+
+  function viewAs(r: ProfileRow) {
+    setImpersonation({ userId: r.id, userName: r.full_name || r.company_name || r.email || r.id.slice(0, 8) });
+    navigate({ to: "/dashboard" });
+  }
 
   return (
     <div className="min-h-screen bg-background">
