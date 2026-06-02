@@ -1,26 +1,67 @@
-# Chaos
+# Chaos Gemstones
 
-> The global B2B marketplace connecting independent gemstone and diamond dealers with jewellers worldwide via live inventory feeds.
+> Chaos Gemstones (chaosgemstones.com) is a B2B marketplace and API platform connecting independent gemstone and diamond dealers — primarily in Jaipur and Surat, India; Colombo, Sri Lanka; Bangkok, Thailand; and Yangon, Myanmar — with jewellers and jewellery businesses in the UK, US, Canada, Australia, and Europe.
 
-Chaos lets verified dealers in Jaipur, Surat, Bangkok and Colombo upload certified stone inventory once, and lets jewellers pipe that inventory directly into their own websites (Shopify, Wix, Squarespace, Webflow, WordPress, custom) via a single API key.
+## What Chaos Does
 
-## Pages
+Dealers upload certified loose stone inventory (natural and lab-grown diamonds, sapphires, rubies, emeralds, alexandrite, spinel, tourmaline, tanzanite, paraiba, and all coloured gemstones). Jewellers browse the marketplace, follow dealers they trust, and embed a live API feed of those stones directly into their own websites — Shopify, Wix, Squarespace, Webflow, WordPress, or any custom site. The feed applies the jeweller's retail markup automatically before stones are displayed. When a stone sells, the dealer fulfils and ships directly to the end customer. Chaos is free to use during the launch period.
 
-- [Home](/): Overview of the marketplace, featured stones and vendors.
-- [Marketplace](/marketplace): Search and filter the full catalogue of certified available stones.
-- [Vendors](/vendors): Directory of approved independent gemstone and diamond dealers.
-- [About](/about): How the platform works for dealers and jewellers.
-- [API & Embeds](/docs/api): Drop-in widget, iframe, and JSON feed integration guides.
-- [Shipping](/how-it-works/shipping): How dealer-to-jeweller shipping is handled.
-- [Payments](/how-it-works/payments): How payments work between jewellers and dealers.
+## Platform Features
 
-## Sign up
+- Full gemological data: carat, shape, colour, clarity, cut, polish, symmetry, fluorescence, treatment, country of origin, certification
+- Supports all major certification labs: GIA, IGI, HRD, GRS, AGL, Gübelin, SSEF, GCAL, Lotus, GIT
+- Three dealer upload methods: manual form, CSV bulk upload, external API/feed sync
+- Three jeweller integration methods: JS widget embed, iframe embed, raw JSON API feed
+- Currency conversion: USD, GBP, EUR, AUD, CAD, INR, THB, LKR, HKD, SGD, JPY, AED, CHF, ZAR
+- Stone comparison tool (up to 3 stones side by side)
+- Wishlist, saved searches, and price alerts
+- Enquiry and messaging system between jewellers and dealers
+- Order tracking and fulfilment confirmation
+- Dealer analytics (views, enquiries, shares per stone)
+- Stone request board (jewellers post sourcing requirements)
+- Client share pages (white-label stone pages for jewellers to share with end customers)
+- Referral programme
+- Shopify product sync (stones become real Shopify products with checkout)
 
-- [Apply as a dealer](/sign-up/dealer): For independent gemstone and diamond dealers.
-- [Open a jeweller account](/sign-up/jeweller): For jewellers and jewellery businesses.
+## Public Pages
+
+- [Home](https://chaosgemstones.com/): Platform overview, featured stones and dealers, how it works
+- [Marketplace](https://chaosgemstones.com/marketplace): Full searchable, filterable catalogue of available certified stones
+- [Vendors](https://chaosgemstones.com/vendors): Directory of approved independent dealers with profiles and catalogues
+- [Stone Requests](https://chaosgemstones.com/requests): Board where jewellers post specific sourcing requirements
+- [API Documentation](https://chaosgemstones.com/docs/api): Integration guides for Shopify, Wix, Squarespace, Webflow, WordPress, custom sites
+- [Dealer API Documentation](https://chaosgemstones.com/docs/dealer-api): Write API for dealers to sync inventory programmatically
+- [How Payments Work](https://chaosgemstones.com/how-it-works/payments): Payment model explanation
+- [Shipping Guide](https://chaosgemstones.com/how-it-works/shipping): International gemstone shipping, customs, insurance
+- [About](https://chaosgemstones.com/about): About the platform and the founder
+
+## Sign Up
+
+- [Dealer sign up](https://chaosgemstones.com/sign-up/dealer): For gemstone and diamond dealers wanting to reach international buyers
+- [Jeweller sign up](https://chaosgemstones.com/sign-up/jeweller): For jewellers and jewellery businesses wanting live stone inventory feeds
+
+## Educational Content
+
+- [Learn](https://chaosgemstones.com/learn): Gemstone sourcing guides and educational resources
+- [How to Source Sapphires Wholesale](https://chaosgemstones.com/learn/how-to-source-sapphires-wholesale)
+- [Diamond Grading Explained](https://chaosgemstones.com/learn/diamond-grading-explained)
+- [Buying Unheated Rubies](https://chaosgemstones.com/learn/buying-unheated-rubies)
+- [Gemstone API for Jewellers](https://chaosgemstones.com/learn/gemstone-api-for-jewellers)
+- [Understanding Gemstone Treatments](https://chaosgemstones.com/learn/understand-gemstone-treatments)
+- [Jaipur Gemstone Market Guide](https://chaosgemstones.com/learn/jaipur-gemstone-market-guide)
 
 ## Legal
 
-- [Privacy Policy](/legal/privacy): How Chaos handles personal data under UK GDPR.
-- [Dealer Terms](/legal/terms-dealers): Terms of service for dealers.
-- [Jeweller Terms](/legal/terms-jewellers): Terms of service for jewellers.
+- [Privacy Policy](https://chaosgemstones.com/legal/privacy): UK GDPR compliant data handling
+- [Dealer Terms of Service](https://chaosgemstones.com/legal/terms-dealers)
+- [Jeweller Terms of Service](https://chaosgemstones.com/legal/terms-jewellers)
+
+## Target Audience
+
+Dealers: Independent gemstone and diamond suppliers in India, Sri Lanka, Thailand, Myanmar, Colombia, and other major sourcing hubs who want to reach international buyers without expensive platform fees.
+
+Jewellers: Jewellery designers, retailers, and bespoke makers in the UK, US, Canada, Australia, and Europe who want to source certified stones and display live inventory on their own websites.
+
+## Contact
+
+enquiries@chaosgemstones.com
