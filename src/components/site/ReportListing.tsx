@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Flag } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller } from "@/lib/auth.utils";
 import { supabase } from "@/integrations/supabase/client";
 
 const REPORT_REASONS = [
@@ -30,7 +31,7 @@ export function ReportListing({ stoneId }: { stoneId: string }) {
   const [busy, setBusy] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJ = isJeweller(profile);
 
   useEffect(() => {
     if (!open || !user || !isJeweller) return;
