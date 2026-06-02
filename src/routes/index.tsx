@@ -222,7 +222,6 @@ function Home() {
               </p>
               <Link
                 to="/marketplace"
-                search={{ pairs: 1 } as any}
                 className="mt-5 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90"
               >
                 Browse matched pairs <ArrowRight className="ml-1 h-4 w-4" />
