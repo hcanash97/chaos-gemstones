@@ -34,7 +34,7 @@ export function ReportListing({ stoneId }: { stoneId: string }) {
   const isJ = isJeweller(profile);
 
   useEffect(() => {
-    if (!open || !user || !isJeweller) return;
+    if (!open || !user || !isJ) return;
     (async () => {
       const { data } = await (supabase as any)
         .from("reports")
@@ -44,9 +44,9 @@ export function ReportListing({ stoneId }: { stoneId: string }) {
         .maybeSingle();
       setAlreadyReported(!!data);
     })();
-  }, [open, user, isJeweller, stoneId]);
+  }, [open, user, isJ, stoneId]);
 
-  if (!user || !isJeweller) return null;
+  if (!user || !isJ) return null;
 
   async function submit() {
     setBusy(true);
