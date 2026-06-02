@@ -73,7 +73,7 @@ function VendorProfile() {
     queryFn: async () => {
       const { data: vendor } = await supabase
         .from("dealer_profiles")
-        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
+        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, profiles!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
       if (!vendor) return { vendor: null, stones: [] };
@@ -82,6 +82,10 @@ function VendorProfile() {
         .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, stone_images(storage_url, is_primary)")
         .eq("dealer_id", vendor.id)
         .eq("status", "available");
+      const { count: soldCount } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("dealer_id", vendor.id);
       // Response rate: % of enquiries with at least one dealer reply within 48h.
       const { data: enquiries } = await supabase
         .from("enquiries")
@@ -121,6 +125,7 @@ function VendorProfile() {
         })),
         responseRate,
         enquiryCount: total,
+        soldCount: soldCount ?? 0,
         reviews,
         reviewCount,
         avgRating,
@@ -216,6 +221,9 @@ function VendorProfile() {
             ))}
             {v.gia_member && <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">GIA Member</Badge>}
             {v.igi_member && <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">IGI Member</Badge>}
+            {(v.trade_memberships ?? []).map((m: string) => (
+              <Badge key={m} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">{m}</Badge>
+            ))}
           </div>
           <div className="mt-6 max-w-xs">
             <EnquireDialog
@@ -244,12 +252,29 @@ function VendorProfile() {
                 tooltip="This dealer has been reviewed and approved by the Chaos team"
               />
             )}
-            {memberSince && <VerifyItem label="Member since" value={memberSince} />}
+            {memberSince && <VerifyItem label="Trading on Chaos since" value={memberSince} />}
+            {v.years_trading ? (
+              <VerifyItem
+                label="Industry experience"
+                value={`${v.years_trading} years in the gemstone trade`}
+              />
+            ) : null}
             {data.responseRate !== null && data.responseRate !== undefined && (
               <VerifyItem
                 label="Response rate (48h)"
                 value={`${data.responseRate}% of ${data.enquiryCount} enquiries`}
+                tone={
+                  (v.response_time_hours ?? 99) <= 24
+                    ? "green"
+                    : (v.response_time_hours ?? 99) <= 48
+                      ? "amber"
+                      : "muted"
+                }
               />
+            )}
+            <VerifyItem label="Stones listed" value={`${data.stones.length}`} />
+            {(data.soldCount ?? 0) > 0 && (
+              <VerifyItem label="Stones sold" value={`${data.soldCount}`} />
             )}
             {v.profiles?.website && (
               <VerifyLink label="Website" href={v.profiles.website} text={prettyUrl(v.profiles.website)} />
@@ -430,10 +455,26 @@ function StarRating({ value, small = false }: { value: number; small?: boolean }
   );
 }
 
-function VerifyItem({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
+function VerifyItem({
+  label,
+  value,
+  tooltip,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tooltip?: string;
+  tone?: "green" | "amber" | "muted";
+}) {
+  const toneClass =
+    tone === "green"
+      ? "border-emerald-400/50 bg-emerald-500/10"
+      : tone === "amber"
+        ? "border-amber-400/50 bg-amber-500/10"
+        : "border-border bg-card";
   return (
     <div
-      className="rounded-md border border-border bg-card p-4"
+      className={`rounded-md border p-4 ${toneClass}`}
       title={tooltip}
     >
       <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
