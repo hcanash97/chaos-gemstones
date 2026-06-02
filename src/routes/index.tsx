@@ -280,7 +280,7 @@ function Home() {
           </FadeUp>
           <StaggerGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" delay={0.08}>
             {(featuredStones ?? []).map((s) => (
-              <StoneCard key={s.id} stone={s} />
+              <StoneCard key={s.id} stone={{ ...s, isWishlisted: wishlistIds?.has(s.id) ?? false }} />
             ))}
           </StaggerGroup>
         </div>
