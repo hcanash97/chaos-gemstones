@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SlidersHorizontal, X, ChevronDown, ChevronUp, Save, LayoutGrid, List } from "lucide-react";
 import { StaggerGroup } from "@/components/anim/Motion";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import {
   defaultFilters,
   activeFilterCount,

@@ -7,6 +7,7 @@ import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { useCompare } from "@/contexts/CompareContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ, isDealer as checkD, isAdmin as checkA } from "@/lib/auth.utils";
 
 export const Route = createFileRoute("/compare")({
   component: ComparePage,

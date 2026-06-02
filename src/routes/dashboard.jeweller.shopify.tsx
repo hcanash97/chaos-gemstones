@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { RefreshCw, Unlink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

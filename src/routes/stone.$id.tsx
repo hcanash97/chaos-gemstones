@@ -13,6 +13,7 @@ import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { certLink, countryFlag } from "@/lib/countries";
 import { getCertSignedUrl, getCertLabel } from "@/lib/cert.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ, isDealer as checkD, isAdmin as checkA } from "@/lib/auth.utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";

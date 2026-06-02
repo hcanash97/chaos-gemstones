@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Copy, MessageCircle, Share2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer as checkD } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
