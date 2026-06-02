@@ -9,6 +9,8 @@ import {
   normaliseShopDomain,
   runShopifySync,
   testShopifyConnection,
+  testConnectionForJeweller,
+  dryRunShopifySync,
 } from "./shopify.server";
 import { isJeweller } from "@/lib/auth.utils";
 
@@ -126,6 +128,22 @@ export const syncShopifyNow = createServerFn({ method: "POST" })
     const { userId, supabase } = context;
     await assertJeweller(supabase, userId);
     return runShopifySync(userId);
+  });
+
+export const testShopifyConnectionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, supabase } = context;
+    await assertJeweller(supabase, userId);
+    return testConnectionForJeweller(userId);
+  });
+
+export const dryRunShopifySyncFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, supabase } = context;
+    await assertJeweller(supabase, userId);
+    return dryRunShopifySync(userId);
   });
 
 // Silence unused-import warnings for re-exports kept for callers/tests.

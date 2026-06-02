@@ -114,22 +114,63 @@ async function exchangeClientCredentials(
   clientId: string,
   clientSecret: string,
 ): Promise<{ token: string; expiresIn: number }> {
-  const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "client_credentials",
-    }),
+  console.log(`[shopify] Attempting token exchange for shop: ${shop}`);
+  const url = `https://${shop}/admin/oauth/access_token`;
+  const attempt = async (body: Record<string, string>) => {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    });
+    const text = await r.text().catch(() => "");
+    console.log(`[shopify] Token exchange response status: ${r.status}`);
+    console.log(`[shopify] Token exchange response body: ${text.slice(0, 300)}`);
+    return { status: r.status, ok: r.ok, text };
+  };
+  // Primary attempt: with grant_type
+  let res = await attempt({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: "client_credentials",
   });
+  // Fallback: without grant_type (some Dev Dashboard apps reject the field)
   if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    throw new Error(`Shopify token exchange failed: ${res.status} ${err.slice(0, 200)}`);
+    console.log(`[shopify] Primary token exchange failed (${res.status}); trying fallback without grant_type`);
+    res = await attempt({ client_id: clientId, client_secret: clientSecret });
   }
-  const json = (await res.json()) as { access_token?: string; expires_in?: number };
-  if (!json.access_token) throw new Error("Shopify token exchange returned no access_token");
-  return { token: json.access_token, expiresIn: json.expires_in ?? 86399 };
+  if (!res.ok) {
+    const reason = mapTokenError(res.status, res.text);
+    throw new Error(reason);
+  }
+  let json: { access_token?: string; expires_in?: number };
+  try {
+    json = JSON.parse(res.text);
+  } catch {
+    throw new Error(`Shopify returned non-JSON response: ${res.text.slice(0, 200)}`);
+  }
+  if (!json.access_token) {
+    throw new Error("Shopify token exchange returned no access_token");
+  }
+  const expiresIn = json.expires_in ?? 86399;
+  console.log(`[shopify] Token exchange success — expires in ${expiresIn}s`);
+  return { token: json.access_token, expiresIn };
+}
+
+function mapTokenError(status: number, body: string): string {
+  const lower = body.toLowerCase();
+  if (status === 401 || lower.includes("invalid_client") || lower.includes("invalid client")) {
+    return "Invalid credentials — your Client ID or Secret is wrong.";
+  }
+  if (status === 404 || lower.includes("not found")) {
+    return "Shop not found — check your store domain (should be your-store.myshopify.com).";
+  }
+  if (lower.includes("scope")) {
+    return "Scopes missing — enable write_products on your Shopify app.";
+  }
+  if (lower.includes("not installed") || lower.includes("uninstalled")) {
+    return "App not installed — install your Shopify app on this store first.";
+  }
+  return `Shopify token exchange failed: ${status} ${body.slice(0, 200)}`;
 }
 
 export async function mintAccessToken(
@@ -366,6 +407,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
     }
 
     const stones = Array.from(stoneMap.values());
+    console.log(`[shopify] Sync starting for shop: ${shop}, feed stones: ${stones.length}`);
 
     // Images
     const imagesByStone = new Map<string, StoneImageRow[]>();
@@ -495,6 +537,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .eq("id", logId);
     }
 
+    console.log(`[shopify] Sync complete: ${result.added} added, ${result.updated} updated, ${result.archived} archived, ${result.errors.length} errors`);
     return result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -526,4 +569,116 @@ async function activeApiKeyIdFor(jewellerId: string): Promise<string> {
     .limit(1)
     .maybeSingle();
   return data?.id ?? "00000000-0000-0000-0000-000000000000";
+}
+
+// --- Test connection (used by dashboard "Test connection" button) -------
+
+export async function testConnectionForJeweller(
+  jewellerId: string,
+): Promise<
+  | { ok: true; shopName: string; productCount: number }
+  | { ok: false; error: string }
+> {
+  const { data: conn } = await supabaseAdmin
+    .from("shopify_connections")
+    .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
+    .eq("jeweller_id", jewellerId)
+    .maybeSingle();
+  if (!conn) return { ok: false, error: "No Shopify connection saved." };
+  try {
+    const token = await getValidAccessToken(conn as ShopifyConnectionRow);
+    const shopRes = await shopifyFetch(conn.shop_domain, token, "/shop.json");
+    if (!shopRes.ok) {
+      const t = await shopRes.text();
+      return { ok: false, error: `Shopify ${shopRes.status}: ${t.slice(0, 200)}` };
+    }
+    const shopJson = (await shopRes.json()) as { shop?: { name?: string } };
+    const countRes = await shopifyFetch(conn.shop_domain, token, "/products/count.json");
+    let productCount = 0;
+    if (countRes.ok) {
+      const j = (await countRes.json()) as { count?: number };
+      productCount = j.count ?? 0;
+    }
+    return { ok: true, shopName: shopJson.shop?.name ?? conn.shop_domain, productCount };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// --- Dry-run sync preview ----------------------------------------------
+
+export type DryRunResult = {
+  wouldAdd: number;
+  wouldUpdate: number;
+  wouldArchive: number;
+  feedStoneCount: number;
+  errors: string[];
+};
+
+export async function dryRunShopifySync(jewellerId: string): Promise<DryRunResult> {
+  const result: DryRunResult = {
+    wouldAdd: 0,
+    wouldUpdate: 0,
+    wouldArchive: 0,
+    feedStoneCount: 0,
+    errors: [],
+  };
+  const { data: conn } = await supabaseAdmin
+    .from("shopify_connections")
+    .select("id, shop_domain, is_active")
+    .eq("jeweller_id", jewellerId)
+    .maybeSingle();
+  if (!conn || !conn.is_active) {
+    result.errors.push("Shopify is not connected.");
+    return result;
+  }
+
+  const { data: sels } = await supabaseAdmin
+    .from("feed_selections")
+    .select("selection_type, dealer_id, stone_id")
+    .eq("api_key_id", await activeApiKeyIdFor(jewellerId));
+
+  const follows = (sels ?? []).filter((s: any) => s.selection_type === "dealer_follow");
+  const pins = (sels ?? []).filter((s: any) => s.selection_type === "stone_pin");
+
+  const stoneIds = new Set<string>();
+  if (follows.length) {
+    const { data } = await supabaseAdmin
+      .from("stones")
+      .select("id")
+      .in("dealer_id", follows.map((f: any) => f.dealer_id as string))
+      .eq("status", "available");
+    (data ?? []).forEach((s: any) => stoneIds.add(s.id));
+  }
+  if (pins.length) {
+    const { data } = await supabaseAdmin
+      .from("stones")
+      .select("id")
+      .in("id", pins.map((p: any) => p.stone_id as string))
+      .eq("status", "available");
+    (data ?? []).forEach((s: any) => stoneIds.add(s.id));
+  }
+
+  result.feedStoneCount = stoneIds.size;
+
+  const { data: existing } = await supabaseAdmin
+    .from("shopify_product_map")
+    .select("stone_id, shopify_product_status")
+    .eq("jeweller_id", jewellerId);
+
+  const existingActive = new Set(
+    (existing ?? [])
+      .filter((e: any) => e.shopify_product_status !== "draft")
+      .map((e: any) => e.stone_id as string),
+  );
+  const existingAll = new Set((existing ?? []).map((e: any) => e.stone_id as string));
+
+  for (const id of stoneIds) {
+    if (existingAll.has(id)) result.wouldUpdate++;
+    else result.wouldAdd++;
+  }
+  for (const id of existingActive) {
+    if (!stoneIds.has(id)) result.wouldArchive++;
+  }
+  return result;
 }
