@@ -77,9 +77,9 @@ function StoneDetail() {
   const { id } = Route.useParams();
   const { user, profile } = useAuth();
   const { format } = useCurrency();
-  const isJeweller = profile?.account_type === "jeweller" && profile?.is_approved;
+  const isJeweller = checkJ(profile) && profile?.is_approved;
   const showWholesale =
-    profile?.account_type === "dealer" || profile?.account_type === "admin" || isJeweller;
+    checkD(profile) || checkA(profile) || isJeweller;
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;

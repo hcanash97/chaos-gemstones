@@ -25,7 +25,7 @@ function FeedsPage() {
   const [search, setSearch] = useState("");
   const [inlineError, setInlineError] = useState<string | null>(null);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data: dealers, isLoading: dealersLoading } = useQuery({
     queryKey: ["approved-dealers", user?.id],

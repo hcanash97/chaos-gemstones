@@ -36,7 +36,7 @@ function MarkupPage() {
   const [feedCurrency, setFeedCcy] = useState<string>("USD");
   const { setDisplayCurrency: ctxSetDisplay, rates } = useCurrency();
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data, refetch } = useQuery({
     queryKey: ["markup-data", user?.id],

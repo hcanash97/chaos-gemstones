@@ -87,7 +87,7 @@ function ReferralsPage() {
     setTimeout(() => setCopied(null), 1500);
   };
 
-  const isDealer = profile.account_type === "dealer";
+  const isDealer = checkD(profile);
   const waMessage = isDealer
     ? `I've been using Chaos Gemstones to list my stones with jewellers worldwide. Sign up here: ${shortLink}`
     : `I've been using Chaos Gemstones to source certified gemstones directly from dealers in India and Sri Lanka. Sign up here: ${shortLink}`;

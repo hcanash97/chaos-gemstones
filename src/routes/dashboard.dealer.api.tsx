@@ -36,7 +36,7 @@ function DealerApiPage() {
   const [body, setBody] = useState("");
   const [lastPreset, setLastPreset] = useState<string | null>(null);
 
-  const isDealer = profile?.account_type === "dealer";
+  const isDealer = checkD(profile);
 
   const { data: status, refetch } = useQuery({
     queryKey: ["dealer-api-status", user?.id],

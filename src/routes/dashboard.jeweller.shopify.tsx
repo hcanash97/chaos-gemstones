@@ -34,7 +34,7 @@ function ShopifyPage() {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["shopify-status", user?.id],

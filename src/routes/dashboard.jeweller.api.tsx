@@ -54,7 +54,7 @@ function ApiPage() {
   const [generating, setGenerating] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data: status, refetch } = useQuery({
     queryKey: ["jeweller-api-status", user?.id],
