@@ -4,6 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   encryptToken,
+  getValidAccessToken,
+  mintAccessToken,
   normaliseShopDomain,
   runShopifySync,
   testShopifyConnection,
@@ -32,7 +34,7 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
       .select(
-        "shop_domain, shop_name, is_active, auto_sync, last_sync_at, last_sync_status, products_synced, created_at",
+        "shop_domain, shop_name, is_active, auto_sync, last_sync_at, last_sync_status, products_synced, created_at, token_expires_at",
       )
       .eq("jeweller_id", userId)
       .maybeSingle();
@@ -49,7 +51,8 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
 
 const connectSchema = z.object({
   shopDomain: z.string().min(3).max(255),
-  accessToken: z.string().min(20).max(512),
+  clientId: z.string().min(10).max(255),
+  clientSecret: z.string().min(10).max(512),
 });
 
 export const connectShopify = createServerFn({ method: "POST" })
@@ -60,10 +63,16 @@ export const connectShopify = createServerFn({ method: "POST" })
     await assertJeweller(supabase, userId);
 
     const shop = normaliseShopDomain(data.shopDomain);
-    const test = await testShopifyConnection(shop, data.accessToken);
+    // Exchange client credentials for the first short-lived access token.
+    const { token, expiresAt } = await mintAccessToken(shop, data.clientId, data.clientSecret);
+    const test = await testShopifyConnection(shop, token);
     if (!test.ok) throw new Error(test.error);
 
-    const encrypted = await encryptToken(data.accessToken);
+    const [encClientId, encClientSecret, encAccessToken] = await Promise.all([
+      encryptToken(data.clientId),
+      encryptToken(data.clientSecret),
+      encryptToken(token),
+    ]);
     const { error } = await supabaseAdmin
       .from("shopify_connections")
       .upsert(
@@ -71,7 +80,10 @@ export const connectShopify = createServerFn({ method: "POST" })
           jeweller_id: userId,
           shop_domain: shop,
           shop_name: test.name,
-          access_token: encrypted,
+          client_id: encClientId,
+          client_secret: encClientSecret,
+          access_token: encAccessToken,
+          token_expires_at: expiresAt,
           is_active: true,
         },
         { onConflict: "jeweller_id" },
@@ -115,3 +127,6 @@ export const syncShopifyNow = createServerFn({ method: "POST" })
     await assertJeweller(supabase, userId);
     return runShopifySync(userId);
   });
+
+// Silence unused-import warnings for re-exports kept for callers/tests.
+void getValidAccessToken;
