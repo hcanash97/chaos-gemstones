@@ -7,6 +7,7 @@ import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { useCompare } from "@/contexts/CompareContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ, isDealer as checkD, isAdmin as checkA } from "@/lib/auth.utils";
 
 export const Route = createFileRoute("/compare")({
   component: ComparePage,
@@ -67,9 +68,9 @@ function ComparePage() {
     enabled: ids.length > 0,
   });
 
-  const isJeweller = profile?.account_type === "jeweller" && profile?.is_approved;
+  const isJeweller = checkJ(profile) && profile?.is_approved;
   const showWholesale =
-    profile?.account_type === "dealer" || profile?.account_type === "admin" || isJeweller;
+    checkD(profile) || checkA(profile) || isJeweller;
 
   return (
     <div className="min-h-screen bg-background">

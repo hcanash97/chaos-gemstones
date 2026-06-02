@@ -6,6 +6,7 @@ import { countryFlag } from "@/lib/countries";
 import { fadeUp } from "@/components/anim/Motion";
 import { ShieldCheck, Heart, Scale } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJeweller, isDealer as checkDealer, isAdmin as checkAdmin } from "@/lib/auth.utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompare } from "@/contexts/CompareContext";
@@ -40,10 +41,10 @@ function StoneCardImpl({
   followedDealerIds?: Set<string>;
 }) {
   const { user, profile } = useAuth();
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJeweller(profile);
   const isApprovedJeweller = isJeweller && profile?.is_approved;
-  const isDealer = profile?.account_type === "dealer";
-  const isAdmin = profile?.account_type === "admin";
+  const isDealer = checkDealer(profile);
+  const isAdmin = checkAdmin(profile);
   const showWholesale = isDealer || isAdmin || isApprovedJeweller;
   const compare = useCompare();
   const inCompare = compare.has(stone.id);

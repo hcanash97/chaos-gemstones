@@ -61,9 +61,17 @@ function Home() {
     queryKey: ["home-stats"],
     queryFn: async () => {
       const [dealers, stones, countries] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("account_type", "dealer").eq("is_approved", true),
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .or("account_type.eq.dealer,account_types.cs.{dealer}")
+          .eq("is_approved", true),
         supabase.from("stones").select("id", { count: "exact", head: true }).eq("status", "available"),
-        supabase.from("profiles").select("country").eq("account_type", "dealer").eq("is_approved", true),
+        supabase
+          .from("profiles")
+          .select("country")
+          .or("account_type.eq.dealer,account_types.cs.{dealer}")
+          .eq("is_approved", true),
       ]);
       const distinctCountries = new Set((countries.data ?? []).map((r: any) => r.country).filter(Boolean));
       return {

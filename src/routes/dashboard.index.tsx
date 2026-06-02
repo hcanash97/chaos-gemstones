@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ReferralNudge } from "@/components/dashboard/ReferralNudge";
+import { RoleSwitcher } from "@/components/dashboard/RoleSwitcher";
 
 export const Route = createFileRoute("/dashboard/")({
   component: DashboardOverview,
@@ -32,6 +33,7 @@ function DashboardOverview() {
 
   return (
     <div>
+      <RoleSwitcher current="dealer" />
       <ReferralNudge />
       <div className="flex items-center justify-between">
         <div>

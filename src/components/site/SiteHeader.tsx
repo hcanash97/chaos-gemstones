@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Logo, GemMark } from "@/components/site/Logo";
 import { CurrencySelector } from "@/components/site/CurrencySelector";
 import { Menu, X } from "lucide-react";
+import { defaultDashboardPath, isDealer, isJeweller } from "@/lib/auth.utils";
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
@@ -40,8 +41,8 @@ export function SiteHeader() {
               <span className="hidden text-xs text-muted-foreground sm:inline">
                 {profile?.company_name || profile?.full_name || user.email}
               </span>
-              {profile?.account_type && (
-                <Link to="/dashboard">
+              {(isDealer(profile) || isJeweller(profile)) && (
+                <Link to={defaultDashboardPath(profile)}>
                   <Button variant="outline" size="sm">Dashboard</Button>
                 </Link>
               )}
@@ -106,8 +107,8 @@ export function SiteHeader() {
             <div className="my-3 border-t border-border" />
             {user ? (
               <>
-                {profile?.account_type && (
-                  <Link to="/dashboard" onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 hover:bg-muted">Dashboard</Link>
+                {(isDealer(profile) || isJeweller(profile)) && (
+                  <Link to={defaultDashboardPath(profile)} onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 hover:bg-muted">Dashboard</Link>
                 )}
                 {isAdmin && (
                   <Link to="/admin" onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 text-[var(--color-gold)] hover:bg-muted">Admin</Link>

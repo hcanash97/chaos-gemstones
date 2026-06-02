@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,7 +89,7 @@ function DealerPricingPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (profile && profile.account_type !== "dealer") {
+  if (profile && !isDealer(profile)) {
     return <div>Dealers only.</div>;
   }
 

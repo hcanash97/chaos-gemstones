@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { RefreshCw, Unlink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,7 @@ function ShopifyPage() {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data, refetch, isLoading } = useQuery({
     queryKey: ["shopify-status", user?.id],

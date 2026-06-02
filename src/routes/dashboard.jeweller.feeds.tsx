@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Pin, PinOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ function FeedsPage() {
   const [search, setSearch] = useState("");
   const [inlineError, setInlineError] = useState<string | null>(null);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data: dealers, isLoading: dealersLoading } = useQuery({
     queryKey: ["approved-dealers", user?.id],

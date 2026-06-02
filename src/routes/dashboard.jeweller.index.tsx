@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ReferralNudge } from "@/components/dashboard/ReferralNudge";
+import { RoleSwitcher } from "@/components/dashboard/RoleSwitcher";
 import { Users, Gem, KeyRound, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -46,6 +47,7 @@ function JewellerOverview() {
 
   return (
     <div>
+      <RoleSwitcher current="jeweller" />
       <ReferralNudge />
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <h1 className="font-serif text-3xl">Welcome, {profile?.company_name || profile?.full_name}</h1>

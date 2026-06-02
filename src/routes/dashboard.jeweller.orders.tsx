@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller } from "@/lib/auth.utils";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +61,7 @@ function JewellerOrders() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (profile && profile.account_type !== "jeweller") return <div>Jewellers only.</div>;
+  if (profile && !isJeweller(profile)) return <div>Jewellers only.</div>;
 
   function statusFor(o: OrderRow): Tab {
     if (o.jeweller_confirmed_receipt) return "complete";

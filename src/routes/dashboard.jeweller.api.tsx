@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Copy, EyeOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -54,7 +55,7 @@ function ApiPage() {
   const [generating, setGenerating] = useState(false);
   const [referralOpen, setReferralOpen] = useState(false);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data: status, refetch } = useQuery({
     queryKey: ["jeweller-api-status", user?.id],

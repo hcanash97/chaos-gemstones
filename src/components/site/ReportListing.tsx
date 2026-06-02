@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Flag } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller } from "@/lib/auth.utils";
 import { supabase } from "@/integrations/supabase/client";
 
 const REPORT_REASONS = [
@@ -30,10 +31,10 @@ export function ReportListing({ stoneId }: { stoneId: string }) {
   const [busy, setBusy] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJ = isJeweller(profile);
 
   useEffect(() => {
-    if (!open || !user || !isJeweller) return;
+    if (!open || !user || !isJ) return;
     (async () => {
       const { data } = await (supabase as any)
         .from("reports")
@@ -43,9 +44,9 @@ export function ReportListing({ stoneId }: { stoneId: string }) {
         .maybeSingle();
       setAlreadyReported(!!data);
     })();
-  }, [open, user, isJeweller, stoneId]);
+  }, [open, user, isJ, stoneId]);
 
-  if (!user || !isJeweller) return null;
+  if (!user || !isJ) return null;
 
   async function submit() {
     setBusy(true);

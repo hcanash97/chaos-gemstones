@@ -13,6 +13,7 @@ import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { certLink, countryFlag } from "@/lib/countries";
 import { getCertSignedUrl, getCertLabel } from "@/lib/cert.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ, isDealer as checkD, isAdmin as checkA } from "@/lib/auth.utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -77,9 +78,9 @@ function StoneDetail() {
   const { id } = Route.useParams();
   const { user, profile } = useAuth();
   const { format } = useCurrency();
-  const isJeweller = profile?.account_type === "jeweller" && profile?.is_approved;
+  const isJeweller = checkJ(profile) && profile?.is_approved;
   const showWholesale =
-    profile?.account_type === "dealer" || profile?.account_type === "admin" || isJeweller;
+    checkD(profile) || checkA(profile) || isJeweller;
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -515,7 +516,7 @@ function ReportListing({ stoneId }: { stoneId: string }) {
   const [details, setDetails] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (!user || profile?.account_type !== "jeweller") return null;
+  if (!user || !checkJ(profile)) return null;
 
   async function submit() {
     setBusy(true);

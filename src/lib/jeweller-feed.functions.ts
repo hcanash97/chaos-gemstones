@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
+import { isJeweller } from "@/lib/auth.utils";
 
 const selectionSchema = z.object({
   dealerId: z.string().uuid().optional(),
@@ -19,7 +20,7 @@ export const getJewellerApiStatus = createServerFn({ method: "GET" })
     const [{ data: profile }, { data: key }, { data: selections }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, account_type, is_approved, company_name, full_name")
+        .select("id, account_type, account_types, is_approved, company_name, full_name")
         .eq("id", userId)
         .maybeSingle(),
       supabase
@@ -49,11 +50,11 @@ export const generateJewellerApiKey = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_type, is_approved")
+      .select("account_type, account_types, is_approved")
       .eq("id", userId)
       .single();
 
-    if (!profile || profile.account_type !== "jeweller") {
+    if (!profile || !isJeweller(profile as any)) {
       throw new Error("Only jeweller accounts can generate API keys.");
     }
 
@@ -103,11 +104,11 @@ export const getOrCreateActiveApiKeyId = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_type, is_approved")
+      .select("account_type, account_types, is_approved")
       .eq("id", userId)
       .single();
 
-    if (!profile || profile.account_type !== "jeweller") {
+    if (!profile || !isJeweller(profile as any)) {
       throw new Error("Only jeweller accounts can manage feed selections.");
     }
 
@@ -159,11 +160,11 @@ export const toggleFeedSelection = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_type, is_approved")
+      .select("account_type, account_types, is_approved")
       .eq("id", userId)
       .single();
 
-    if (!profile || profile.account_type !== "jeweller") {
+    if (!profile || !isJeweller(profile as any)) {
       throw new Error("Only jeweller accounts can manage feed selections.");
     }
 
@@ -247,11 +248,11 @@ export const getApprovedDealersWithStoneCounts = createServerFn({ method: "GET" 
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_type")
+      .select("account_type, account_types")
       .eq("id", userId)
       .single();
 
-    if (!profile || profile.account_type !== "jeweller") {
+    if (!profile || !isJeweller(profile as any)) {
       throw new Error("Only jeweller accounts can view approved dealers.");
     }
 

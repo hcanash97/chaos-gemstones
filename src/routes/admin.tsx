@@ -4,12 +4,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useServerFn } from "@tanstack/react-start";
+import { roleList, isDealer, isJeweller, isDualRole } from "@/lib/auth.utils";
+import { setImpersonation } from "@/lib/impersonation";
+import { EditRolesDialog } from "@/components/admin/EditRolesDialog";
+import { SendEmailDialog } from "@/components/admin/SendEmailDialog";
+import { StatsPanel } from "@/components/admin/StatsPanel";
+import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
 
 type ProfileRow = {
   id: string;
   email: string | null;
   full_name: string | null;
   account_type: "dealer" | "jeweller" | "admin";
+  account_types: string[] | null;
   company_name: string | null;
   country: string | null;
   is_approved: boolean;
@@ -24,12 +34,21 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"pending" | "all" | "reports" | "fees" | "referrals">("pending");
+  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals">("stats");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [testCount, setTestCount] = useState<number | null>(null);
   const [seeding, setSeeding] = useState(false);
+  // All Accounts toolbar state
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "dealers" | "jewellers" | "dual" | "suspended" | "pending">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "company">("newest");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editRolesFor, setEditRolesFor] = useState<ProfileRow | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const bulkFn = useServerFn(adminBulkUpdateAccounts);
+  const quickApproveFn = useServerFn(adminGenerateQuickApproveLink);
 
   useEffect(() => {
     if (loading) return;
@@ -38,16 +57,17 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals") return;
+    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats") return;
     setError(null);
     let query = supabase
       .from("profiles")
-      .select("id, email, full_name, account_type, company_name, country, is_approved, is_verified, created_at")
+      .select("id, email, full_name, account_type, account_types, company_name, country, is_approved, is_verified, created_at")
       .order("created_at", { ascending: false });
     if (tab === "pending") query = query.eq("is_approved", false);
     const { data, error } = await query;
     if (error) { setError(error.message); return; }
     setRows((data as ProfileRow[]) ?? []);
+    setSelected(new Set());
   }, [isAdmin, tab]);
 
   useEffect(() => { load(); }, [load]);
@@ -138,6 +158,65 @@ function AdminPage() {
 
   const pendingCount = tab === "pending" ? rows.length : null;
 
+  // Apply client-side filter/search/sort over the loaded rows for the All tab.
+  const visibleRows = (() => {
+    if (tab !== "all") return rows;
+    const q = search.trim().toLowerCase();
+    let out = rows;
+    if (q) {
+      out = out.filter((r) =>
+        [r.full_name, r.company_name, r.email].some((v) => v?.toLowerCase().includes(q)),
+      );
+    }
+    if (roleFilter === "dealers") out = out.filter((r) => isDealer(r));
+    else if (roleFilter === "jewellers") out = out.filter((r) => isJeweller(r));
+    else if (roleFilter === "dual") out = out.filter((r) => isDualRole(r));
+    else if (roleFilter === "suspended") out = out.filter((r) => !r.is_approved);
+    else if (roleFilter === "pending") out = out.filter((r) => !r.is_approved);
+    if (sortBy === "oldest") out = [...out].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    else if (sortBy === "company") out = [...out].sort((a, b) => (a.company_name || "").localeCompare(b.company_name || ""));
+    return out;
+  })();
+
+  function toggleSel(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleAllSel() {
+    if (selected.size === visibleRows.length) setSelected(new Set());
+    else setSelected(new Set(visibleRows.map((r) => r.id)));
+  }
+
+  async function bulkAction(action: "approve" | "suspend" | "toggle_verified") {
+    if (selected.size === 0) return;
+    try {
+      await bulkFn({ data: { ids: Array.from(selected), action } });
+      toast.success(`${action.replace("_", " ")} applied to ${selected.size} account(s).`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Bulk action failed.");
+    }
+  }
+
+  async function copyQuickApproveLink(id: string) {
+    try {
+      const { url } = await quickApproveFn({ data: { userId: id } });
+      await navigator.clipboard.writeText(url);
+      toast.success("Quick-approve link copied.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not generate link.");
+    }
+  }
+
+  function viewAs(r: ProfileRow) {
+    setImpersonation({ userId: r.id, userName: r.full_name || r.company_name || r.email || r.id.slice(0, 8) });
+    navigate({ to: "/dashboard" });
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-primary text-primary-foreground">
@@ -166,6 +245,12 @@ function AdminPage() {
             </Link>
           </div>
           <div className="flex gap-1 rounded-md border border-border p-1 text-sm">
+            <button
+              onClick={() => setTab("stats")}
+              className={`rounded px-3 py-1 ${tab === "stats" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              Stats
+            </button>
             <button
               onClick={() => setTab("pending")}
               className={`rounded px-3 py-1 ${tab === "pending" ? "bg-foreground text-background" : "text-muted-foreground"}`}
@@ -235,9 +320,55 @@ function AdminPage() {
           <FeesPanel />
         ) : tab === "referrals" ? (
           <ReferralsPanel />
+        ) : tab === "stats" ? (
+          <StatsPanel />
         ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
-          {rows.length === 0 ? (
+        <>
+          {tab === "all" && (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="Search name, company, email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="max-w-xs"
+              />
+              <div className="flex flex-wrap gap-1 rounded-md border border-border p-1 text-xs">
+                {(["all","dealers","jewellers","dual","suspended","pending"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setRoleFilter(f)}
+                    className={`rounded px-2.5 py-1 capitalize ${roleFilter === f ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                  >
+                    {f === "dual" ? "Dual role" : f}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="company">Company A–Z</option>
+              </select>
+            </div>
+          )}
+
+          {selected.size > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-3 py-2 text-sm">
+              <span className="font-medium">{selected.size} selected</span>
+              <span className="flex-1" />
+              <Button size="sm" onClick={() => bulkAction("approve")}>Approve</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkAction("suspend")}>Suspend</Button>
+              <Button size="sm" variant="ghost" onClick={() => bulkAction("toggle_verified")}>Toggle verified</Button>
+              <Button size="sm" variant="ghost" onClick={() => setEmailOpen(true)}>Send email</Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+            </div>
+          )}
+
+        <div className="mt-3 overflow-hidden rounded-lg border border-border bg-card">
+          {visibleRows.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               {tab === "pending" ? "No accounts awaiting approval." : "No accounts yet."}
             </div>
@@ -245,8 +376,14 @@ function AdminPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
+                  <th className="px-3 py-3 w-8">
+                    <Checkbox
+                      checked={selected.size > 0 && selected.size === visibleRows.length}
+                      onCheckedChange={toggleAllSel}
+                    />
+                  </th>
                   <th className="px-4 py-3">Account</th>
-                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Roles</th>
                   <th className="px-4 py-3">Company</th>
                   <th className="px-4 py-3">Country</th>
                   <th className="px-4 py-3">Signed up</th>
@@ -255,13 +392,22 @@ function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {visibleRows.map((r) => (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                    <td className="px-3 py-3">
+                      <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSel(r.id)} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{r.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{r.email}</div>
                     </td>
-                    <td className="px-4 py-3 capitalize">{r.account_type}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {roleList(r).map((role) => (
+                          <span key={role} className="inline-flex rounded-full bg-muted/50 px-2 py-0.5 text-[10px] uppercase tracking-wider">{role}</span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.company_name || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.country || "—"}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -282,7 +428,9 @@ function AdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <div className="flex flex-wrap justify-end gap-1">
                       {!r.is_approved ? (
+                        <>
                         <Button
                           size="sm"
                           disabled={busy === r.id}
@@ -291,6 +439,8 @@ function AdminPage() {
                         >
                           Approve
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => copyQuickApproveLink(r.id)}>Copy link</Button>
+                        </>
                       ) : (
                         <Button
                           size="sm"
@@ -310,6 +460,9 @@ function AdminPage() {
                       >
                         {r.is_verified ? "Unverify" : "Verify"}
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditRolesFor(r)}>Edit roles</Button>
+                      <Button size="sm" variant="ghost" onClick={() => viewAs(r)}>View as</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -317,8 +470,29 @@ function AdminPage() {
             </table>
           )}
         </div>
+        </>
         )}
       </div>
+
+      {editRolesFor && (
+        <EditRolesDialog
+          open={!!editRolesFor}
+          onOpenChange={(v) => !v && setEditRolesFor(null)}
+          userId={editRolesFor.id}
+          userName={editRolesFor.full_name || editRolesFor.company_name || editRolesFor.email || ""}
+          initialRoles={roleList(editRolesFor)}
+          onSaved={(roles) => {
+            setRows((rs) =>
+              rs.map((p) =>
+                p.id === editRolesFor.id
+                  ? { ...p, account_types: roles, account_type: (roles[0] || p.account_type) as ProfileRow["account_type"] }
+                  : p,
+              ),
+            );
+          }}
+        />
+      )}
+      <SendEmailDialog open={emailOpen} onOpenChange={setEmailOpen} ids={Array.from(selected)} />
     </div>
   );
 }

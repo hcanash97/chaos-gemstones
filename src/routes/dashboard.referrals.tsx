@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Copy, MessageCircle, Share2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer as checkD } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -87,7 +88,7 @@ function ReferralsPage() {
     setTimeout(() => setCopied(null), 1500);
   };
 
-  const isDealer = profile.account_type === "dealer";
+  const isDealer = checkD(profile);
   const waMessage = isDealer
     ? `I've been using Chaos Gemstones to list my stones with jewellers worldwide. Sign up here: ${shortLink}`
     : `I've been using Chaos Gemstones to source certified gemstones directly from dealers in India and Sri Lanka. Sign up here: ${shortLink}`;

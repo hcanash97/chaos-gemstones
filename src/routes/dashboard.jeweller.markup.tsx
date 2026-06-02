@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -36,7 +37,7 @@ function MarkupPage() {
   const [feedCurrency, setFeedCcy] = useState<string>("USD");
   const { setDisplayCurrency: ctxSetDisplay, rates } = useCurrency();
 
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   const { data, refetch } = useQuery({
     queryKey: ["markup-data", user?.id],
@@ -71,7 +72,7 @@ function MarkupPage() {
       const { data: dealers } = await supabase
         .from("profiles")
         .select("id, company_name, country")
-        .eq("account_type", "dealer")
+        .or("account_type.eq.dealer,account_types.cs.{dealer}")
         .eq("is_approved", true)
         .order("company_name", { ascending: true });
 

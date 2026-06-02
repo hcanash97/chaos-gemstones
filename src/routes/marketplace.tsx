@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SlidersHorizontal, X, ChevronDown, ChevronUp, Save, LayoutGrid, List } from "lucide-react";
 import { StaggerGroup } from "@/components/anim/Motion";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import {
   defaultFilters,
   activeFilterCount,
@@ -152,7 +153,7 @@ function Marketplace() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const showDiamond = hasDiamondSelection(f.types);
   const showColoured = hasColouredSelection(f.types);
-  const isJeweller = profile?.account_type === "jeweller";
+  const isJeweller = checkJ(profile);
 
   // Derive primary-colour swatches from the first matching coloured stone type
   const colouredType = f.types.find((t) => PRIMARY_COLOURS[t]) ?? "sapphire";

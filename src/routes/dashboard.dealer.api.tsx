@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Copy, Eye, EyeOff, RefreshCw, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer as checkD } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -36,7 +37,7 @@ function DealerApiPage() {
   const [body, setBody] = useState("");
   const [lastPreset, setLastPreset] = useState<string | null>(null);
 
-  const isDealer = profile?.account_type === "dealer";
+  const isDealer = checkD(profile);
 
   const { data: status, refetch } = useQuery({
     queryKey: ["dealer-api-status", user?.id],

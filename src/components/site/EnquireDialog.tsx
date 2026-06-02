@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isJeweller } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,7 +34,7 @@ export function EnquireDialog({ dealerId, stoneId, context, trigger }: Props) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const canEnquire = profile?.account_type === "jeweller" && profile?.is_approved;
+  const canEnquire = isJeweller(profile) && profile?.is_approved;
 
   if (!user) {
     return (
