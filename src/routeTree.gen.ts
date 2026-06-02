@@ -39,6 +39,7 @@ import { Route as DashboardReferralsRouteImport } from './routes/dashboard.refer
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
+import { Route as AdminQuickApproveRouteImport } from './routes/admin.quick-approve'
 import { Route as AdminImportTestRouteImport } from './routes/admin.import-test'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
 import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
@@ -60,6 +61,7 @@ import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/cha
 import { Route as ApiPublicCronShopifySyncRouteImport } from './routes/api/public/cron/shopify-sync'
 import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
+import { Route as ApiPublicAdminQuickApproveRouteImport } from './routes/api/public/admin/quick-approve'
 import { Route as ApiDealerV1StonesRouteImport } from './routes/api/dealer/v1/stones'
 import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
 import { Route as ApiDealerV1StonesBulkRouteImport } from './routes/api/dealer/v1/stones/bulk'
@@ -216,6 +218,11 @@ const DashboardAccountRoute = DashboardAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => DashboardRoute,
 } as any)
+const AdminQuickApproveRoute = AdminQuickApproveRouteImport.update({
+  id: '/quick-approve',
+  path: '/quick-approve',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminImportTestRoute = AdminImportTestRouteImport.update({
   id: '/import-test',
   path: '/import-test',
@@ -327,6 +334,12 @@ const ApiPublicCronDigestRoute = ApiPublicCronDigestRouteImport.update({
   path: '/api/public/cron/digest',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAdminQuickApproveRoute =
+  ApiPublicAdminQuickApproveRouteImport.update({
+    id: '/api/public/admin/quick-approve',
+    path: '/api/public/admin/quick-approve',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDealerV1StonesRoute = ApiDealerV1StonesRouteImport.update({
   id: '/api/dealer/v1/stones',
   path: '/api/dealer/v1/stones',
@@ -366,6 +379,7 @@ export interface FileRoutesByFullPath {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/admin/quick-approve': typeof AdminQuickApproveRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
@@ -405,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
+  '/api/public/admin/quick-approve': typeof ApiPublicAdminQuickApproveRoute
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
@@ -423,6 +438,7 @@ export interface FileRoutesByTo {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/admin/quick-approve': typeof AdminQuickApproveRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
@@ -462,6 +478,7 @@ export interface FileRoutesByTo {
   '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
+  '/api/public/admin/quick-approve': typeof ApiPublicAdminQuickApproveRoute
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
@@ -482,6 +499,7 @@ export interface FileRoutesById {
   '/pending-approval': typeof PendingApprovalRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
+  '/admin/quick-approve': typeof AdminQuickApproveRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
@@ -521,6 +539,7 @@ export interface FileRoutesById {
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
+  '/api/public/admin/quick-approve': typeof ApiPublicAdminQuickApproveRoute
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
@@ -542,6 +561,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/admin/quick-approve'
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
@@ -581,6 +601,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
     | '/api/dealer/v1/stones'
+    | '/api/public/admin/quick-approve'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
@@ -599,6 +620,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/admin/quick-approve'
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
@@ -638,6 +660,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller'
     | '/dashboard/stones'
     | '/api/dealer/v1/stones'
+    | '/api/public/admin/quick-approve'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
@@ -657,6 +680,7 @@ export interface FileRouteTypes {
     | '/pending-approval'
     | '/sitemap.xml'
     | '/admin/import-test'
+    | '/admin/quick-approve'
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
@@ -696,6 +720,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
     | '/api/dealer/v1/stones'
+    | '/api/public/admin/quick-approve'
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
@@ -734,6 +759,7 @@ export interface RootRouteChildren {
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
   LearnGemstonesTypeRoute: typeof LearnGemstonesTypeRoute
   ApiDealerV1StonesRoute: typeof ApiDealerV1StonesRouteWithChildren
+  ApiPublicAdminQuickApproveRoute: typeof ApiPublicAdminQuickApproveRoute
   ApiPublicCronDigestRoute: typeof ApiPublicCronDigestRoute
   ApiPublicCronSavedSearchDigestRoute: typeof ApiPublicCronSavedSearchDigestRoute
   ApiPublicCronShopifySyncRoute: typeof ApiPublicCronShopifySyncRoute
@@ -952,6 +978,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAccountRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/admin/quick-approve': {
+      id: '/admin/quick-approve'
+      path: '/quick-approve'
+      fullPath: '/admin/quick-approve'
+      preLoaderRoute: typeof AdminQuickApproveRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/import-test': {
       id: '/admin/import-test'
       path: '/import-test'
@@ -1099,6 +1132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/admin/quick-approve': {
+      id: '/api/public/admin/quick-approve'
+      path: '/api/public/admin/quick-approve'
+      fullPath: '/api/public/admin/quick-approve'
+      preLoaderRoute: typeof ApiPublicAdminQuickApproveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dealer/v1/stones': {
       id: '/api/dealer/v1/stones'
       path: '/api/dealer/v1/stones'
@@ -1139,10 +1179,12 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminImportTestRoute: typeof AdminImportTestRoute
+  AdminQuickApproveRoute: typeof AdminQuickApproveRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminImportTestRoute: AdminImportTestRoute,
+  AdminQuickApproveRoute: AdminQuickApproveRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -1250,6 +1292,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFeedRoute: ApiPublicFeedRoute,
   LearnGemstonesTypeRoute: LearnGemstonesTypeRoute,
   ApiDealerV1StonesRoute: ApiDealerV1StonesRouteWithChildren,
+  ApiPublicAdminQuickApproveRoute: ApiPublicAdminQuickApproveRoute,
   ApiPublicCronDigestRoute: ApiPublicCronDigestRoute,
   ApiPublicCronSavedSearchDigestRoute: ApiPublicCronSavedSearchDigestRoute,
   ApiPublicCronShopifySyncRoute: ApiPublicCronShopifySyncRoute,
@@ -1258,3 +1301,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
