@@ -753,8 +753,10 @@ export type Database = {
       }
       shopify_connections: {
         Row: {
-          access_token: string
+          access_token: string | null
           auto_sync: boolean
+          client_id: string | null
+          client_secret: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -764,11 +766,14 @@ export type Database = {
           products_synced: number
           shop_domain: string
           shop_name: string | null
+          token_expires_at: string | null
           updated_at: string
         }
         Insert: {
-          access_token: string
+          access_token?: string | null
           auto_sync?: boolean
+          client_id?: string | null
+          client_secret?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -778,11 +783,14 @@ export type Database = {
           products_synced?: number
           shop_domain: string
           shop_name?: string | null
+          token_expires_at?: string | null
           updated_at?: string
         }
         Update: {
-          access_token?: string
+          access_token?: string | null
           auto_sync?: boolean
+          client_id?: string | null
+          client_secret?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -792,6 +800,7 @@ export type Database = {
           products_synced?: number
           shop_domain?: string
           shop_name?: string | null
+          token_expires_at?: string | null
           updated_at?: string
         }
         Relationships: [
