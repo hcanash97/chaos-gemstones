@@ -119,12 +119,19 @@ async function exchangeClientCredentials(
   const attempt = async (body: Record<string, string>) => {
     const r = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+        "User-Agent": "ChaosGemstones/1.0 (https://chaosgemstones.com)",
+      },
+      body: new URLSearchParams(body).toString(),
     });
     const text = await r.text().catch(() => "");
     console.log(`[shopify] Token exchange response status: ${r.status}`);
-    console.log(`[shopify] Token exchange response body: ${text.slice(0, 300)}`);
+    console.log(`[shopify] Token exchange response body: ${text.slice(0, 500)}`);
+    if (!r.ok) {
+      console.error(`[shopify] Token exchange failed for ${shop}: status=${r.status} body=${text.slice(0, 500)}`);
+    }
     return { status: r.status, ok: r.ok, text };
   };
   // Primary attempt: with grant_type
