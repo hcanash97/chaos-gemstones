@@ -4,9 +4,8 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Gem } from "lucide-react";
 import { motion } from "framer-motion";
 import { StaggerGroup } from "@/components/anim/Motion";
 
@@ -103,7 +102,14 @@ function Vendors() {
           </div>
         ) : (
         <StaggerGroup className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3" delay={0.06}>
-          {filtered.map((v: any) => (
+          {filtered.map((v: any) => {
+            const specs: string[] = v.specialities ?? [];
+            const isDiamond = specs.some((s) => /diamond/i.test(s));
+            const headerStyle = isDiamond
+              ? { background: "linear-gradient(135deg, #0F1B3D 0%, #2E4A8A 100%)" }
+              : { background: "linear-gradient(135deg, #1B3A2D 0%, #3F7A5E 100%)" };
+            const count = stoneCounts?.[v.id] ?? 0;
+            return (
             <motion.div
               key={v.id}
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
@@ -113,35 +119,42 @@ function Vendors() {
               <Link
                 to="/vendors/$slug"
                 params={{ slug: v.slug }}
-                className="block rounded-md border border-border bg-card p-6 transition-all hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
+                className="relative block overflow-hidden rounded-md border border-border bg-card transition-all hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
               >
-                <div className="flex items-center gap-2">
-                  <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
-                  {v.profiles?.is_verified && (
-                    <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
-                  )}
+                <div className="relative h-3 w-full" style={headerStyle}>
+                  <span className="shimmer-overlay" aria-hidden />
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
-                </div>
-                <div className="mt-1 text-xs font-mono text-[var(--color-gold)]">
-                  {stoneCounts?.[v.id] ?? 0} stones available
-                </div>
-                <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {(v.specialities ?? []).slice(0, 4).map((s: string, i: number) => (
-                    <span
-                      key={s}
-                      className="inline-block -translate-x-2 opacity-80 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
-                      style={{ transitionDelay: `${i * 60}ms` }}
-                    >
-                      <Badge variant="secondary" className="text-[10px]">{s}</Badge>
-                    </span>
-                  ))}
+                <div className="p-6">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
+                    {v.profiles?.is_verified && (
+                      <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
+                    )}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
+                  </div>
+                  <div className="mt-3 inline-flex items-center gap-1.5 text-[var(--color-gold)]">
+                    <Gem className="h-3.5 w-3.5" />
+                    <span className="font-mono text-lg leading-none font-semibold">{count}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">stones</span>
+                  </div>
+                  <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {specs.slice(0, 4).map((s: string) => (
+                      <span
+                        key={s}
+                        className="rounded-full border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-gold)]"
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </Link>
             </motion.div>
-          ))}
+            );
+          })}
         </StaggerGroup>
         )}
       </div>

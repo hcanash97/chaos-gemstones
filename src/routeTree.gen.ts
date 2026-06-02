@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as LoginRouteImport } from './routes/login'
@@ -71,6 +72,11 @@ import { Route as ApiDealerV1StonesIdMarkSoldRouteImport } from './routes/api/de
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestsRoute = RequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PendingApprovalRoute = PendingApprovalRouteImport.update({
@@ -377,6 +383,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/requests': typeof RequestsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -436,6 +443,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/requests': typeof RequestsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -497,6 +505,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
+  '/requests': typeof RequestsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -559,6 +568,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/requests'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -618,6 +628,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/requests'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -678,6 +689,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/marketplace'
     | '/pending-approval'
+    | '/requests'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -739,6 +751,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRoute
   PendingApprovalRoute: typeof PendingApprovalRoute
+  RequestsRoute: typeof RequestsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
   DocsDealerApiRoute: typeof DocsDealerApiRoute
@@ -773,6 +786,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/requests': {
+      id: '/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof RequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pending-approval': {
@@ -1272,6 +1292,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRoute,
   PendingApprovalRoute: PendingApprovalRoute,
+  RequestsRoute: RequestsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
   DocsDealerApiRoute: DocsDealerApiRoute,

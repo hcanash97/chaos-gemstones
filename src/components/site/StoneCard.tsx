@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useCompare } from "@/contexts/CompareContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type StoneCardData = {
   id: string;
@@ -31,6 +32,7 @@ export type StoneCardData = {
   has_video?: boolean | null;
   has_360?: boolean | null;
   matching_pair?: boolean | null;
+  isWishlisted?: boolean;
 };
 
 function StoneCardImpl({
@@ -52,28 +54,14 @@ function StoneCardImpl({
   const { format } = useCurrency();
   const inFeed =
     isJeweller && stone.dealer_id && followedDealerIds?.has(stone.dealer_id);
-  const [saved, setSaved] = useState<boolean | null>(null);
+  const queryClient = useQueryClient();
+  const [saved, setSaved] = useState<boolean>(!!stone.isWishlisted);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!isJeweller || !user) {
-      setSaved(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const { data } = await (supabase as any)
-        .from("wishlists")
-        .select("id")
-        .eq("jeweller_id", user.id)
-        .eq("stone_id", stone.id)
-        .maybeSingle();
-      if (!cancelled) setSaved(!!data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isJeweller, user?.id, stone.id]);
+  // Sync local state with prop when parent re-fetches the wishlist set.
+  React.useEffect(() => {
+    setSaved(!!stone.isWishlisted);
+  }, [stone.isWishlisted]);
 
   async function toggleWishlist(e: React.MouseEvent) {
     e.preventDefault();
@@ -96,6 +84,7 @@ function StoneCardImpl({
           .eq("stone_id", stone.id);
         if (error) throw error;
       }
+      queryClient.invalidateQueries({ queryKey: ["wishlist-ids", user.id] });
     } catch (err: any) {
       setSaved(!next); // rollback
       toast.error(err?.message || "Could not update wishlist");

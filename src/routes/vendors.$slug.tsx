@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { StarInput } from "@/components/site/StarInput";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 
 export const Route = createFileRoute("/vendors/$slug")({
   component: VendorProfile,
@@ -103,7 +104,7 @@ function VendorProfile() {
       if (!vendor) return { vendor: null, stones: [] };
       const { data: stones } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, stone_images(storage_url, is_primary)")
+        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)")
         .eq("dealer_id", vendor.id)
         .eq("status", "available");
       const { count: soldCount } = await supabase
@@ -142,11 +143,17 @@ function VendorProfile() {
           : null;
       return {
         vendor,
-        stones: (stones ?? []).map((s: any) => ({
-          ...s,
-          image: s.stone_images?.[0]?.storage_url ?? null,
-          dealer_verified: !!vendor.profiles?.is_verified,
-        })),
+        stones: (stones ?? []).map((s: any) => {
+          const sorted = [...(s.stone_images ?? [])].sort(
+            (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
+          );
+          const primary = sorted.find((i: any) => i.is_primary) ?? sorted[0];
+          return {
+            ...s,
+            image: primary?.storage_url || primary?.external_image_url || null,
+            dealer_verified: !!vendor.profiles?.is_verified,
+          };
+        }),
         responseRate,
         enquiryCount: total,
         soldCount: soldCount ?? 0,
@@ -154,6 +161,20 @@ function VendorProfile() {
         reviewCount,
         avgRating,
       };
+    },
+  });
+
+  const isApprovedJeweller = checkJ(profile) && !!profile?.is_approved;
+  const { data: wishlistIds } = useQuery({
+    queryKey: ["wishlist-ids", user?.id],
+    enabled: !!user && isApprovedJeweller,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wishlists")
+        .select("stone_id")
+        .eq("jeweller_id", user!.id);
+      return new Set((data ?? []).map((w: any) => w.stone_id as string));
     },
   });
 
@@ -317,7 +338,9 @@ function VendorProfile() {
         <h2 className="font-serif text-3xl">Catalogue</h2>
         <p className="mt-1 text-sm text-muted-foreground">{data.stones.length} stones available</p>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {data.stones.map((s) => <StoneCard key={s.id} stone={s} />)}
+          {data.stones.map((s: any) => (
+            <StoneCard key={s.id} stone={{ ...s, isWishlisted: wishlistIds?.has(s.id) ?? false }} />
+          ))}
         </div>
       </section>
       {(data.reviewCount ?? 0) > 0 && (

@@ -125,16 +125,59 @@ function Marketplace() {
   const total = result?.total ?? 0;
   const isLoading = isFetching && !result;
 
+  const isJewellerUser = checkJ(profile);
+  const isApprovedJeweller = isJewellerUser && !!profile?.is_approved;
+
+  // Single bulk fetch of the jeweller's wishlist (replaces N+1 per-card queries).
+  const { data: wishlistIds } = useQuery({
+    queryKey: ["wishlist-ids", user?.id],
+    enabled: !!user && isApprovedJeweller,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wishlists")
+        .select("stone_id")
+        .eq("jeweller_id", user!.id);
+      return new Set((data ?? []).map((w: any) => w.stone_id as string));
+    },
+  });
+
+  // Followed dealer ids (drives the "In feed" badge).
+  const { data: followedDealerIds } = useQuery({
+    queryKey: ["followed-dealers", user?.id],
+    enabled: !!user && isApprovedJeweller,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data: keys } = await supabase
+        .from("api_keys")
+        .select("id")
+        .eq("jeweller_id", user!.id)
+        .eq("is_active", true)
+        .limit(1);
+      if (!keys?.[0]) return new Set<string>();
+      const { data: sels } = await supabase
+        .from("feed_selections")
+        .select("dealer_id")
+        .eq("api_key_id", keys[0].id)
+        .eq("selection_type", "vendor")
+        .not("dealer_id", "is", null);
+      return new Set((sels ?? []).map((s: any) => s.dealer_id as string));
+    },
+  });
+
   // Per-carat price mode: server filters per_stone; refine current page client-side.
   const visible = useMemo(() => {
-    if (debouncedF.priceMode !== "per_carat") return rawStones;
-    return rawStones.filter((s: any) => {
+    const list = debouncedF.priceMode !== "per_carat"
+      ? rawStones
+      : rawStones.filter((s: any) => {
       const price = Number(s.wholesale_price_usd ?? 0);
       const c = Number(s.carat_weight ?? 1) || 1;
       const v = price / c;
       return v >= debouncedF.priceMin && v <= debouncedF.priceMax;
     });
-  }, [rawStones, debouncedF.priceMode, debouncedF.priceMin, debouncedF.priceMax]);
+    if (!wishlistIds) return list;
+    return list.map((s: any) => ({ ...s, isWishlisted: wishlistIds.has(s.id) }));
+  }, [rawStones, debouncedF.priceMode, debouncedF.priceMin, debouncedF.priceMax, wishlistIds]);
 
   const { data: dealers } = useQuery({
     queryKey: ["marketplace-dealers"],
@@ -154,7 +197,7 @@ function Marketplace() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const showDiamond = hasDiamondSelection(f.types);
   const showColoured = hasColouredSelection(f.types);
-  const isJeweller = checkJ(profile);
+  const isJeweller = isJewellerUser;
 
   // Derive primary-colour swatches from the first matching coloured stone type
   const colouredType = f.types.find((t) => PRIMARY_COLOURS[t]) ?? "sapphire";
@@ -798,13 +841,13 @@ function Marketplace() {
             ) : f.view === "grid" ? (
               <StaggerGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" delay={0.06}>
                 {visible.map((s) => (
-                  <StoneCard key={s.id} stone={s} />
+                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} />
                 ))}
               </StaggerGroup>
             ) : (
               <div className="flex flex-col gap-3">
                 {visible.map((s) => (
-                  <StoneCard key={s.id} stone={s} />
+                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} />
                 ))}
               </div>
             )}
