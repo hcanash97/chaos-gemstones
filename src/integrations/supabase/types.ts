@@ -928,6 +928,65 @@ export type Database = {
           },
         ]
       }
+      stone_requests: {
+        Row: {
+          cert_lab: string | null
+          colour_description: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          jeweller_id: string
+          max_budget_usd: number | null
+          max_carat: number | null
+          min_carat: number | null
+          notes: string | null
+          shape: string[] | null
+          status: string
+          stone_type: string
+          treatment: string | null
+        }
+        Insert: {
+          cert_lab?: string | null
+          colour_description?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          jeweller_id: string
+          max_budget_usd?: number | null
+          max_carat?: number | null
+          min_carat?: number | null
+          notes?: string | null
+          shape?: string[] | null
+          status?: string
+          stone_type: string
+          treatment?: string | null
+        }
+        Update: {
+          cert_lab?: string | null
+          colour_description?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          jeweller_id?: string
+          max_budget_usd?: number | null
+          max_carat?: number | null
+          min_carat?: number | null
+          notes?: string | null
+          shape?: string[] | null
+          status?: string
+          stone_type?: string
+          treatment?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stone_requests_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stones: {
         Row: {
           available_qty: number
