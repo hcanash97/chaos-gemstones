@@ -500,3 +500,4 @@ function timeAgo(iso: string): string {
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
 }
+void timeAgo;
