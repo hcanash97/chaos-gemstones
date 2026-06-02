@@ -98,8 +98,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-title", content: "Chaos" },
       { name: "twitter:title", content: "Chaos — Gemstone & Diamond Marketplace" },
       { name: "twitter:description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f8d5ac77-32b2-4b05-8884-3fd148ffa122" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f8d5ac77-32b2-4b05-8884-3fd148ffa122" },
+      { property: "og:image", content: "https://chaosgemstones.com/icons/icon-512.png" },
+      { name: "twitter:image", content: "https://chaosgemstones.com/icons/icon-512.png" },
     ],
     links: [
       {
