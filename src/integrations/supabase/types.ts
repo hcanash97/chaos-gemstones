@@ -928,6 +928,45 @@ export type Database = {
           },
         ]
       }
+      stone_request_responses: {
+        Row: {
+          created_at: string
+          dealer_id: string
+          id: string
+          message: string
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          dealer_id: string
+          id?: string
+          message: string
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          dealer_id?: string
+          id?: string
+          message?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stone_request_responses_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stone_request_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "stone_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stone_requests: {
         Row: {
           cert_lab: string | null
