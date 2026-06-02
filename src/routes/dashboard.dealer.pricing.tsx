@@ -88,7 +88,7 @@ function DealerPricingPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  if (profile && !isDealerHelper(profile)) {
+  if (profile && !isDealer(profile)) {
     return <div>Dealers only.</div>;
   }
 
