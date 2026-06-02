@@ -1,6 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Gem } from "lucide-react";
+
+const ENCYCLOPEDIA = [
+  { slug: "sapphire", name: "Sapphire" },
+  { slug: "ruby", name: "Ruby" },
+  { slug: "emerald", name: "Emerald" },
+  { slug: "alexandrite", name: "Alexandrite" },
+  { slug: "spinel", name: "Spinel" },
+  { slug: "tanzanite", name: "Tanzanite" },
+  { slug: "diamond", name: "Diamond" },
+  { slug: "tourmaline", name: "Tourmaline" },
+  { slug: "paraiba", name: "Paraiba Tourmaline" },
+];
 
 export const Route = createFileRoute("/learn/")({
   component: LearnIndex,
@@ -118,6 +130,41 @@ function LearnIndex() {
               <div className="mt-4 text-xs font-medium text-[var(--color-gold)]">Read guide →</div>
             </Link>
           ))}
+        </div>
+      </section>
+
+      <section className="border-t border-border bg-secondary/30">
+        <div className="mx-auto max-w-5xl px-6 py-14">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
+            <Gem className="h-4 w-4" /> Gemstone Encyclopedia
+          </div>
+          <h2 className="mt-2 font-serif text-3xl text-foreground">
+            Wholesale buying guides by stone type
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+            Properties, what to look for, certification guidance, treatment standards and
+            typical wholesale price tiers — for every major coloured stone and diamond category.
+          </p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {ENCYCLOPEDIA.map((s) => (
+              <Link
+                key={s.slug}
+                to="/learn/gemstones/$type"
+                params={{ type: s.slug }}
+                className="group rounded-md border border-border bg-card p-4 transition hover:border-[var(--color-gold)]"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-serif text-lg text-foreground group-hover:text-[var(--color-gold)]">
+                    {s.name}
+                  </span>
+                  <span className="text-xs text-[var(--color-gold)]">→</span>
+                </div>
+                <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Buying guide
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
       <SiteFooter />
