@@ -1,10 +1,18 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Logo, GemMark } from "@/components/site/Logo";
 import { CurrencySelector } from "@/components/site/CurrencySelector";
-import { Menu, X } from "lucide-react";
+import {
+  Menu,
+  X,
+  Home as HomeIcon,
+  Gem as GemIcon,
+  Users as UsersIcon,
+  Search as SearchIcon,
+  LayoutDashboard as LayoutDashboardIcon,
+} from "lucide-react";
 import { defaultDashboardPath, isDealer, isJeweller } from "@/lib/auth.utils";
 
 export function SiteHeader() {
@@ -30,6 +38,7 @@ export function SiteHeader() {
         <span className="logo-glow"><Logo /></span>
         <nav className="hidden items-center gap-7 text-sm md:flex">
           <Link to="/marketplace" className="text-foreground/80 hover:text-foreground">Marketplace</Link>
+          <Link to="/requests" className="text-foreground/80 hover:text-foreground">Requests</Link>
           <Link to="/vendors" className="text-foreground/80 hover:text-foreground">Vendors</Link>
           <Link to="/learn" className="text-foreground/80 hover:text-foreground">Learn</Link>
           <Link to="/about" className="text-foreground/80 hover:text-foreground">About</Link>
@@ -96,6 +105,7 @@ export function SiteHeader() {
           <nav className="flex flex-col gap-1 p-3 text-sm">
             {[
               { to: "/marketplace", label: "Marketplace" },
+              { to: "/requests", label: "Requests" },
               { to: "/vendors", label: "Vendors" },
               { to: "/learn", label: "Learn" },
               { to: "/about", label: "About" },
@@ -127,7 +137,44 @@ export function SiteHeader() {
         </aside>
       </div>
     )}
+    <MobileBottomNav />
     </>
+  );
+}
+
+function MobileBottomNav() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user, profile } = useAuth();
+  const dashHref = user ? defaultDashboardPath(profile) : "/login";
+  const items = [
+    { to: "/", label: "Home", icon: HomeIcon, match: (p: string) => p === "/" },
+    { to: "/marketplace", label: "Stones", icon: GemIcon, match: (p: string) => p.startsWith("/marketplace") },
+    { to: "/vendors", label: "Vendors", icon: UsersIcon, match: (p: string) => p.startsWith("/vendors") },
+    { to: "/requests", label: "Requests", icon: SearchIcon, match: (p: string) => p.startsWith("/requests") },
+    { to: dashHref, label: "Dashboard", icon: LayoutDashboardIcon, match: (p: string) => p.startsWith("/dashboard") || p === "/login" },
+  ] as const;
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-border bg-background/95 py-1.5 backdrop-blur md:hidden"
+      aria-label="Primary mobile"
+    >
+      {items.map((it) => {
+        const Icon = it.icon;
+        const active = it.match(pathname);
+        return (
+          <Link
+            key={it.label}
+            to={it.to as any}
+            className={`flex min-w-[56px] flex-col items-center gap-0.5 px-2 py-1 text-[10px] uppercase tracking-wider transition-colors ${
+              active ? "text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            <span>{it.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
