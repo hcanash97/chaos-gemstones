@@ -98,6 +98,73 @@ export async function testShopifyConnection(
   }
 }
 
+// --- OAuth client-credentials token exchange ----------------------------
+
+export type ShopifyConnectionRow = {
+  id: string;
+  shop_domain: string;
+  client_id: string | null;
+  client_secret: string | null;
+  access_token: string | null;
+  token_expires_at: string | null;
+};
+
+async function exchangeClientCredentials(
+  shop: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<{ token: string; expiresIn: number }> {
+  const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "client_credentials",
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(`Shopify token exchange failed: ${res.status} ${err.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { access_token?: string; expires_in?: number };
+  if (!json.access_token) throw new Error("Shopify token exchange returned no access_token");
+  return { token: json.access_token, expiresIn: json.expires_in ?? 86399 };
+}
+
+export async function mintAccessToken(
+  shop: string,
+  clientIdPlain: string,
+  clientSecretPlain: string,
+): Promise<{ token: string; expiresAt: string }> {
+  const { token, expiresIn } = await exchangeClientCredentials(shop, clientIdPlain, clientSecretPlain);
+  return { token, expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString() };
+}
+
+export async function getValidAccessToken(conn: ShopifyConnectionRow): Promise<string> {
+  if (conn.access_token && conn.token_expires_at) {
+    const expiresAt = new Date(conn.token_expires_at).getTime();
+    if (Date.now() < expiresAt - 5 * 60 * 1000) {
+      return await decryptToken(conn.access_token);
+    }
+  }
+  if (!conn.client_id || !conn.client_secret) {
+    throw new Error("Shopify credentials missing — please reconnect your store.");
+  }
+  const clientId = await decryptToken(conn.client_id);
+  const clientSecret = await decryptToken(conn.client_secret);
+  const { token, expiresIn } = await exchangeClientCredentials(conn.shop_domain, clientId, clientSecret);
+  const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+  await supabaseAdmin
+    .from("shopify_connections")
+    .update({
+      access_token: await encryptToken(token),
+      token_expires_at: expiresAt,
+    })
+    .eq("id", conn.id);
+  return token;
+}
+
 // --- Stone -> Shopify product formatting --------------------------------
 
 type StoneRow = {
@@ -242,12 +309,12 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   try {
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
-      .select("shop_domain, access_token, is_active")
+      .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
       .eq("jeweller_id", jewellerId)
       .maybeSingle();
 
     if (!conn || !conn.is_active) throw new Error("Shopify is not connected.");
-    const token = await decryptToken(conn.access_token);
+    const token = await getValidAccessToken(conn as ShopifyConnectionRow);
     const shop = conn.shop_domain;
 
     // Fetch jeweller markup + feed selections
