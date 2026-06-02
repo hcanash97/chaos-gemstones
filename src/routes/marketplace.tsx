@@ -77,6 +77,7 @@ export const Route = createFileRoute("/marketplace")({
           "Search certified natural and lab-grown diamonds and coloured gemstones from verified dealers worldwide.",
       },
       { property: "og:url", content: "/marketplace" },
+      { name: "keywords", content: "buy loose gemstones wholesale, certified diamonds wholesale, sapphire wholesale UK, ruby wholesale, emerald wholesale, loose stones for jewellers, coloured gemstone marketplace" },
     ],
     links: [{ rel: "canonical", href: "/marketplace" }],
   }),
