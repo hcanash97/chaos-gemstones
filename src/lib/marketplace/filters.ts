@@ -157,7 +157,7 @@ export const STONE_TYPES = [
   "spinel", "tourmaline", "tanzanite", "opal", "garnet", "aquamarine", "morganite",
   "paraiba-tourmaline", "tsavorite", "demantoid", "chrysoberyl", "cats-eye",
   "moonstone", "pearl", "jade", "amethyst", "citrine", "peridot", "iolite",
-  "zircon", "other",
+  "zircon", "rough", "mineral-specimen", "other",
 ];
 
 export const STONE_TYPE_LABELS: Record<string, string> = {
@@ -165,6 +165,8 @@ export const STONE_TYPE_LABELS: Record<string, string> = {
   "diamond-lab": "Diamond (Lab-grown)",
   "cats-eye": "Cat's Eye",
   "paraiba-tourmaline": "Paraiba Tourmaline",
+  rough: "Rough / Uncut",
+  "mineral-specimen": "Mineral Specimen",
 };
 
 export const SHAPES = [

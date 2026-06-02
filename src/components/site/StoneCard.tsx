@@ -27,6 +27,9 @@ export type StoneCardData = {
   dealer_country?: string | null;
   dealer_verified?: boolean | null;
   dealer_id?: string | null;
+  has_video?: boolean | null;
+  has_360?: boolean | null;
+  matching_pair?: boolean | null;
 };
 
 function StoneCardImpl({
@@ -134,6 +137,18 @@ function StoneCardImpl({
             In feed
           </span>
         )}
+        <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
+          {(stone.has_360 || stone.has_video) && (
+            <span className="rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground backdrop-blur">
+              {stone.has_360 ? "360°" : "Video"}
+            </span>
+          )}
+          {stone.matching_pair && (
+            <span className="rounded-full bg-[var(--color-gold)]/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-gold-foreground)] backdrop-blur">
+              Pair
+            </span>
+          )}
+        </div>
         <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
           <button
             type="button"
