@@ -7,6 +7,7 @@ export type AppProfile = {
   email: string | null;
   full_name: string | null;
   account_type: "dealer" | "jeweller" | "admin";
+  account_types: string[] | null;
   company_name: string | null;
   is_approved: boolean;
   is_verified: boolean;
@@ -44,7 +45,7 @@ export function useAuth() {
   async function loadProfile(uid: string) {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, full_name, account_type, company_name, is_approved, is_verified")
+      .select("id, email, full_name, account_type, account_types, company_name, is_approved, is_verified")
       .eq("id", uid)
       .maybeSingle();
     setProfile(data as AppProfile | null);
