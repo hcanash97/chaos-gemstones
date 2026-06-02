@@ -109,6 +109,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "manifest", href: "/manifest.json" },
       { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "alternate", hreflang: "en-gb", href: "https://chaosgemstones.com" },
+      { rel: "alternate", hreflang: "en-us", href: "https://chaosgemstones.com" },
+      { rel: "alternate", hreflang: "en-au", href: "https://chaosgemstones.com" },
+      { rel: "alternate", hreflang: "en-ca", href: "https://chaosgemstones.com" },
+      { rel: "alternate", hreflang: "en", href: "https://chaosgemstones.com" },
+      { rel: "alternate", hreflang: "x-default", href: "https://chaosgemstones.com" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
