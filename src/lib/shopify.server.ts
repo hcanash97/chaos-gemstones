@@ -114,22 +114,63 @@ async function exchangeClientCredentials(
   clientId: string,
   clientSecret: string,
 ): Promise<{ token: string; expiresIn: number }> {
-  const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "client_credentials",
-    }),
+  console.log(`[shopify] Attempting token exchange for shop: ${shop}`);
+  const url = `https://${shop}/admin/oauth/access_token`;
+  const attempt = async (body: Record<string, string>) => {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    });
+    const text = await r.text().catch(() => "");
+    console.log(`[shopify] Token exchange response status: ${r.status}`);
+    console.log(`[shopify] Token exchange response body: ${text.slice(0, 300)}`);
+    return { status: r.status, ok: r.ok, text };
+  };
+  // Primary attempt: with grant_type
+  let res = await attempt({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: "client_credentials",
   });
+  // Fallback: without grant_type (some Dev Dashboard apps reject the field)
   if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    throw new Error(`Shopify token exchange failed: ${res.status} ${err.slice(0, 200)}`);
+    console.log(`[shopify] Primary token exchange failed (${res.status}); trying fallback without grant_type`);
+    res = await attempt({ client_id: clientId, client_secret: clientSecret });
   }
-  const json = (await res.json()) as { access_token?: string; expires_in?: number };
-  if (!json.access_token) throw new Error("Shopify token exchange returned no access_token");
-  return { token: json.access_token, expiresIn: json.expires_in ?? 86399 };
+  if (!res.ok) {
+    const reason = mapTokenError(res.status, res.text);
+    throw new Error(reason);
+  }
+  let json: { access_token?: string; expires_in?: number };
+  try {
+    json = JSON.parse(res.text);
+  } catch {
+    throw new Error(`Shopify returned non-JSON response: ${res.text.slice(0, 200)}`);
+  }
+  if (!json.access_token) {
+    throw new Error("Shopify token exchange returned no access_token");
+  }
+  const expiresIn = json.expires_in ?? 86399;
+  console.log(`[shopify] Token exchange success — expires in ${expiresIn}s`);
+  return { token: json.access_token, expiresIn };
+}
+
+function mapTokenError(status: number, body: string): string {
+  const lower = body.toLowerCase();
+  if (status === 401 || lower.includes("invalid_client") || lower.includes("invalid client")) {
+    return "Invalid credentials — your Client ID or Secret is wrong.";
+  }
+  if (status === 404 || lower.includes("not found")) {
+    return "Shop not found — check your store domain (should be your-store.myshopify.com).";
+  }
+  if (lower.includes("scope")) {
+    return "Scopes missing — enable write_products on your Shopify app.";
+  }
+  if (lower.includes("not installed") || lower.includes("uninstalled")) {
+    return "App not installed — install your Shopify app on this store first.";
+  }
+  return `Shopify token exchange failed: ${status} ${body.slice(0, 200)}`;
 }
 
 export async function mintAccessToken(
