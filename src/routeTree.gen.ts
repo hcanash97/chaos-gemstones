@@ -42,6 +42,7 @@ import { Route as DashboardAccountRouteImport } from './routes/dashboard.account
 import { Route as AdminImportTestRouteImport } from './routes/admin.import-test'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
 import { Route as DashboardJewellerIndexRouteImport } from './routes/dashboard.jeweller.index'
+import { Route as LearnGemstonesTypeRouteImport } from './routes/learn.gemstones.$type'
 import { Route as DashboardStonesNewRouteImport } from './routes/dashboard.stones.new'
 import { Route as DashboardStonesIdRouteImport } from './routes/dashboard.stones.$id'
 import { Route as DashboardJewellerWishlistRouteImport } from './routes/dashboard.jeweller.wishlist'
@@ -230,6 +231,11 @@ const DashboardJewellerIndexRoute = DashboardJewellerIndexRouteImport.update({
   path: '/jeweller/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const LearnGemstonesTypeRoute = LearnGemstonesTypeRouteImport.update({
+  id: '/learn/gemstones/$type',
+  path: '/learn/gemstones/$type',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardStonesNewRoute = DashboardStonesNewRouteImport.update({
   id: '/stones/new',
   path: '/stones/new',
@@ -395,6 +401,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/learn/gemstones/$type': typeof LearnGemstonesTypeRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
@@ -451,6 +458,7 @@ export interface FileRoutesByTo {
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/learn/gemstones/$type': typeof LearnGemstonesTypeRoute
   '/dashboard/jeweller': typeof DashboardJewellerIndexRoute
   '/dashboard/stones': typeof DashboardStonesIndexRoute
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
@@ -509,6 +517,7 @@ export interface FileRoutesById {
   '/dashboard/jeweller/wishlist': typeof DashboardJewellerWishlistRoute
   '/dashboard/stones/$id': typeof DashboardStonesIdRoute
   '/dashboard/stones/new': typeof DashboardStonesNewRoute
+  '/learn/gemstones/$type': typeof LearnGemstonesTypeRoute
   '/dashboard/jeweller/': typeof DashboardJewellerIndexRoute
   '/dashboard/stones/': typeof DashboardStonesIndexRoute
   '/api/dealer/v1/stones': typeof ApiDealerV1StonesRouteWithChildren
@@ -568,6 +577,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/learn/gemstones/$type'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
     | '/api/dealer/v1/stones'
@@ -624,6 +634,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/learn/gemstones/$type'
     | '/dashboard/jeweller'
     | '/dashboard/stones'
     | '/api/dealer/v1/stones'
@@ -681,6 +692,7 @@ export interface FileRouteTypes {
     | '/dashboard/jeweller/wishlist'
     | '/dashboard/stones/$id'
     | '/dashboard/stones/new'
+    | '/learn/gemstones/$type'
     | '/dashboard/jeweller/'
     | '/dashboard/stones/'
     | '/api/dealer/v1/stones'
@@ -720,6 +732,7 @@ export interface RootRouteChildren {
   VendorsIndexRoute: typeof VendorsIndexRoute
   ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
+  LearnGemstonesTypeRoute: typeof LearnGemstonesTypeRoute
   ApiDealerV1StonesRoute: typeof ApiDealerV1StonesRouteWithChildren
   ApiPublicCronDigestRoute: typeof ApiPublicCronDigestRoute
   ApiPublicCronSavedSearchDigestRoute: typeof ApiPublicCronSavedSearchDigestRoute
@@ -959,6 +972,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/jeweller/'
       preLoaderRoute: typeof DashboardJewellerIndexRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/learn/gemstones/$type': {
+      id: '/learn/gemstones/$type'
+      path: '/learn/gemstones/$type'
+      fullPath: '/learn/gemstones/$type'
+      preLoaderRoute: typeof LearnGemstonesTypeRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard/stones/new': {
       id: '/dashboard/stones/new'
@@ -1228,6 +1248,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendorsIndexRoute: VendorsIndexRoute,
   ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
   ApiPublicFeedRoute: ApiPublicFeedRoute,
+  LearnGemstonesTypeRoute: LearnGemstonesTypeRoute,
   ApiDealerV1StonesRoute: ApiDealerV1StonesRouteWithChildren,
   ApiPublicCronDigestRoute: ApiPublicCronDigestRoute,
   ApiPublicCronSavedSearchDigestRoute: ApiPublicCronSavedSearchDigestRoute,

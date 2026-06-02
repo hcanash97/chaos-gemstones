@@ -314,7 +314,7 @@ export const Route = createFileRoute("/learn/gemstones/$type")({
 });
 
 function GemstonePage() {
-  const g = Route.useLoaderData();
+  const g = Route.useLoaderData() as StoneGuide;
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
