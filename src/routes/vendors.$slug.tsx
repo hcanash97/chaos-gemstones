@@ -20,7 +20,7 @@ export const Route = createFileRoute("/vendors/$slug")({
   loader: async ({ params }) => {
     const { data } = await supabase
       .from("dealer_profiles")
-      .select("id, profiles!inner(company_name, city, country, is_approved)")
+      .select("id, logo_url, bio, specialities, trade_memberships, profiles!inner(company_name, city, country, is_approved)")
       .eq("slug", params.slug)
       .maybeSingle();
     return { vendor: data as any };
@@ -38,6 +38,13 @@ export const Route = createFileRoute("/vendors/$slug")({
         { property: "og:title", content: title },
         { property: "og:description", content: desc },
         { property: "og:url", content: `/vendors/${params.slug}` },
+        ...(v?.logo_url
+          ? [
+              { property: "og:image", content: v.logo_url },
+              { name: "twitter:image", content: v.logo_url },
+            ]
+          : []),
+        { name: "twitter:card", content: "summary_large_image" },
       ],
       links: [{ rel: "canonical", href: `/vendors/${params.slug}` }],
       scripts: [
@@ -45,8 +52,11 @@ export const Route = createFileRoute("/vendors/$slug")({
           type: "application/ld+json",
           children: JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "Organization",
+            "@type": "LocalBusiness",
             name,
+            description: desc,
+            url: `https://chaosgemstones.com/vendors/${params.slug}`,
+            ...(v?.logo_url ? { image: v.logo_url } : {}),
             ...(city || v?.profiles?.country
               ? {
                   address: {
@@ -56,7 +66,21 @@ export const Route = createFileRoute("/vendors/$slug")({
                   },
                 }
               : {}),
-            url: `https://chaosgemstones.com/vendors/${params.slug}`,
+            ...(v?.specialities?.length ? { knowsAbout: v.specialities.join(", ") } : {}),
+            ...(v?.trade_memberships?.length
+              ? { memberOf: v.trade_memberships.map((m: string) => ({ "@type": "Organization", name: m })) }
+              : {}),
+          }),
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Vendors", item: "https://chaosgemstones.com/vendors" },
+              { "@type": "ListItem", position: 2, name, item: `https://chaosgemstones.com/vendors/${params.slug}` },
+            ],
           }),
         },
       ],
