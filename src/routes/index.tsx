@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
+import { useAuth } from "@/hooks/useAuth";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ShieldCheck, Globe2, Boxes } from "lucide-react";
@@ -107,6 +109,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const { user, profile } = useAuth();
+  const isApprovedJeweller = checkJ(profile) && !!profile?.is_approved;
   const { data: stats } = useQuery({
     queryKey: ["home-stats"],
     queryFn: async () => {
@@ -137,14 +141,33 @@ function Home() {
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, is_primary)")
+        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)")
         .eq("featured", true)
         .eq("status", "available")
         .limit(8);
-      return (data ?? []).map((s: any) => ({
-        ...s,
-        image: s.stone_images?.[0]?.storage_url ?? null,
-      }));
+      return (data ?? []).map((s: any) => {
+        const sorted = [...(s.stone_images ?? [])].sort(
+          (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
+        );
+        const primary = sorted.find((i: any) => i.is_primary) ?? sorted[0];
+        return {
+          ...s,
+          image: primary?.storage_url || primary?.external_image_url || null,
+        };
+      });
+    },
+  });
+
+  const { data: wishlistIds } = useQuery({
+    queryKey: ["wishlist-ids", user?.id],
+    enabled: !!user && isApprovedJeweller,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wishlists")
+        .select("stone_id")
+        .eq("jeweller_id", user!.id);
+      return new Set((data ?? []).map((w: any) => w.stone_id as string));
     },
   });
 
