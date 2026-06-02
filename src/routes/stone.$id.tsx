@@ -516,7 +516,7 @@ function ReportListing({ stoneId }: { stoneId: string }) {
   const [details, setDetails] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (!user || profile?.account_type !== "jeweller") return null;
+  if (!user || !checkJ(profile)) return null;
 
   async function submit() {
     setBusy(true);
