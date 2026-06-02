@@ -407,6 +407,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
     }
 
     const stones = Array.from(stoneMap.values());
+    console.log(`[shopify] Sync starting for shop: ${shop}, feed stones: ${stones.length}`);
 
     // Images
     const imagesByStone = new Map<string, StoneImageRow[]>();
@@ -536,6 +537,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .eq("id", logId);
     }
 
+    console.log(`[shopify] Sync complete: ${result.added} added, ${result.updated} updated, ${result.archived} archived, ${result.errors.length} errors`);
     return result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
