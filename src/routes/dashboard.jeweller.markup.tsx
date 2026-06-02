@@ -72,7 +72,7 @@ function MarkupPage() {
       const { data: dealers } = await supabase
         .from("profiles")
         .select("id, company_name, country")
-        .eq("account_type", "dealer")
+        .or("account_type.eq.dealer,account_types.cs.{dealer}")
         .eq("is_approved", true)
         .order("company_name", { ascending: true });
 
