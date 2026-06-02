@@ -246,6 +246,12 @@ function AdminPage() {
           </div>
           <div className="flex gap-1 rounded-md border border-border p-1 text-sm">
             <button
+              onClick={() => setTab("stats")}
+              className={`rounded px-3 py-1 ${tab === "stats" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              Stats
+            </button>
+            <button
               onClick={() => setTab("pending")}
               className={`rounded px-3 py-1 ${tab === "pending" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
@@ -314,9 +320,55 @@ function AdminPage() {
           <FeesPanel />
         ) : tab === "referrals" ? (
           <ReferralsPanel />
+        ) : tab === "stats" ? (
+          <StatsPanel />
         ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
-          {rows.length === 0 ? (
+        <>
+          {tab === "all" && (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="Search name, company, email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="max-w-xs"
+              />
+              <div className="flex flex-wrap gap-1 rounded-md border border-border p-1 text-xs">
+                {(["all","dealers","jewellers","dual","suspended","pending"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setRoleFilter(f)}
+                    className={`rounded px-2.5 py-1 capitalize ${roleFilter === f ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                  >
+                    {f === "dual" ? "Dual role" : f}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="company">Company A–Z</option>
+              </select>
+            </div>
+          )}
+
+          {selected.size > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-3 py-2 text-sm">
+              <span className="font-medium">{selected.size} selected</span>
+              <span className="flex-1" />
+              <Button size="sm" onClick={() => bulkAction("approve")}>Approve</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkAction("suspend")}>Suspend</Button>
+              <Button size="sm" variant="ghost" onClick={() => bulkAction("toggle_verified")}>Toggle verified</Button>
+              <Button size="sm" variant="ghost" onClick={() => setEmailOpen(true)}>Send email</Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+            </div>
+          )}
+
+        <div className="mt-3 overflow-hidden rounded-lg border border-border bg-card">
+          {visibleRows.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               {tab === "pending" ? "No accounts awaiting approval." : "No accounts yet."}
             </div>
@@ -324,8 +376,14 @@ function AdminPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
+                  <th className="px-3 py-3 w-8">
+                    <Checkbox
+                      checked={selected.size > 0 && selected.size === visibleRows.length}
+                      onCheckedChange={toggleAllSel}
+                    />
+                  </th>
                   <th className="px-4 py-3">Account</th>
-                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Roles</th>
                   <th className="px-4 py-3">Company</th>
                   <th className="px-4 py-3">Country</th>
                   <th className="px-4 py-3">Signed up</th>
@@ -334,13 +392,22 @@ function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {visibleRows.map((r) => (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                    <td className="px-3 py-3">
+                      <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSel(r.id)} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{r.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{r.email}</div>
                     </td>
-                    <td className="px-4 py-3 capitalize">{r.account_type}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {roleList(r).map((role) => (
+                          <span key={role} className="inline-flex rounded-full bg-muted/50 px-2 py-0.5 text-[10px] uppercase tracking-wider">{role}</span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.company_name || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.country || "—"}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -361,7 +428,9 @@ function AdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <div className="flex flex-wrap justify-end gap-1">
                       {!r.is_approved ? (
+                        <>
                         <Button
                           size="sm"
                           disabled={busy === r.id}
@@ -370,6 +439,8 @@ function AdminPage() {
                         >
                           Approve
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => copyQuickApproveLink(r.id)}>Copy link</Button>
+                        </>
                       ) : (
                         <Button
                           size="sm"
@@ -389,6 +460,9 @@ function AdminPage() {
                       >
                         {r.is_verified ? "Unverify" : "Verify"}
                       </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditRolesFor(r)}>Edit roles</Button>
+                      <Button size="sm" variant="ghost" onClick={() => viewAs(r)}>View as</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -396,8 +470,29 @@ function AdminPage() {
             </table>
           )}
         </div>
+        </>
         )}
       </div>
+
+      {editRolesFor && (
+        <EditRolesDialog
+          open={!!editRolesFor}
+          onOpenChange={(v) => !v && setEditRolesFor(null)}
+          userId={editRolesFor.id}
+          userName={editRolesFor.full_name || editRolesFor.company_name || editRolesFor.email || ""}
+          initialRoles={roleList(editRolesFor)}
+          onSaved={(roles) => {
+            setRows((rs) =>
+              rs.map((p) =>
+                p.id === editRolesFor.id
+                  ? { ...p, account_types: roles, account_type: (roles[0] || p.account_type) as ProfileRow["account_type"] }
+                  : p,
+              ),
+            );
+          }}
+        />
+      )}
+      <SendEmailDialog open={emailOpen} onOpenChange={setEmailOpen} ids={Array.from(selected)} />
     </div>
   );
 }
