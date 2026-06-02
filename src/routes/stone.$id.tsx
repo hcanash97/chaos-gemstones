@@ -26,7 +26,7 @@ export const Route = createFileRoute("/stone/$id")({
     const { data } = await supabase
       .from("stones")
       .select(
-        "id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cert_lab, stone_images(storage_url), profiles:dealer_id(company_name, city, country)",
+        "id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cert_lab, cert_number, treatment, country_of_origin, wholesale_price_usd, price_currency, status, stone_images(storage_url), profiles:dealer_id(company_name, city, country)",
       )
       .eq("id", params.id)
       .maybeSingle();
@@ -40,6 +40,23 @@ export const Route = createFileRoute("/stone/$id")({
     const title = `${carat}${shape}${s.stone_type} — ${s.cert_lab || "Uncertified"} — Chaos`;
     const desc = `${carat}${s.colour_grade ? s.colour_grade + " " : ""}${shape}${s.stone_type}${s.clarity_grade ? ", " + s.clarity_grade : ""}${s.cert_lab ? ", certified by " + s.cert_lab : ""}${s.profiles?.company_name ? ", sourced from " + s.profiles.company_name : ""}${s.profiles?.city ? " in " + s.profiles.city + (s.profiles.country ? ", " + s.profiles.country : "") : ""}.`;
     const img = s.stone_images?.[0]?.storage_url;
+    const availability =
+      s.status === "available"
+        ? "https://schema.org/InStock"
+        : s.status === "reserved"
+        ? "https://schema.org/LimitedAvailability"
+        : "https://schema.org/OutOfStock";
+    const sellerName = s.profiles?.company_name || "Chaos Gemstones";
+    const productName = `${carat}${shape}${s.stone_type}`.trim();
+    const additionalProperty = [
+      s.carat_weight ? { "@type": "PropertyValue", name: "Carat Weight", value: s.carat_weight } : null,
+      s.shape ? { "@type": "PropertyValue", name: "Shape", value: s.shape } : null,
+      s.colour_grade ? { "@type": "PropertyValue", name: "Colour Grade", value: s.colour_grade } : null,
+      s.clarity_grade ? { "@type": "PropertyValue", name: "Clarity Grade", value: s.clarity_grade } : null,
+      s.cert_lab ? { "@type": "PropertyValue", name: "Certification", value: s.cert_lab } : null,
+      s.treatment ? { "@type": "PropertyValue", name: "Treatment", value: s.treatment } : null,
+      s.country_of_origin ? { "@type": "PropertyValue", name: "Country of Origin", value: s.country_of_origin } : null,
+    ].filter(Boolean);
     return {
       meta: [
         { title },
@@ -63,10 +80,33 @@ export const Route = createFileRoute("/stone/$id")({
           children: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Product",
-            name: `${carat}${shape}${s.stone_type}`.trim(),
+            name: productName,
             description: desc,
-            ...(img ? { image: img } : {}),
-            ...(s.profiles?.company_name ? { brand: { "@type": "Organization", name: s.profiles.company_name } } : {}),
+            sku: s.cert_number || s.id,
+            ...(s.cert_number ? { mpn: s.cert_number } : {}),
+            brand: { "@type": "Organization", name: sellerName },
+            image: img ? [img] : [],
+            offers: {
+              "@type": "Offer",
+              priceCurrency: s.price_currency || "USD",
+              ...(s.wholesale_price_usd != null ? { price: String(s.wholesale_price_usd) } : {}),
+              availability,
+              seller: { "@type": "Organization", name: sellerName },
+              url: `https://chaosgemstones.com/stone/${s.id}`,
+            },
+            additionalProperty,
+          }),
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Marketplace", item: "https://chaosgemstones.com/marketplace" },
+              { "@type": "ListItem", position: 2, name: s.stone_type, item: `https://chaosgemstones.com/marketplace?type=${s.stone_type}` },
+              { "@type": "ListItem", position: 3, name: productName, item: `https://chaosgemstones.com/stone/${s.id}` },
+            ],
           }),
         },
       ],

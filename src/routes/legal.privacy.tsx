@@ -10,6 +10,7 @@ export const Route = createFileRoute("/legal/privacy")({
       { property: "og:title", content: "Privacy Policy — Chaos" },
       { property: "og:description", content: "How Chaos collects, uses and protects personal data under UK GDPR." },
       { property: "og:url", content: "/legal/privacy" },
+      { name: "robots", content: "noindex, follow" },
     ],
     links: [{ rel: "canonical", href: "/legal/privacy" }],
   }),

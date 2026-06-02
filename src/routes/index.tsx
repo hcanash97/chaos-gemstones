@@ -24,6 +24,7 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "B2B Gemstone & Diamond Marketplace — Chaos" },
       { property: "og:description", content: "Connect with verified independent gemstone and diamond dealers worldwide." },
       { property: "og:url", content: "/" },
+      { name: "keywords", content: "gemstone marketplace, diamond marketplace, wholesale gemstones, B2B gemstone platform, loose stones API, gemstone dealer UK, wholesale sapphire, wholesale ruby, Jaipur gemstone dealer, Surat diamond dealer" },
     ],
     links: [{ rel: "canonical", href: "/" }],
     scripts: [
@@ -47,6 +48,55 @@ export const Route = createFileRoute("/")({
                 "@type": "SearchAction",
                 target: "https://chaosgemstones.com/marketplace?q={search_term_string}",
                 "query-input": "required name=search_term_string",
+              },
+            },
+          ],
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "How do I list my gemstones on Chaos?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Sign up as a dealer at chaosgemstones.com/sign-up/dealer, complete your profile, and upload your stones manually, via CSV bulk upload, or by connecting your existing inventory feed via API. Your account is reviewed and approved within 24 hours.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "How does the API feed work for jewellers?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Jewellers generate an API key from their dashboard and paste two lines of code into their website. Their selected stones appear live with their own retail pricing applied automatically. Works on Shopify, Wix, Squarespace, Webflow, WordPress, and any custom site.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "How much does Chaos cost?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Chaos is completely free during the launch period. There are no listing fees, no subscription fees, and no commission. We will introduce a small performance-based fee in the future with at least 30 days notice.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Which certification labs are supported?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Chaos supports all major gemological laboratories including GIA, IGI, HRD, GRS, AGL, Gübelin, SSEF, GCAL, Lotus, and GIT. Uncertified stones can also be listed with full disclosure.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Which countries can dealers sell to through Chaos?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Chaos connects dealers primarily with jewellers in the United Kingdom, United States, Canada, Australia, and Europe. Dealers based in India, Sri Lanka, Thailand, Myanmar, Colombia, and other major sourcing hubs are welcome to list their inventory.",
               },
             },
           ],

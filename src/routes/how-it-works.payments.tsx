@@ -7,13 +7,13 @@ import { Building2, Send, CreditCard, Sparkles } from "lucide-react";
 export const Route = createFileRoute("/how-it-works/payments")({
   head: () => ({
     meta: [
-      { title: "How payments work — Chaos" },
+      { title: "How Payments Work — Chaos Gemstones" },
       {
         name: "description",
         content:
-          "Payments on Chaos: direct dealer-to-jeweller settlement, recommended methods (Bank/Wise/PayPal). Free during launch beta — no fees, no subscriptions.",
+          "How payments work between gemstone dealers and jewellers on Chaos. Free during launch beta — no fees, no subscription.",
       },
-      { property: "og:title", content: "How payments work — Chaos" },
+      { property: "og:title", content: "How Payments Work — Chaos Gemstones" },
       { property: "og:description", content: "Direct dealer-to-jeweller payments. Free during launch beta." },
       { property: "og:url", content: "/how-it-works/payments" },
     ],

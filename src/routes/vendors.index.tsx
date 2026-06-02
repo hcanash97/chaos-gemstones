@@ -12,6 +12,29 @@ import { StaggerGroup } from "@/components/anim/Motion";
 
 export const Route = createFileRoute("/vendors/")({
   component: Vendors,
+  head: () => ({
+    meta: [
+      { title: "Verified Gemstone & Diamond Dealers — Chaos Gemstones" },
+      {
+        name: "description",
+        content:
+          "Browse verified independent gemstone and diamond dealers from Jaipur, Surat, Bangkok, Colombo and beyond. GIA, IGI, GRS certified stones available wholesale.",
+      },
+      {
+        name: "keywords",
+        content:
+          "gemstone dealers, diamond dealers India, Jaipur gemstone supplier, Surat diamond dealer, wholesale gemstone supplier, certified gemstone dealer",
+      },
+      { property: "og:title", content: "Verified Gemstone & Diamond Dealers — Chaos Gemstones" },
+      {
+        property: "og:description",
+        content:
+          "Browse verified independent gemstone and diamond dealers worldwide. GIA, IGI, GRS certified stones available wholesale.",
+      },
+      { property: "og:url", content: "/vendors" },
+    ],
+    links: [{ rel: "canonical", href: "/vendors" }],
+  }),
 });
 
 function Vendors() {

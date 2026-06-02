@@ -7,6 +7,7 @@ export const Route = createFileRoute("/legal/terms-jewellers")({
     meta: [
       { title: "Jeweller Terms of Service — Chaos" },
       { name: "description", content: "Terms of Service for trade jewellers sourcing gemstones on the Chaos marketplace." },
+      { name: "robots", content: "noindex, follow" },
     ],
   }),
   component: TermsJewellersPage,

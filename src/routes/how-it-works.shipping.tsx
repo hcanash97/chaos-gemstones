@@ -5,13 +5,13 @@ import { Plane, Package, ShieldCheck } from "lucide-react";
 export const Route = createFileRoute("/how-it-works/shipping")({
   head: () => ({
     meta: [
-      { title: "Shipping & customs guidance — Chaos" },
+      { title: "Gemstone Shipping Guide — International Delivery & Customs — Chaos Gemstones" },
       {
         name: "description",
         content:
-          "International shipping guidance for gemstones and diamonds: recommended carriers (Malca-Amit, Brinks, FedEx, DHL), UK customs and VAT, packaging tips for dealers.",
+          "How to ship loose gemstones internationally. Recommended carriers, customs guidance, insurance, and Incoterms for dealers and jewellers.",
       },
-      { property: "og:title", content: "Shipping & customs guidance — Chaos" },
+      { property: "og:title", content: "Gemstone Shipping Guide — International Delivery & Customs — Chaos Gemstones" },
       { property: "og:description", content: "How to ship gemstones internationally — carriers, customs, and packaging." },
       { property: "og:url", content: "/how-it-works/shipping" },
     ],
