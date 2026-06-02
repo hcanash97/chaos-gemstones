@@ -32,7 +32,8 @@ function ShopifyPage() {
   const toggleAuto = useServerFn(setShopifyAutoSync);
 
   const [shop, setShop] = useState("");
-  const [token, setToken] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [busy, setBusy] = useState(false);
 
   const isJeweller = checkJ(profile);
@@ -49,16 +50,23 @@ function ShopifyPage() {
   const logs = data?.logs ?? [];
 
   async function handleConnect() {
-    if (!shop.trim() || !token.trim()) {
-      toast.error("Enter both your store domain and Admin API token.");
+    if (!shop.trim() || !clientId.trim() || !clientSecret.trim()) {
+      toast.error("Enter your store domain, Client ID and Client Secret.");
       return;
     }
     setBusy(true);
     try {
-      const res = await connect({ data: { shopDomain: shop.trim(), accessToken: token.trim() } });
+      const res = await connect({
+        data: {
+          shopDomain: shop.trim(),
+          clientId: clientId.trim(),
+          clientSecret: clientSecret.trim(),
+        },
+      });
       toast.success(`Connected to ${res.shopName}`);
       setShop("");
-      setToken("");
+      setClientId("");
+      setClientSecret("");
       await refetch();
       qc.invalidateQueries({ queryKey: ["shopify-status"] });
     } catch (e) {
@@ -128,8 +136,10 @@ function ShopifyPage() {
         <ConnectForm
           shop={shop}
           setShop={setShop}
-          token={token}
-          setToken={setToken}
+          clientId={clientId}
+          setClientId={setClientId}
+          clientSecret={clientSecret}
+          setClientSecret={setClientSecret}
           busy={busy}
           onConnect={handleConnect}
         />
@@ -141,8 +151,10 @@ function ShopifyPage() {
 function ConnectForm(props: {
   shop: string;
   setShop: (v: string) => void;
-  token: string;
-  setToken: (v: string) => void;
+  clientId: string;
+  setClientId: (v: string) => void;
+  clientSecret: string;
+  setClientSecret: (v: string) => void;
   busy: boolean;
   onConnect: () => void;
 }) {
@@ -151,8 +163,9 @@ function ConnectForm(props: {
       <div className="rounded-md border border-border bg-card p-5">
         <h2 className="font-serif text-xl">Connect your Shopify store</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your store URL and an Admin API access token. Your token is
-          encrypted before storage.
+          Enter your store URL and the Client ID and Secret from your Shopify
+          dev app. Both values are encrypted before storage and never exposed
+          to the browser.
         </p>
         <div className="mt-4 space-y-3">
           <div>
@@ -165,13 +178,22 @@ function ConnectForm(props: {
             />
           </div>
           <div>
-            <Label htmlFor="token">Admin API access token</Label>
+            <Label htmlFor="client-id">Client ID</Label>
             <Input
-              id="token"
+              id="client-id"
+              placeholder="97aae9603a18bd1e4e0ce703c0206380"
+              value={props.clientId}
+              onChange={(e) => props.setClientId(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="client-secret">Client Secret</Label>
+            <Input
+              id="client-secret"
               type="password"
-              placeholder="shpat_..."
-              value={props.token}
-              onChange={(e) => props.setToken(e.target.value)}
+              placeholder="Your app's secret key"
+              value={props.clientSecret}
+              onChange={(e) => props.setClientSecret(e.target.value)}
             />
           </div>
           <Button
@@ -184,14 +206,19 @@ function ConnectForm(props: {
         </div>
       </div>
       <div className="rounded-md border border-border bg-muted/30 p-5 text-sm">
-        <h2 className="font-serif text-xl">How to get your Admin API token</h2>
+        <h2 className="font-serif text-xl">How to get your Client ID and Secret</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5">
-          <li>In Shopify admin, open <strong>Settings → Apps and sales channels</strong>.</li>
-          <li>Click <strong>Develop apps</strong> → <strong>Create an app</strong>. Name it "Chaos Sync".</li>
-          <li>Open <strong>Configuration → Admin API scopes</strong> and enable <code>write_products</code> and <code>read_products</code>.</li>
-          <li>Click <strong>Install app</strong>, then copy the <strong>Admin API access token</strong> (starts with <code>shpat_</code>).</li>
-          <li>Paste your <code>myshopify.com</code> domain and the token here.</li>
+          <li>Go to <a className="underline" href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> → find your "Chaos Gemstones Feed" app.</li>
+          <li>Click the app → go to <strong>Settings</strong>.</li>
+          <li>Copy the <strong>Client ID</strong> (visible on screen).</li>
+          <li>Click the eye icon next to <strong>Secret</strong> to reveal it, then copy it.</li>
+          <li>Paste both values opposite and click <strong>Connect</strong>.</li>
         </ol>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Static <code>shpat_</code> tokens were deprecated on 1 Jan 2026. Chaos
+          now exchanges your Client ID + Secret for a short-lived token that
+          auto-refreshes every sync.
+        </p>
       </div>
     </div>
   );
@@ -240,6 +267,12 @@ function ConnectedView({
           <Stat label="Status" value={conn.last_sync_status ?? "—"} />
           <Stat label="Products synced" value={String(conn.products_synced ?? 0)} />
         </div>
+        {conn.token_expires_at && (
+          <div className="mt-3 text-xs text-muted-foreground">
+            Token valid until {new Date(conn.token_expires_at).toLocaleString()}
+            {conn.last_sync_at ? ` · Last refreshed ${timeAgo(conn.last_sync_at)}` : ""}
+          </div>
+        )}
         <div className="mt-4 flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
           <div>
             <div className="text-sm font-medium">Auto-sync</div>
