@@ -159,7 +159,7 @@ function RootComponent() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <main id="main"><Outlet /></main>
+              <main id="main" className="pb-16 md:pb-0"><Outlet /></main>
             </motion.div>
           </AnimatePresence>
           <CompareBar />
