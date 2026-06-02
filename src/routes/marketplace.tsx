@@ -841,13 +841,13 @@ function Marketplace() {
             ) : f.view === "grid" ? (
               <StaggerGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" delay={0.06}>
                 {visible.map((s) => (
-                  <StoneCard key={s.id} stone={s} />
+                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} />
                 ))}
               </StaggerGroup>
             ) : (
               <div className="flex flex-col gap-3">
                 {visible.map((s) => (
-                  <StoneCard key={s.id} stone={s} />
+                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} />
                 ))}
               </div>
             )}
