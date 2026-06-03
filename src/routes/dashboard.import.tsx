@@ -64,6 +64,8 @@ function ImportPage() {
   const [summary, setSummary] = useState<{ imported: number; skipped: number; errorBreakdown: Record<string, number> } | null>(null);
   const [feedUrl, setFeedUrl] = useState("");
   const [savedFeedUrl, setSavedFeedUrl] = useState<string | null>(null);
+  const [feedMethod, setFeedMethod] = useState<"GET" | "POST">("GET");
+  const [feedBody, setFeedBody] = useState<string>("");
   const [fetching, setFetching] = useState(false);
   const [originalSource, setOriginalSource] = useState<"csv" | "feed">("csv");
 
@@ -72,13 +74,18 @@ function ImportPage() {
     (async () => {
       const [certs, dealer] = await Promise.all([
         supabase.from("stones").select("cert_number").eq("dealer_id", user.id).not("cert_number", "is", null),
-        supabase.from("dealer_profiles").select("external_feed_url").eq("id", user.id).maybeSingle(),
+        supabase.from("dealer_profiles").select("external_feed_url, external_feed_method, external_feed_body").eq("id", user.id).maybeSingle(),
       ]);
       const set = new Set<string>();
       (certs.data ?? []).forEach((r: any) => r.cert_number && set.add(String(r.cert_number).trim()));
       setExistingCerts(set);
-      setSavedFeedUrl((dealer.data as any)?.external_feed_url ?? null);
-      if ((dealer.data as any)?.external_feed_url) setFeedUrl((dealer.data as any).external_feed_url);
+      const dp: any = dealer.data ?? {};
+      setSavedFeedUrl(dp.external_feed_url ?? null);
+      if (dp.external_feed_url) setFeedUrl(dp.external_feed_url);
+      if (dp.external_feed_method === "POST" || dp.external_feed_method === "GET") {
+        setFeedMethod(dp.external_feed_method);
+      }
+      setFeedBody(dp.external_feed_body ?? "");
     })();
   }, [user]);
 
@@ -111,7 +118,9 @@ function ImportPage() {
     setFetching(true);
     setOriginalSource("feed");
     try {
-      const res = await fetchFeed({ data: { url } });
+      const res = await fetchFeed({
+        data: { url, method: feedMethod, body: feedBody || undefined },
+      });
       if (res.format === "json") {
         try {
           const parsed = flattenJson(JSON.parse(res.body));
@@ -197,7 +206,9 @@ function ImportPage() {
     setFetching(true);
     setOriginalSource("feed");
     try {
-      const res = await fetchFeed({ data: { url: savedFeedUrl } });
+      const res = await fetchFeed({
+        data: { url: savedFeedUrl, method: feedMethod, body: feedBody || undefined },
+      });
       const parsed = res.format === "json"
         ? (() => { const x = flattenJson(JSON.parse(res.body)); const keys = new Set<string>(); x.forEach((r) => Object.keys(r).forEach((k) => keys.add(k))); return { headers: [...keys], rows: x }; })()
         : parseCsvString(res.body);
