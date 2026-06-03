@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import cMark from "@/assets/chaos-c-mark.png";
 
 /**
  * CHAOS wordmark + minimal gem-facet mark.
@@ -8,7 +7,7 @@ import cMark from "@/assets/chaos-c-mark.png";
 export function GemMark({ size = 24, className, style }: { size?: number; className?: string; style?: React.CSSProperties }) {
   return (
     <img
-      src={cMark}
+      src="/icons/icon-512.png"
       width={size}
       height={size}
       alt=""
