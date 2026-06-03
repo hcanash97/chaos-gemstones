@@ -16,6 +16,7 @@ import { CompareProvider } from "@/contexts/CompareContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { CompareBar } from "@/components/site/CompareBar";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 function NotFoundComponent() {
   return (
@@ -152,6 +153,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
         <CompareProvider>
+          <TooltipProvider delayDuration={200}>
           <ImpersonationBanner />
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -166,6 +168,7 @@ function RootComponent() {
           </AnimatePresence>
           <CompareBar />
           <PwaRegister />
+          </TooltipProvider>
         </CompareProvider>
       </CurrencyProvider>
     </QueryClientProvider>

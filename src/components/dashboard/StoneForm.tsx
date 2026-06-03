@@ -396,6 +396,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
               value={values.carat_weight}
               onChange={(e) => set("carat_weight", e.target.value)}
             />
+            <p className="mt-1 text-xs text-muted-foreground">Enter the weight in carats, e.g. 1.25. Use a decimal point not a comma.</p>
           </div>
           <div>
             <Label>Wholesale price ({values.price_currency || "USD"})</Label>
@@ -420,6 +421,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
                 ))}
               </select>
             </div>
+            <p className="mt-1 text-xs text-muted-foreground">Enter your price in whichever currency you quote in. Chaos converts automatically for display.</p>
             {values.wholesale_price_usd && values.price_currency && values.price_currency !== "USD" && (() => {
               const n = Number(values.wholesale_price_usd);
               if (!isFinite(n) || !rates) return null;
@@ -470,6 +472,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
               onChange={(e) => set("treatment", e.target.value)}
               placeholder="none, heated, oiled…"
             />
+            <p className="mt-1 text-xs text-muted-foreground">Disclosure is required. "None" means untreated — unheated stones command a premium for sapphires and rubies.</p>
           </div>
           <div>
             <Label>Origin (region)</Label>
@@ -487,6 +490,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
               value={values.country_of_origin}
               onChange={(e) => set("country_of_origin", e.target.value)}
             />
+            <p className="mt-1 text-xs text-muted-foreground">Where the stone was mined, not where you are based. E.g. Burma, Sri Lanka, Colombia.</p>
           </div>
           <div>
             <Label>Certificate lab</Label>
@@ -500,6 +504,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
           <div>
             <Label>{getCertLabel(values.cert_lab)}</Label>
             <Input className="mt-1" value={values.cert_number} onChange={(e) => set("cert_number", e.target.value)} />
+            <p className="mt-1 text-xs text-muted-foreground">The report number printed on the certificate. For GIA this is 10 digits. Leave blank if uncertified.</p>
           </div>
           <div>
             <Label>Available quantity</Label>
@@ -650,6 +655,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
               <option value="single">Single stone</option>
               <option value="parcel">Parcel / lot</option>
             </select>
+            <p className="mt-1 text-xs text-muted-foreground">Single stone = one individual stone. Parcel = multiple matching stones sold together.</p>
           </div>
           {values.listing_type === "parcel" && (
             <NumField label="Parcel quantity" v={values.parcel_quantity} on={(x) => set("parcel_quantity", x)} />
@@ -719,7 +725,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
             onChange={(e) => set("notes_for_buyers", e.target.value)}
             placeholder="e.g. Available in matched pairs, parcels of 10+, custom cuts to order."
           />
-          <p className="mt-1 text-[11px] text-muted-foreground">Shown publicly on the stone page.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Visible to jewellers. Use this for matched pairs availability, bulk pricing, or any other details.</p>
         </div>
       </div>
       <div className="flex gap-2">

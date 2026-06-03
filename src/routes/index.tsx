@@ -225,6 +225,17 @@ function Home() {
               </Button>
             </Link>
           </motion.div>
+          <motion.p
+            className="mt-4 text-sm opacity-70"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.7 }}
+            transition={{ duration: 0.55, delay: 1.05 }}
+          >
+            Not sure what this is?{" "}
+            <Link to="/about" className="font-medium text-[var(--color-gold)] underline-offset-4 hover:underline">
+              Read how it works →
+            </Link>
+          </motion.p>
         </div>
         <span className="gold-line-draw absolute bottom-0 left-0 right-0" aria-hidden />
       </section>

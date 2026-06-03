@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -161,6 +163,9 @@ function ApiPage() {
       <ReferralDialog open={referralOpen} onOpenChange={setReferralOpen} />
       <h1 className="font-serif text-3xl">API Feed</h1>
       <p className="text-sm text-muted-foreground">Stream your curated catalogue into any website.</p>
+
+      <HelpPanel feedUrl={feedUrl} hasKey={!!activeKey} />
+
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-border bg-card p-4 text-sm"><div className="text-xs text-muted-foreground">Approval status</div><div className="mt-1 font-medium">{approvalCopy}</div></div>
         <div className="rounded-md border border-border bg-card p-4 text-sm"><div className="text-xs text-muted-foreground">API key status</div><div className="mt-1 font-medium">{hasKeyCopy}</div></div>
@@ -278,5 +283,32 @@ function ReferralDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function HelpPanel({ feedUrl, hasKey }: { feedUrl: string; hasKey: boolean }) {
+  const [open, setOpen] = useState(!hasKey);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="mt-4 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5">
+      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-medium">
+        <span>How does this work?</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="border-t border-[var(--color-gold)]/30 px-4 py-4 text-sm">
+        <ol className="space-y-2">
+          <li><strong>1.</strong> Follow dealers on the Vendors & Stones page — their stones enter your feed.</li>
+          <li><strong>2.</strong> Set your markup — e.g. 2.5x means a $1,000 wholesale stone appears as $2,500 on your site.</li>
+          <li><strong>3.</strong> Copy the embed code below and paste it into your website.</li>
+          <li><strong>4.</strong> Stones appear live on your site — sold stones disappear automatically.</li>
+        </ol>
+        <div className="mt-4 rounded-md border border-border bg-background p-3 font-mono text-xs">
+          <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Your feed URL (for developers)</div>
+          {feedUrl}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          This returns a JSON array of all your available stones with retail prices applied.
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
