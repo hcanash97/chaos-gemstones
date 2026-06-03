@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Instagram } from "lucide-react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/vendors/$slug")({
   loader: async ({ params }) => {
     const { data } = await supabase
       .from("dealer_profiles")
-      .select("id, logo_url, bio, specialities, trade_memberships, profiles!inner(company_name, city, country, is_approved)")
+      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, profiles!inner(company_name, city, country, is_approved)")
       .eq("slug", params.slug)
       .maybeSingle();
     return { vendor: data as any };
@@ -98,7 +98,7 @@ function VendorProfile() {
     queryFn: async () => {
       const { data: vendor } = await supabase
         .from("dealer_profiles")
-        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, profiles!inner(company_name, city, country, website, is_verified, created_at)")
+        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
       if (!vendor) return { vendor: null, stones: [] };
