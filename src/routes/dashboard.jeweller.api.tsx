@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -161,6 +163,9 @@ function ApiPage() {
       <ReferralDialog open={referralOpen} onOpenChange={setReferralOpen} />
       <h1 className="font-serif text-3xl">API Feed</h1>
       <p className="text-sm text-muted-foreground">Stream your curated catalogue into any website.</p>
+
+      <HelpPanel feedUrl={feedUrl} hasKey={!!activeKey} />
+
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-border bg-card p-4 text-sm"><div className="text-xs text-muted-foreground">Approval status</div><div className="mt-1 font-medium">{approvalCopy}</div></div>
         <div className="rounded-md border border-border bg-card p-4 text-sm"><div className="text-xs text-muted-foreground">API key status</div><div className="mt-1 font-medium">{hasKeyCopy}</div></div>
