@@ -188,11 +188,15 @@ export const Route = createFileRoute("/api/public/feed")({
 
           if (stonePins.length) {
             const stoneIds = stonePins.map((p) => p.stone_id as string);
-            const { data } = await supabaseAdmin
+            let query = supabaseAdmin
               .from("stones")
               .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("id", stoneIds)
               .eq("status", "available");
+            if (!showTest) {
+              query = query.eq("is_test", false);
+            }
+            const { data } = await query;
             (data ?? []).forEach((s) => {
               const pin = stonePins.find((p) => p.stone_id === (s as StoneRow).id);
               const m = pin?.markup_override != null ? Number(pin.markup_override) : globalMarkup;
