@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { isDealer, isAdmin } from "@/lib/auth.utils";
+import { isDealer, isAdmin as hasAdminRole } from "@/lib/auth.utils";
 
 export const Route = createFileRoute("/dashboard/sales")({
   component: DealerSales,
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/dashboard/sales")({
 function DealerSales() {
   const { user, profile } = useAuth();
   const { format, displayCurrency } = useCurrency();
-  if (!isDealer(profile) && !isAdmin(profile)) {
+  if (!isDealer(profile) && !hasAdminRole(profile)) {
     return <div>Dealers only.</div>;
   }
 
