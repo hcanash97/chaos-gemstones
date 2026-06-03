@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
@@ -74,6 +75,11 @@ import { Route as ApiDealerV1StonesIdMarkSoldRouteImport } from './routes/api/de
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestsRoute = RequestsRouteImport.update({
@@ -147,14 +153,14 @@ const StoneIdRoute = StoneIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignUpJewellerRoute = SignUpJewellerRouteImport.update({
-  id: '/sign-up/jeweller',
-  path: '/sign-up/jeweller',
-  getParentRoute: () => rootRouteImport,
+  id: '/jeweller',
+  path: '/jeweller',
+  getParentRoute: () => SignUpRoute,
 } as any)
 const SignUpDealerRoute = SignUpDealerRouteImport.update({
-  id: '/sign-up/dealer',
-  path: '/sign-up/dealer',
-  getParentRoute: () => rootRouteImport,
+  id: '/dealer',
+  path: '/dealer',
+  getParentRoute: () => SignUpRoute,
 } as any)
 const LegalTermsJewellersRoute = LegalTermsJewellersRouteImport.update({
   id: '/legal/terms-jewellers',
@@ -396,6 +402,7 @@ export interface FileRoutesByFullPath {
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
+  '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -458,6 +465,7 @@ export interface FileRoutesByTo {
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
+  '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -522,6 +530,7 @@ export interface FileRoutesById {
   '/marketplace': typeof MarketplaceRoute
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
+  '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -587,6 +596,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
+    | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -649,6 +659,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
+    | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -712,6 +723,7 @@ export interface FileRouteTypes {
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
+    | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -776,6 +788,7 @@ export interface RootRouteChildren {
   MarketplaceRoute: typeof MarketplaceRoute
   PendingApprovalRoute: typeof PendingApprovalRoute
   RequestsRoute: typeof RequestsRoute
+  SignUpRoute: typeof SignUpRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
   DocsDealerApiRoute: typeof DocsDealerApiRoute
@@ -786,8 +799,6 @@ export interface RootRouteChildren {
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsDealersRoute: typeof LegalTermsDealersRoute
   LegalTermsJewellersRoute: typeof LegalTermsJewellersRoute
-  SignUpDealerRoute: typeof SignUpDealerRoute
-  SignUpJewellerRoute: typeof SignUpJewellerRoute
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
   LearnIndexRoute: typeof LearnIndexRoute
@@ -810,6 +821,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/requests': {
@@ -912,17 +930,17 @@ declare module '@tanstack/react-router' {
     }
     '/sign-up/jeweller': {
       id: '/sign-up/jeweller'
-      path: '/sign-up/jeweller'
+      path: '/jeweller'
       fullPath: '/sign-up/jeweller'
       preLoaderRoute: typeof SignUpJewellerRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SignUpRoute
     }
     '/sign-up/dealer': {
       id: '/sign-up/dealer'
-      path: '/sign-up/dealer'
+      path: '/dealer'
       fullPath: '/sign-up/dealer'
       preLoaderRoute: typeof SignUpDealerRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SignUpRoute
     }
     '/legal/terms-jewellers': {
       id: '/legal/terms-jewellers'
@@ -1311,6 +1329,19 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface SignUpRouteChildren {
+  SignUpDealerRoute: typeof SignUpDealerRoute
+  SignUpJewellerRoute: typeof SignUpJewellerRoute
+}
+
+const SignUpRouteChildren: SignUpRouteChildren = {
+  SignUpDealerRoute: SignUpDealerRoute,
+  SignUpJewellerRoute: SignUpJewellerRoute,
+}
+
+const SignUpRouteWithChildren =
+  SignUpRoute._addFileChildren(SignUpRouteChildren)
+
 interface ApiDealerV1StonesIdRouteChildren {
   ApiDealerV1StonesIdMarkSoldRoute: typeof ApiDealerV1StonesIdMarkSoldRoute
 }
@@ -1345,6 +1376,7 @@ const rootRouteChildren: RootRouteChildren = {
   MarketplaceRoute: MarketplaceRoute,
   PendingApprovalRoute: PendingApprovalRoute,
   RequestsRoute: RequestsRoute,
+  SignUpRoute: SignUpRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
   DocsDealerApiRoute: DocsDealerApiRoute,
@@ -1355,8 +1387,6 @@ const rootRouteChildren: RootRouteChildren = {
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsDealersRoute: LegalTermsDealersRoute,
   LegalTermsJewellersRoute: LegalTermsJewellersRoute,
-  SignUpDealerRoute: SignUpDealerRoute,
-  SignUpJewellerRoute: SignUpJewellerRoute,
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
   LearnIndexRoute: LearnIndexRoute,
