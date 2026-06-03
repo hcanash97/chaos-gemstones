@@ -21,7 +21,7 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <div className="font-serif italic text-xs uppercase tracking-[0.3em] text-[var(--color-gold)]">Chaos</div>
+        <div className="font-serif italic text-xs uppercase tracking-[0.3em] text-[var(--color-gold)]">CHAOS</div>
         <h1 className="mt-4 font-serif text-7xl text-foreground">404</h1>
         <h2 className="mt-3 font-serif text-2xl text-foreground">This page is off the cutting wheel</h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -86,18 +86,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Chaos — Gemstone & Diamond Marketplace" },
+      { title: "CHAOS — Gemstone & Diamond Marketplace" },
       { name: "description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
-      { property: "og:site_name", content: "Chaos" },
-      { property: "og:title", content: "Chaos — Gemstone & Diamond Marketplace" },
+      { property: "og:site_name", content: "CHAOS" },
+      { property: "og:title", content: "CHAOS — Gemstone & Diamond Marketplace" },
       { property: "og:description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#1B3A2D" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Chaos" },
-      { name: "twitter:title", content: "Chaos — Gemstone & Diamond Marketplace" },
+      { name: "apple-mobile-web-app-title", content: "CHAOS" },
+      { name: "twitter:title", content: "CHAOS — Gemstone & Diamond Marketplace" },
       { name: "twitter:description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
       { property: "og:image", content: "https://chaosgemstones.com/icons/icon-512.png" },
       { name: "twitter:image", content: "https://chaosgemstones.com/icons/icon-512.png" },
