@@ -277,7 +277,7 @@ function StoneDetail() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.2 + i * 0.06 }}
                   >
-                    <img src={src} className="h-full w-full object-cover" alt="" />
+                    <img src={src} className="h-full w-full object-cover" alt={`Stone image ${i + 1} of ${images.length}`} />
                   </motion.div>
                 ))}
               </div>
