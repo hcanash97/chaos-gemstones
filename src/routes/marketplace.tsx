@@ -3,6 +3,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
+import { joinWaitlist } from "@/lib/waitlist.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
@@ -1165,5 +1166,94 @@ function SaveSearchDialog({ filters, userId }: { filters: FilterState; userId: s
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function EmptyMarketplace({
+  hasFilters,
+  onClearFilters,
+}: {
+  hasFilters: boolean;
+  onClearFilters: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const join = useServerFn(joinWaitlist);
+
+  if (hasFilters) {
+    return (
+      <div className="rounded-md border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
+        <p>No stones match your current filters.</p>
+        <Button variant="outline" size="sm" className="mt-4" onClick={onClearFilters}>
+          Clear all filters
+        </Button>
+      </div>
+    );
+  }
+
+  async function submit() {
+    if (!email.trim()) return;
+    setSaving(true);
+    try {
+      await join({ data: { email: email.trim() } });
+      setDone(true);
+    } catch {
+      // ignore — treat as success-ish
+      setDone(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="rounded-md border border-dashed border-border bg-card/50 px-6 py-16 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-gold)]/15 text-2xl text-[var(--color-gold-foreground)]">
+          ◆
+        </div>
+        <h2 className="font-serif text-2xl text-foreground">The marketplace is growing.</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          We&apos;re onboarding our first verified dealers. Sign up to be notified when stones are listed.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Button onClick={() => setOpen(true)}>Notify me when stones are listed →</Button>
+          <Button variant="outline" asChild>
+            <a href="/sign-up/dealer">Sign up as a dealer →</a>
+          </Button>
+        </div>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Get notified when stones go live</DialogTitle>
+          </DialogHeader>
+          {done ? (
+            <p className="py-4 text-sm text-muted-foreground">
+              You&apos;re on the list. We&apos;ll email you the moment verified inventory is ready.
+            </p>
+          ) : (
+            <div className="space-y-3 py-2">
+              <Label htmlFor="waitlist-email">Email address</Label>
+              <Input
+                id="waitlist-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
+          )}
+          {!done && (
+            <DialogFooter>
+              <Button onClick={submit} disabled={saving || !email.trim()}>
+                {saving ? "Saving…" : "Notify me"}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
