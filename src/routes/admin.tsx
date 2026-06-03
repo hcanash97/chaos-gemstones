@@ -537,6 +537,20 @@ function AdminPage() {
         />
       )}
       <SendEmailDialog open={emailOpen} onOpenChange={setEmailOpen} ids={Array.from(selected)} />
+      <Dialog open={!!viewAsFor} onOpenChange={(v) => !v && setViewAsFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>View this account as…</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This account has both dealer and jeweller roles. Pick which dashboard to open.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => confirmViewAs("dealer")}>Dealer dashboard</Button>
+            <Button onClick={() => confirmViewAs("jeweller")}>Jeweller dashboard</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
