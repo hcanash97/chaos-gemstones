@@ -227,6 +227,18 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
     if (!draftKey || typeof window === "undefined") return;
     const t = window.setInterval(() => {
       if (submittedRef.current) return;
+      // Only save if the user has actually entered something.
+      const hasContent = Object.values(values).some(
+        (v) => v !== "" && v !== null && v !== undefined && v !== false && v !== 0,
+      );
+      // Ignore the always-set defaults (stone_type, status, listing_type, currency, qtys).
+      const meaningful = (() => {
+        const { stone_type, status, listing_type, price_currency, available_qty, minimum_order_qty, ...rest } = values;
+        return Object.values(rest).some(
+          (v) => v !== "" && v !== null && v !== undefined && v !== false,
+        );
+      })();
+      if (!hasContent || !meaningful) return;
       try {
         localStorage.setItem(draftKey, JSON.stringify({ savedAt: new Date().toISOString(), values }));
       } catch {
@@ -235,6 +247,21 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
     }, 30_000);
     return () => window.clearInterval(t);
   }, [draftKey, values]);
+
+  // Mobile: when an input gains focus, scroll it into view so the on-screen
+  // keyboard does not obscure it.
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth >= 768) return;
+    const handler = (e: FocusEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (!tgt) return;
+      const tag = tgt.tagName;
+      if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") return;
+      setTimeout(() => tgt.scrollIntoView({ behavior: "smooth", block: "center" }), 250);
+    };
+    document.addEventListener("focusin", handler);
+    return () => document.removeEventListener("focusin", handler);
+  }, []);
 
   function set<K extends keyof StoneFormValues>(key: K, v: StoneFormValues[K]) {
     setValues((s) => ({ ...s, [key]: v }));
@@ -352,7 +379,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
         </div>
       )}
       {error && (
-        <div className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div role="alert" className="rounded border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -742,8 +769,8 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-border bg-background p-5">
-      <div className="mb-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
+    <div className="scroll-mt-4 rounded-md border border-border bg-background p-5">
+      <div className="mb-4 scroll-mt-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
       {children}
     </div>
   );
