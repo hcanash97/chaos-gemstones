@@ -908,9 +908,10 @@ function Marketplace() {
               </div>
             )}
             {!isLoading && total === 0 && (
-              <div className="rounded-md border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
-                No stones match your filters.
-              </div>
+              <EmptyMarketplace
+                hasFilters={filterCount > 0}
+                onClearFilters={() => dispatch({ type: "reset" })}
+              />
             )}
           </div>
         </div>
