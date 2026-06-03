@@ -83,6 +83,8 @@ export type Database = {
         Row: {
           auto_sync_enabled: boolean
           bio: string | null
+          certifications: string[] | null
+          cover_image_url: string | null
           created_at: string
           default_currency: string
           directory_url: string | null
@@ -90,21 +92,27 @@ export type Database = {
           external_feed_method: string
           external_feed_url: string | null
           featured: boolean
+          founded_year: number | null
           gia_member: boolean | null
           id: string
           igi_member: boolean | null
+          instagram_url: string | null
           languages: string[] | null
           last_synced_at: string | null
           logo_url: string | null
           response_time_hours: number | null
           slug: string
           specialities: string[] | null
+          story: string | null
+          tagline: string | null
           trade_memberships: string[] | null
           years_trading: number | null
         }
         Insert: {
           auto_sync_enabled?: boolean
           bio?: string | null
+          certifications?: string[] | null
+          cover_image_url?: string | null
           created_at?: string
           default_currency?: string
           directory_url?: string | null
@@ -112,21 +120,27 @@ export type Database = {
           external_feed_method?: string
           external_feed_url?: string | null
           featured?: boolean
+          founded_year?: number | null
           gia_member?: boolean | null
           id: string
           igi_member?: boolean | null
+          instagram_url?: string | null
           languages?: string[] | null
           last_synced_at?: string | null
           logo_url?: string | null
           response_time_hours?: number | null
           slug: string
           specialities?: string[] | null
+          story?: string | null
+          tagline?: string | null
           trade_memberships?: string[] | null
           years_trading?: number | null
         }
         Update: {
           auto_sync_enabled?: boolean
           bio?: string | null
+          certifications?: string[] | null
+          cover_image_url?: string | null
           created_at?: string
           default_currency?: string
           directory_url?: string | null
@@ -134,15 +148,19 @@ export type Database = {
           external_feed_method?: string
           external_feed_url?: string | null
           featured?: boolean
+          founded_year?: number | null
           gia_member?: boolean | null
           id?: string
           igi_member?: boolean | null
+          instagram_url?: string | null
           languages?: string[] | null
           last_synced_at?: string | null
           logo_url?: string | null
           response_time_hours?: number | null
           slug?: string
           specialities?: string[] | null
+          story?: string | null
+          tagline?: string | null
           trade_memberships?: string[] | null
           years_trading?: number | null
         }
@@ -308,11 +326,18 @@ export type Database = {
           created_at: string
           display_currency: string
           feed_currency: string
+          founded_year: number | null
           id: string
+          instagram_url: string | null
+          is_public: boolean
+          logo_url: string | null
           markup_global: number
           primary_interests: string[] | null
           primary_market: string | null
+          slug: string | null
           sourcing_method: string | null
+          specialities: string[] | null
+          tagline: string | null
           website: string | null
         }
         Insert: {
@@ -320,11 +345,18 @@ export type Database = {
           created_at?: string
           display_currency?: string
           feed_currency?: string
+          founded_year?: number | null
           id: string
+          instagram_url?: string | null
+          is_public?: boolean
+          logo_url?: string | null
           markup_global?: number
           primary_interests?: string[] | null
           primary_market?: string | null
+          slug?: string | null
           sourcing_method?: string | null
+          specialities?: string[] | null
+          tagline?: string | null
           website?: string | null
         }
         Update: {
@@ -332,11 +364,18 @@ export type Database = {
           created_at?: string
           display_currency?: string
           feed_currency?: string
+          founded_year?: number | null
           id?: string
+          instagram_url?: string | null
+          is_public?: boolean
+          logo_url?: string | null
           markup_global?: number
           primary_interests?: string[] | null
           primary_market?: string | null
+          slug?: string | null
           sourcing_method?: string | null
+          specialities?: string[] | null
+          tagline?: string | null
           website?: string | null
         }
         Relationships: [
