@@ -4,7 +4,6 @@ import Papa from "papaparse";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { isDealer, isAdmin } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -89,8 +88,22 @@ function ImportPage() {
     })();
   }, [user]);
 
-  if (!isDealer(profile) && !isAdmin(profile)) {
-    return <div>Dealers only.</div>;
+  if (!user) {
+    return <div className="py-12 text-center text-muted-foreground">Please sign in to access this page.</div>;
+  }
+  if (!profile?.is_approved) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <h2 className="font-serif text-2xl">Import not available</h2>
+        <p className="mt-2 max-w-md text-muted-foreground">
+          Your account must be approved before you can import stones. You can check
+          your status or update your details from account settings.
+        </p>
+        <Button asChild className="mt-6">
+          <Link to="/dashboard/account">Go to account settings</Link>
+        </Button>
+      </div>
+    );
   }
 
   function ingestParsed(parsed: { headers: string[]; rows: ParsedRow[] }) {
