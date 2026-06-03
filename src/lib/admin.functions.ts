@@ -218,6 +218,12 @@ export const adminGetPlatformStats = createServerFn({ method: "GET" })
         sb.from("profiles").select("id", { count: "exact", head: true }).eq("is_approved", false),
       ]);
 
+    const waitlistCount = await sb
+      .from("waitlist" as never)
+      .select("id", { count: "exact", head: true })
+      .then((r: { count: number | null }) => r.count ?? 0)
+      .catch(() => 0);
+
     // Stone counts for recent dealers
     const dealerIds = (recentDealers.data ?? []).map((d) => d.id);
     const stoneCounts = new Map<string, number>();
@@ -247,6 +253,7 @@ export const adminGetPlatformStats = createServerFn({ method: "GET" })
       recentJewellers: (recentJewellers.data ?? []).map((j) => ({ ...j, hasKey: hasKey.has(j.id) })),
       openReports: openReports.count ?? 0,
       pending: pending.count ?? 0,
+      waitlist: waitlistCount,
     };
   });
 
