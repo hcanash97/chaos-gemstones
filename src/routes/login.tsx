@@ -48,9 +48,7 @@ function Login() {
         <Button variant="outline" className="w-full" onClick={google}>Continue with Google</Button>
         <div className="mt-6 text-center text-sm text-muted-foreground">
           New to Chaos?{" "}
-          <Link to="/sign-up/jeweller" className="text-foreground hover:text-[var(--color-gold)]">Jeweller sign up</Link>
-          {" · "}
-          <Link to="/sign-up/dealer" className="text-foreground hover:text-[var(--color-gold)]">Dealer sign up</Link>
+          <Link to="/sign-up" className="text-foreground hover:text-[var(--color-gold)]">Sign up</Link>
         </div>
       </div>
       <SiteFooter />

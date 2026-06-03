@@ -32,6 +32,7 @@ import { Route as LegalTermsJewellersRouteImport } from './routes/legal.terms-je
 import { Route as LegalTermsDealersRouteImport } from './routes/legal.terms-dealers'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LearnSlugRouteImport } from './routes/learn.$slug'
+import { Route as JewellersSlugRouteImport } from './routes/jewellers.$slug'
 import { Route as HowItWorksShippingRouteImport } from './routes/how-it-works.shipping'
 import { Route as HowItWorksPaymentsRouteImport } from './routes/how-it-works.payments'
 import { Route as EmbedKeyRouteImport } from './routes/embed.$key'
@@ -186,6 +187,11 @@ const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
 const LearnSlugRoute = LearnSlugRouteImport.update({
   id: '/learn/$slug',
   path: '/learn/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JewellersSlugRoute = JewellersSlugRouteImport.update({
+  id: '/jewellers/$slug',
+  path: '/jewellers/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HowItWorksShippingRoute = HowItWorksShippingRouteImport.update({
@@ -422,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/jewellers/$slug': typeof JewellersSlugRoute
   '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
@@ -486,6 +493,7 @@ export interface FileRoutesByTo {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/jewellers/$slug': typeof JewellersSlugRoute
   '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
@@ -552,6 +560,7 @@ export interface FileRoutesById {
   '/embed/$key': typeof EmbedKeyRoute
   '/how-it-works/payments': typeof HowItWorksPaymentsRoute
   '/how-it-works/shipping': typeof HowItWorksShippingRoute
+  '/jewellers/$slug': typeof JewellersSlugRoute
   '/learn/$slug': typeof LearnSlugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
@@ -619,6 +628,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/jewellers/$slug'
     | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
@@ -683,6 +693,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/jewellers/$slug'
     | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
@@ -748,6 +759,7 @@ export interface FileRouteTypes {
     | '/embed/$key'
     | '/how-it-works/payments'
     | '/how-it-works/shipping'
+    | '/jewellers/$slug'
     | '/learn/$slug'
     | '/legal/privacy'
     | '/legal/terms-dealers'
@@ -807,6 +819,7 @@ export interface RootRouteChildren {
   EmbedKeyRoute: typeof EmbedKeyRoute
   HowItWorksPaymentsRoute: typeof HowItWorksPaymentsRoute
   HowItWorksShippingRoute: typeof HowItWorksShippingRoute
+  JewellersSlugRoute: typeof JewellersSlugRoute
   LearnSlugRoute: typeof LearnSlugRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsDealersRoute: typeof LegalTermsDealersRoute
@@ -988,6 +1001,13 @@ declare module '@tanstack/react-router' {
       path: '/learn/$slug'
       fullPath: '/learn/$slug'
       preLoaderRoute: typeof LearnSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jewellers/$slug': {
+      id: '/jewellers/$slug'
+      path: '/jewellers/$slug'
+      fullPath: '/jewellers/$slug'
+      preLoaderRoute: typeof JewellersSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/how-it-works/shipping': {
@@ -1403,6 +1423,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmbedKeyRoute: EmbedKeyRoute,
   HowItWorksPaymentsRoute: HowItWorksPaymentsRoute,
   HowItWorksShippingRoute: HowItWorksShippingRoute,
+  JewellersSlugRoute: JewellersSlugRoute,
   LearnSlugRoute: LearnSlugRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsDealersRoute: LegalTermsDealersRoute,
