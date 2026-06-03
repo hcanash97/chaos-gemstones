@@ -227,10 +227,6 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
     if (!draftKey || typeof window === "undefined") return;
     const t = window.setInterval(() => {
       if (submittedRef.current) return;
-      // Only save if the user has actually entered something.
-      const hasContent = Object.values(values).some(
-        (v) => v !== "" && v !== null && v !== undefined && v !== false && v !== 0,
-      );
       // Ignore the always-set defaults (stone_type, status, listing_type, currency, qtys).
       const meaningful = (() => {
         const { stone_type, status, listing_type, price_currency, available_qty, minimum_order_qty, ...rest } = values;
@@ -238,7 +234,7 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
           (v) => v !== "" && v !== null && v !== undefined && v !== false,
         );
       })();
-      if (!hasContent || !meaningful) return;
+      if (!meaningful) return;
       try {
         localStorage.setItem(draftKey, JSON.stringify({ savedAt: new Date().toISOString(), values }));
       } catch {
