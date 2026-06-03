@@ -14,6 +14,8 @@ import { SendEmailDialog } from "@/components/admin/SendEmailDialog";
 import { StatsPanel } from "@/components/admin/StatsPanel";
 import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
 import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StatusBadge } from "@/components/ui/info-tooltip";
 
 type ProfileRow = {
   id: string;
@@ -434,15 +436,16 @@ function AdminPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
-                        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs ${
-                          r.is_approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
-                        }`}>
+                        <StatusBadge
+                          status={r.is_approved ? "approved" : "pending"}
+                          className={r.is_approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}
+                        >
                           {r.is_approved ? "Approved" : "Pending"}
-                        </span>
+                        </StatusBadge>
                         {r.is_verified && (
-                          <span className="inline-flex w-fit items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-800">
+                          <StatusBadge status="verified" className="bg-blue-100 text-blue-800">
                             Verified
-                          </span>
+                          </StatusBadge>
                         )}
                       </div>
                     </td>
@@ -689,16 +692,37 @@ function HealthDot({
 }) {
   if (!isDealer(dealer)) return <span className="text-xs text-muted-foreground">—</span>;
   if (!dealer.is_approved) {
-    return <Dot color="grey" title="Pending approval" />;
+    return (
+      <Dot
+        color="grey"
+        title="Pending approval — account is awaiting admin review"
+      />
+    );
   }
   if (!health) return <span className="text-xs text-muted-foreground">…</span>;
   if (health.stoneCount === 0) {
-    return <Dot color="red" title="Approved, but no stones listed" />;
+    return (
+      <Dot
+        color="red"
+        title="No inventory — this dealer is approved but has zero stones listed. They may need onboarding help."
+      />
+    );
   }
   const last = health.lastStoneAt ? new Date(health.lastStoneAt).getTime() : 0;
   const days = (Date.now() - last) / 86_400_000;
-  if (days <= 30) return <Dot color="green" title={`Active — last listing ${Math.round(days)}d ago`} />;
-  return <Dot color="amber" title={`No new listings in ${Math.round(days)}d`} />;
+  if (days <= 30)
+    return (
+      <Dot
+        color="green"
+        title={`Active dealer — approved, has stones listed, activity in the last 30 days (last listing ${Math.round(days)}d ago)`}
+      />
+    );
+  return (
+    <Dot
+      color="amber"
+      title={`Inactive dealer — approved and has stones but no new listings in ${Math.round(days)} days. Consider sending a nudge email.`}
+    />
+  );
 }
 
 function Dot({ color, title }: { color: "green" | "amber" | "red" | "grey"; title: string }) {
@@ -706,7 +730,20 @@ function Dot({ color, title }: { color: "green" | "amber" | "red" | "grey"; titl
     color === "green" ? "bg-green-500" :
     color === "amber" ? "bg-amber-500" :
     color === "red" ? "bg-red-500" : "bg-muted-foreground/40";
-  return <span title={title} className={`inline-block h-2.5 w-2.5 rounded-full ${cls}`} />;
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          aria-label={title}
+          className={`inline-block h-2.5 w-2.5 cursor-help rounded-full ${cls}`}
+        />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+        {title}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 type FeeOrderRow = {
