@@ -219,9 +219,9 @@ function Home() {
                 <span className="shimmer-overlay" aria-hidden />
               </Button>
             </Link>
-            <Link to="/sign-up/dealer">
+            <Link to="/sign-up">
               <Button size="lg" variant="outline" className="border-[var(--color-gold)]/60 bg-transparent text-[var(--color-gold)] transition-colors hover:bg-[var(--color-gold)] hover:text-[var(--color-gold-foreground)]">
-                List as a dealer
+                Sign up
               </Button>
             </Link>
           </motion.div>
