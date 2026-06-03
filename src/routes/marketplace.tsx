@@ -232,12 +232,13 @@ function Marketplace() {
           labels={STONE_TYPE_LABELS}
         />
         <div className="mt-3 flex flex-wrap gap-2">
-          <Pill
+          <PillWithHint
             active={f.matchingPairOnly}
             onClick={() => set({ matchingPairOnly: !f.matchingPairOnly })}
+            hint="Two stones matched for colour, size, and cut — ideal for earrings or bilateral settings."
           >
             ★ Matched Pairs only
-          </Pill>
+          </PillWithHint>
         </div>
       </CollapsibleSection>
 
@@ -582,9 +583,14 @@ function Marketplace() {
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Eye clean</div>
             <PillRow>
               {EYE_CLEAN.map((c) => (
-                <Pill key={c} active={f.eyeClean.includes(c)} onClick={() => toggle("eyeClean", c)}>
+                <PillWithHint
+                  key={c}
+                  active={f.eyeClean.includes(c)}
+                  onClick={() => toggle("eyeClean", c)}
+                  hint={String(c).toLowerCase() === "yes" ? "No inclusions visible to the naked eye. Standard minimum requirement for most fine jewellery." : undefined}
+                >
                   {c}
-                </Pill>
+                </PillWithHint>
               ))}
             </PillRow>
             <div className="mt-3 mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Black inclusion</div>
@@ -657,7 +663,15 @@ function Marketplace() {
           </CollapsibleSection>
 
           <CollapsibleSection title="Treatment">
-            <CheckGrid options={TREATMENTS} selected={f.treatments} onToggle={(v) => toggle("treatments", v)} />
+            <CheckGridWithHints
+              options={TREATMENTS}
+              selected={f.treatments}
+              onToggle={(v) => toggle("treatments", v)}
+              hints={{
+                None: "Unheated / untreated stones. These command a significant premium for rubies and sapphires.",
+                "None (unheated)": "Unheated / untreated stones. These command a significant premium for rubies and sapphires.",
+              }}
+            />
             <p className="mt-2 text-[11px] text-[var(--color-gold)]">
               Unheated stones command a premium — filter for "None (unheated)" to find untreated.
             </p>
@@ -685,15 +699,18 @@ function Marketplace() {
           <CollapsibleSection title="Premium origins & pairs">
             <label className="flex items-center gap-2 text-xs">
               <Checkbox checked={f.premiumOriginsOnly} onCheckedChange={(v) => set({ premiumOriginsOnly: !!v })} />
-              Premium origins only (Burma, Kashmir, Colombia, Brazil…)
+              <span>Premium origins only (Burma, Kashmir, Colombia, Brazil…)</span>
+              <HintIcon>Filters for stones from origins known to command a price premium: Burma ruby, Kashmir sapphire, Colombian emerald, Paraiba tourmaline.</HintIcon>
             </label>
             <label className="mt-2 flex items-center gap-2 text-xs">
               <Checkbox checked={f.matchingPairOnly} onCheckedChange={(v) => set({ matchingPairOnly: !!v })} />
-              Matching pairs available
+              <span>Matching pairs available</span>
+              <HintIcon>Two stones matched for colour, size, and cut — ideal for earrings or bilateral settings.</HintIcon>
             </label>
             <label className="mt-2 flex items-center gap-2 text-xs">
               <Checkbox checked={f.parcelOnly} onCheckedChange={(v) => set({ parcelOnly: !!v })} />
-              Parcel / lot available
+              <span>Parcel / lot available</span>
+              <HintIcon>Multiple matching stones sold together as a lot, rather than individually.</HintIcon>
             </label>
             {f.parcelOnly && (
               <div className="mt-2">
@@ -948,6 +965,47 @@ function CheckGrid({
         </label>
       ))}
     </div>
+  );
+}
+
+function CheckGridWithHints({
+  options,
+  selected,
+  onToggle,
+  hints = {},
+  labels = {},
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+  hints?: Record<string, string>;
+  labels?: Record<string, string>;
+}) {
+  return (
+    <div className="space-y-1.5">
+      {options.map((o) => (
+        <label key={o} className="flex cursor-pointer items-center gap-2 text-xs capitalize">
+          <Checkbox checked={selected.includes(o)} onCheckedChange={() => onToggle(o)} />
+          <span>{labels[o] ?? o.replace(/-/g, " ")}</span>
+          {hints[o] && <HintIcon>{hints[o]}</HintIcon>}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function HintIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <span className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center text-muted-foreground/70 hover:text-foreground">
+          <Info className="h-3 w-3" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+        {children}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
