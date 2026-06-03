@@ -97,7 +97,7 @@ export function SiteHeader() {
         <div className="absolute inset-0 bg-primary/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
         <aside className="absolute right-0 top-0 h-full w-80 max-w-[85%] bg-card shadow-2xl">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <span className="font-serif text-xl italic">Chaos</span>
+            <span className="font-serif text-xl italic">CHAOS</span>
             <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="inline-flex h-9 w-9 items-center justify-center">
               <X className="h-4 w-4" />
             </button>
@@ -185,12 +185,12 @@ export function SiteFooter() {
         <div>
           <div className="flex items-center gap-2.5">
             <GemMark size={26} className="invert brightness-0 contrast-100" style={{ filter: "brightness(0) invert(1)" }} />
-            <span className="font-serif text-2xl italic font-medium tracking-tight">Chaos</span>
+            <span className="font-serif text-2xl italic font-medium tracking-tight">CHAOS</span>
           </div>
           <p className="mt-3 max-w-xs text-sm opacity-75">
             The global marketplace for independent gemstone dealers.
           </p>
-          <p className="mt-5 text-xs opacity-60">© 2026 Chaos. All rights reserved.</p>
+          <p className="mt-5 text-xs opacity-60">© 2026 CHAOS. All rights reserved.</p>
         </div>
         <div className="grid grid-cols-2 gap-8 md:gap-12">
           <div>
@@ -228,7 +228,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-[var(--gold-border)] py-4 text-center text-[11px] opacity-70 px-6">
-        All prices shown are wholesale USD. Chaos is a B2B platform for verified trade professionals only.
+        All prices shown are wholesale USD. CHAOS is a B2B platform for verified trade professionals only.
       </div>
     </footer>
   );
