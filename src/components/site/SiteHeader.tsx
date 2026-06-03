@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Logo, GemMark } from "@/components/site/Logo";
@@ -19,12 +19,53 @@ export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const drawerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  // Mobile drawer: trap focus + close on Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Tab" && drawerRef.current) {
+        const focusables = drawerRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    // Move initial focus inside drawer
+    setTimeout(() => {
+      const first = drawerRef.current?.querySelector<HTMLElement>('a[href], button:not([disabled])');
+      first?.focus();
+    }, 50);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+  const navLinks: { to: string; label: string }[] = [
+    { to: "/marketplace", label: "Marketplace" },
+    { to: "/requests", label: "Requests" },
+    { to: "/vendors", label: "Vendors" },
+    { to: "/jewellers", label: "Jewellers" },
+    { to: "/learn", label: "Learn" },
+    { to: "/about", label: "About" },
+  ];
+  const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
   return (
     <>
     <header
@@ -36,12 +77,20 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <span className="logo-glow"><Logo /></span>
-        <nav className="hidden items-center gap-7 text-sm md:flex">
-          <Link to="/marketplace" className="text-foreground/80 hover:text-foreground">Marketplace</Link>
-          <Link to="/requests" className="text-foreground/80 hover:text-foreground">Requests</Link>
-          <Link to="/vendors" className="text-foreground/80 hover:text-foreground">Vendors</Link>
-          <Link to="/learn" className="text-foreground/80 hover:text-foreground">Learn</Link>
-          <Link to="/about" className="text-foreground/80 hover:text-foreground">About</Link>
+        <nav aria-label="Main navigation" className="hidden items-center gap-7 text-sm md:flex">
+          {navLinks.map((l) => {
+            const active = isActive(l.to);
+            return (
+              <Link
+                key={l.to}
+                to={l.to}
+                aria-current={active ? "page" : undefined}
+                className={`text-foreground/80 hover:text-foreground ${active ? "text-foreground font-medium" : ""}`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
           <CurrencySelector />
@@ -69,7 +118,7 @@ export function SiteHeader() {
               <Link to="/login">
                 <Button variant="ghost" size="sm">Log in</Button>
               </Link>
-              <Link to="/sign-up/jeweller">
+              <Link to="/sign-up">
                 <Button size="sm" className="pulse-once bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
                   Sign up
                 </Button>
@@ -82,7 +131,9 @@ export function SiteHeader() {
           <CurrencySelector />
           <button
             type="button"
-            aria-label="Open menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-drawer"
             onClick={() => setMenuOpen(true)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background"
           >
@@ -93,24 +144,18 @@ export function SiteHeader() {
     </header>
     {/* Mobile drawer */}
     {menuOpen && (
-      <div className="fixed inset-0 z-50 md:hidden">
+      <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
         <div className="absolute inset-0 bg-primary/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
-        <aside className="absolute right-0 top-0 h-full w-80 max-w-[85%] bg-card shadow-2xl">
+        <aside id="mobile-nav-drawer" ref={drawerRef} className="absolute right-0 top-0 h-full w-80 max-w-[85%] bg-card shadow-2xl">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <span className="font-serif text-xl italic">CHAOS</span>
             <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="inline-flex h-9 w-9 items-center justify-center">
               <X className="h-4 w-4" />
             </button>
           </div>
-          <nav className="flex flex-col gap-1 p-3 text-sm">
-            {[
-              { to: "/marketplace", label: "Marketplace" },
-              { to: "/requests", label: "Requests" },
-              { to: "/vendors", label: "Vendors" },
-              { to: "/learn", label: "Learn" },
-              { to: "/about", label: "About" },
-            ].map((l) => (
-              <Link key={l.to} to={l.to} onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 text-foreground/90 hover:bg-muted">
+          <nav aria-label="Mobile navigation" className="flex flex-col gap-1 p-3 text-sm">
+            {navLinks.map((l) => (
+              <Link key={l.to} to={l.to} onClick={() => setMenuOpen(false)} aria-current={isActive(l.to) ? "page" : undefined} className="rounded-md px-3 py-3 text-foreground/90 hover:bg-muted">
                 {l.label}
               </Link>
             ))}
@@ -128,7 +173,7 @@ export function SiteHeader() {
             ) : (
               <>
                 <Link to="/login" onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 hover:bg-muted">Log in</Link>
-                <Link to="/sign-up/jeweller" onClick={() => setMenuOpen(false)} className="mt-1 rounded-md bg-[var(--color-gold)] px-3 py-3 text-center font-medium text-[var(--color-gold-foreground)]">
+                <Link to="/sign-up" onClick={() => setMenuOpen(false)} className="mt-1 rounded-md bg-[var(--color-gold)] px-3 py-3 text-center font-medium text-[var(--color-gold-foreground)]">
                   Sign up
                 </Link>
               </>
