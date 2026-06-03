@@ -50,7 +50,7 @@ function parseCsvString(text: string): { headers: string[]; rows: ParsedRow[] } 
 }
 
 function ImportPage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const fetchFeed = useServerFn(fetchExternalFeed);
 
   const [stage, setStage] = useState<Stage>("upload");
@@ -88,6 +88,15 @@ function ImportPage() {
     })();
   }, [user]);
 
+  if (loading) {
+    return (
+      <div className="space-y-4 py-12">
+        <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-72 animate-pulse rounded bg-muted" />
+        <div className="h-32 w-full animate-pulse rounded bg-muted" />
+      </div>
+    );
+  }
   if (!user) {
     return <div className="py-12 text-center text-muted-foreground">Please sign in to access this page.</div>;
   }
