@@ -22,6 +22,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorsIndexRouteImport } from './routes/vendors.index'
 import { Route as LearnIndexRouteImport } from './routes/learn.index'
+import { Route as JewellersIndexRouteImport } from './routes/jewellers.index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
@@ -135,6 +136,11 @@ const VendorsIndexRoute = VendorsIndexRouteImport.update({
 const LearnIndexRoute = LearnIndexRouteImport.update({
   id: '/learn/',
   path: '/learn/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JewellersIndexRoute = JewellersIndexRouteImport.update({
+  id: '/jewellers/',
+  path: '/jewellers/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardIndexRoute = DashboardIndexRouteImport.update({
@@ -425,6 +431,7 @@ export interface FileRoutesByFullPath {
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/jewellers/': typeof JewellersIndexRoute
   '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
   '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
@@ -488,6 +495,7 @@ export interface FileRoutesByTo {
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/jewellers': typeof JewellersIndexRoute
   '/learn': typeof LearnIndexRoute
   '/vendors': typeof VendorsIndexRoute
   '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
@@ -553,6 +561,7 @@ export interface FileRoutesById {
   '/stone/$id': typeof StoneIdRoute
   '/vendors/$slug': typeof VendorsSlugRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/jewellers/': typeof JewellersIndexRoute
   '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
   '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
@@ -619,6 +628,7 @@ export interface FileRouteTypes {
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
+    | '/jewellers/'
     | '/learn/'
     | '/vendors/'
     | '/admin/dealer/$id'
@@ -682,6 +692,7 @@ export interface FileRouteTypes {
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard'
+    | '/jewellers'
     | '/learn'
     | '/vendors'
     | '/admin/dealer/$id'
@@ -746,6 +757,7 @@ export interface FileRouteTypes {
     | '/stone/$id'
     | '/vendors/$slug'
     | '/dashboard/'
+    | '/jewellers/'
     | '/learn/'
     | '/vendors/'
     | '/admin/dealer/$id'
@@ -801,6 +813,7 @@ export interface RootRouteChildren {
   LegalTermsJewellersRoute: typeof LegalTermsJewellersRoute
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
+  JewellersIndexRoute: typeof JewellersIndexRoute
   LearnIndexRoute: typeof LearnIndexRoute
   VendorsIndexRoute: typeof VendorsIndexRoute
   ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
@@ -905,6 +918,13 @@ declare module '@tanstack/react-router' {
       path: '/learn'
       fullPath: '/learn/'
       preLoaderRoute: typeof LearnIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jewellers/': {
+      id: '/jewellers/'
+      path: '/jewellers'
+      fullPath: '/jewellers/'
+      preLoaderRoute: typeof JewellersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/': {
@@ -1389,6 +1409,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalTermsJewellersRoute: LegalTermsJewellersRoute,
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
+  JewellersIndexRoute: JewellersIndexRoute,
   LearnIndexRoute: LearnIndexRoute,
   VendorsIndexRoute: VendorsIndexRoute,
   ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
