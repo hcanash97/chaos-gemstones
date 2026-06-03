@@ -967,6 +967,42 @@ function Pill({ children, active, onClick }: { children: React.ReactNode; active
   );
 }
 
+const CERT_LAB_HINTS: Record<string, string> = {
+  GRS: "Gemmological Research Switzerland — the leading laboratory for coloured stone country-of-origin reports.",
+  AGL: "American Gemological Laboratories — highly regarded for sapphire, ruby, and emerald reports.",
+};
+
+function PillWithHint({
+  children,
+  active,
+  onClick,
+  hint,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  onClick: () => void;
+  hint?: string;
+}) {
+  if (!hint) return <Pill active={active} onClick={onClick}>{children}</Pill>;
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs capitalize transition-colors ${active ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+        >
+          {children}
+          <Info className="h-3 w-3 opacity-60" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+        {hint}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function RangeInputs({
   label,
   mn,
