@@ -3,6 +3,8 @@ import { z } from "zod";
 
 const InputSchema = z.object({
   url: z.string().url().max(2048),
+  method: z.enum(["GET", "POST"]).default("GET"),
+  body: z.string().max(4000).optional(),
 });
 
 export type FeedFetchResult = {
@@ -42,12 +44,20 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
     const timer = setTimeout(() => controller.abort(), 20_000);
     let res: Response;
     try {
-      res = await fetch(target.toString(), {
-        method: "GET",
-        headers: { "User-Agent": "Chaos-Feed-Importer/1.0", Accept: "text/csv, application/json;q=0.9, */*;q=0.5" },
+      const init: RequestInit = {
+        method: data.method,
+        headers: {
+          "User-Agent": "Chaos-Feed-Importer/1.0",
+          Accept: "text/csv, application/json;q=0.9, */*;q=0.5",
+        },
         signal: controller.signal,
         redirect: "follow",
-      });
+      };
+      if (data.method === "POST" && data.body) {
+        (init.headers as Record<string, string>)["Content-Type"] = "application/json";
+        init.body = data.body;
+      }
+      res = await fetch(target.toString(), init);
     } finally {
       clearTimeout(timer);
     }

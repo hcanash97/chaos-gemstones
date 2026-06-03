@@ -17,6 +17,8 @@ import {
 import {
   getDealerApiStatus, generateDealerApiKey, updateDealerSyncSettings, runDealerSync,
 } from "@/lib/dealer-api.functions";
+import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
+import { detectPreset } from "@/lib/dealer-feed-mappings";
 
 export const Route = createFileRoute("/dashboard/dealer/api")({ component: DealerApiPage });
 
@@ -27,6 +29,7 @@ function DealerApiPage() {
   const createKey = useServerFn(generateDealerApiKey);
   const saveSync = useServerFn(updateDealerSyncSettings);
   const triggerSync = useServerFn(runDealerSync);
+  const fetchFeed = useServerFn(fetchExternalFeed);
 
   const [revealed, setRevealed] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -36,6 +39,12 @@ function DealerApiPage() {
   const [method, setMethod] = useState<"GET" | "POST">("GET");
   const [body, setBody] = useState("");
   const [lastPreset, setLastPreset] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<
+    | { ok: true; rowCount: number; preset: string; sample: string }
+    | { ok: false; error: string }
+    | null
+  >(null);
 
   const isDealer = checkD(profile);
 
@@ -96,14 +105,74 @@ function DealerApiPage() {
     try {
       const result = await triggerSync();
       setLastPreset(result.preset?.label ?? "Custom mapping");
-      toast.success(`Synced — ${result.created} added, ${result.updated} updated, ${result.markedInactive} marked inactive`);
+      const errCount = Array.isArray(result.errors) ? result.errors.length : 0;
+      if (errCount > 0) {
+        toast.warning(
+          `Sync completed with issues: ${result.created} added, ${result.updated} updated, ${errCount} error${errCount === 1 ? "" : "s"}`,
+        );
+      } else {
+        toast.success(`Sync complete: ${result.created} added, ${result.updated} updated, ${result.markedInactive} marked inactive`);
+      }
       refetch();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Sync failed");
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      toast.error(`Sync failed: ${msg}`);
+      console.error("Sync error:", e);
     } finally {
       setSyncing(false);
     }
   }
+
+  async function testFeed() {
+    if (!feedUrl.trim()) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetchFeed({
+        data: {
+          url: feedUrl.trim(),
+          method,
+          body: method === "POST" ? body.trim() || undefined : undefined,
+        },
+      });
+      let rows: Array<Record<string, unknown>> = [];
+      if (res.format === "json") {
+        const data = JSON.parse(res.body);
+        rows = Array.isArray(data)
+          ? data
+          : Array.isArray((data as any)?.stones) ? (data as any).stones
+          : Array.isArray((data as any)?.data) ? (data as any).data
+          : Array.isArray((data as any)?.result) ? (data as any).result
+          : [];
+      } else {
+        // crude CSV row count for the preview
+        const lines = res.body.split(/\r?\n/).filter((l) => l.trim());
+        const headers = (lines[0] ?? "").split(",");
+        rows = lines.slice(1).map((line) => {
+          const cells = line.split(",");
+          const row: Record<string, unknown> = {};
+          headers.forEach((h, i) => { row[h.trim()] = cells[i]; });
+          return row;
+        });
+      }
+      const preset = detectPreset(rows);
+      const sample = rows[0] ? JSON.stringify(rows[0], null, 2).slice(0, 1200) : "(no rows)";
+      setTestResult({
+        ok: true,
+        rowCount: rows.length,
+        preset: preset ? preset.label : "Custom mapping (no preset detected)",
+        sample,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setTestResult({ ok: false, error: msg });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  const lastLog: any = (status?.syncLogs ?? [])[0] ?? null;
+  const lastLogErrors: any[] = Array.isArray(lastLog?.errors) ? lastLog.errors : [];
 
   return (
     <div className="space-y-8">
@@ -227,18 +296,49 @@ function DealerApiPage() {
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={saveSettings}>Save settings</Button>
+            <Button size="sm" variant="outline" onClick={testFeed} disabled={testing || !feedUrl.trim()}>
+              {testing ? "Testing…" : "Test feed URL"}
+            </Button>
             <Button size="sm" onClick={sync} disabled={syncing || !feedUrl.trim()}>
               {syncing ? "Syncing…" : "Sync now"}
             </Button>
           </div>
+          {testResult && testResult.ok && (
+            <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs space-y-1">
+              <div>✓ Feed reachable — <strong>{testResult.rowCount}</strong> row{testResult.rowCount === 1 ? "" : "s"} found.</div>
+              <div>Preset detected: <span className="font-medium">{testResult.preset}</span></div>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-muted-foreground">First row preview</summary>
+                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded bg-background p-2 font-mono">{testResult.sample}</pre>
+              </details>
+            </div>
+          )}
+          {testResult && !testResult.ok && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+              Test failed: {testResult.error}
+            </div>
+          )}
           {lastPreset && (
             <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
               Detected format: <span className="font-medium">{lastPreset}</span>
             </div>
           )}
-          {(status?.dealerProfile as any)?.last_synced_at && (
-            <div className="text-xs text-muted-foreground">
-              Last synced {new Date((status!.dealerProfile as any).last_synced_at).toLocaleString()}
+          {lastLog && (
+            <div className="rounded-md border border-border bg-card/60 p-3 text-xs space-y-1">
+              <div className="text-muted-foreground">
+                Last sync: <span className="text-foreground">{new Date(lastLog.created_at).toLocaleString()}</span>
+                {" · "}status: <span className="font-medium capitalize">{lastLog.status}</span>
+              </div>
+              <div>
+                Result: {lastLog.stones_added} added · {lastLog.stones_updated} updated ·{" "}
+                {lastLog.stones_marked_inactive} marked inactive · {lastLogErrors.length} error
+                {lastLogErrors.length === 1 ? "" : "s"}
+              </div>
+              {lastLog.status === "failed" && lastLogErrors[0]?.message && (
+                <div className="mt-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-destructive">
+                  {lastLogErrors[0].message}
+                </div>
+              )}
             </div>
           )}
         </div>
