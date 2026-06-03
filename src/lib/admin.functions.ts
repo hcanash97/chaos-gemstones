@@ -218,11 +218,11 @@ export const adminGetPlatformStats = createServerFn({ method: "GET" })
         sb.from("profiles").select("id", { count: "exact", head: true }).eq("is_approved", false),
       ]);
 
-    const waitlistCount = await sb
-      .from("waitlist" as never)
-      .select("id", { count: "exact", head: true })
-      .then((r: { count: number | null }) => r.count ?? 0)
-      .catch(() => 0);
+    let waitlistCount = 0;
+    try {
+      const res = await (sb.from("waitlist" as never) as any).select("id", { count: "exact", head: true });
+      waitlistCount = (res?.count as number | null) ?? 0;
+    } catch { /* table may not exist yet */ }
 
     // Stone counts for recent dealers
     const dealerIds = (recentDealers.data ?? []).map((d) => d.id);
