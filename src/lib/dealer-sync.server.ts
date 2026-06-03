@@ -107,6 +107,17 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     let rows: Array<Record<string, unknown>> = [];
     if (contentType.includes("json")) {
       const data = await res.json();
+      if (
+        data &&
+        typeof data === "object" &&
+        !Array.isArray(data) &&
+        (data as any).success === false
+      ) {
+        const msg = (data as any).message || "Feed returned success:false";
+        throw new Error(
+          `Feed API error: "${msg}". This usually means the API key has expired or the endpoint has changed. Please ask the dealer to check their inventory system and provide a new feed URL.`,
+        );
+      }
       rows = Array.isArray(data)
         ? data
         : Array.isArray((data as any)?.stones) ? (data as any).stones

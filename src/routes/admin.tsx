@@ -12,6 +12,7 @@ import { setImpersonation } from "@/lib/impersonation";
 import { EditRolesDialog } from "@/components/admin/EditRolesDialog";
 import { SendEmailDialog } from "@/components/admin/SendEmailDialog";
 import { StatsPanel } from "@/components/admin/StatsPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
 import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -50,6 +51,7 @@ function AdminPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editRolesFor, setEditRolesFor] = useState<ProfileRow | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [viewAsFor, setViewAsFor] = useState<ProfileRow | null>(null);
   const bulkFn = useServerFn(adminBulkUpdateAccounts);
   const quickApproveFn = useServerFn(adminGenerateQuickApproveLink);
   const healthFn = useServerFn(adminGetDealerHealth);
@@ -225,8 +227,25 @@ function AdminPage() {
   }
 
   function viewAs(r: ProfileRow) {
+    const roles = roleList(r);
+    const hasDealer = roles.includes("dealer");
+    const hasJeweller = roles.includes("jeweller");
+    if (hasDealer && hasJeweller) {
+      setViewAsFor(r);
+      return;
+    }
     setImpersonation({ userId: r.id, userName: r.full_name || r.company_name || r.email || r.id.slice(0, 8) });
-    navigate({ to: "/dashboard" });
+    navigate({ to: hasJeweller && !hasDealer ? "/dashboard/jeweller" : "/dashboard" });
+  }
+
+  function confirmViewAs(target: "dealer" | "jeweller") {
+    if (!viewAsFor) return;
+    setImpersonation({
+      userId: viewAsFor.id,
+      userName: viewAsFor.full_name || viewAsFor.company_name || viewAsFor.email || viewAsFor.id.slice(0, 8),
+    });
+    setViewAsFor(null);
+    navigate({ to: target === "jeweller" ? "/dashboard/jeweller" : "/dashboard" });
   }
 
   return (
@@ -518,6 +537,20 @@ function AdminPage() {
         />
       )}
       <SendEmailDialog open={emailOpen} onOpenChange={setEmailOpen} ids={Array.from(selected)} />
+      <Dialog open={!!viewAsFor} onOpenChange={(v) => !v && setViewAsFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>View this account as…</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This account has both dealer and jeweller roles. Pick which dashboard to open.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => confirmViewAs("dealer")}>Dealer dashboard</Button>
+            <Button onClick={() => confirmViewAs("jeweller")}>Jeweller dashboard</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
