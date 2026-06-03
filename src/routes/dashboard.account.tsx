@@ -1,7 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,10 +17,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { exportMyData, deleteMyAccount } from "@/lib/account.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { isDealer as checkD, isJeweller as checkJ } from "@/lib/auth.utils";
 
 export const Route = createFileRoute("/dashboard/account")({
   component: AccountPage,
@@ -24,6 +30,7 @@ export const Route = createFileRoute("/dashboard/account")({
 
 function AccountPage() {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const exportFn = useServerFn(exportMyData);
   const deleteFn = useServerFn(deleteMyAccount);
   const [exporting, setExporting] = useState(false);
@@ -67,10 +74,13 @@ function AccountPage() {
     <div>
       <h1 className="font-serif text-3xl">Account & privacy</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Export your data or permanently delete your account.
+        Manage your public profile, export your data, or permanently delete your account.
       </p>
 
       <div className="mt-8 space-y-6">
+        {user && checkJ(profile) && <JewellerPublicProfileForm userId={user.id} />}
+        {user && checkD(profile) && <DealerPublicProfileForm userId={user.id} />}
+
         <section className="rounded-md border border-border bg-card p-6">
           <h2 className="font-serif text-xl">Export my data</h2>
           <p className="mt-2 text-sm text-muted-foreground">
