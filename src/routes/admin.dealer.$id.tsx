@@ -12,6 +12,10 @@ import { EditRolesDialog } from "@/components/admin/EditRolesDialog";
 import { SendEmailDialog } from "@/components/admin/SendEmailDialog";
 import { roleList } from "@/lib/auth.utils";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
+import { detectPreset } from "@/lib/dealer-feed-mappings";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/admin/dealer/$id")({
   component: DealerDetailPage,
@@ -29,6 +33,19 @@ function DealerDetailPage() {
   const [editRolesOpen, setEditRolesOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const testFeed = useServerFn(fetchExternalFeed);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<
+    | { kind: "ok"; count: number; preset: string; status: number; preview: string }
+    | { kind: "warn"; message: string; status?: number; preview?: string }
+    | { kind: "none"; message: string }
+    | null
+  >(null);
+
+  const [feedUrl, setFeedUrl] = useState("");
+  const [feedMethod, setFeedMethod] = useState<"GET" | "POST">("GET");
+  const [feedBody, setFeedBody] = useState("");
+  const [savingFeed, setSavingFeed] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-dealer", id],
@@ -45,6 +62,15 @@ function DealerDetailPage() {
   const { profile, dealerProfile, stones, counts, syncLogs, apiKey, enquiries, orders, enquiryCounts, analytics } = data;
   if (!profile) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Dealer not found.</div>;
 
+  // Sync local form state with loaded dealer profile (first paint after fetch).
+  if (dealerProfile && feedUrl === "" && feedBody === "" && feedMethod === "GET" &&
+      (dealerProfile.external_feed_url || dealerProfile.external_feed_body || dealerProfile.external_feed_method)) {
+    // Initialise only if untouched.
+    if (dealerProfile.external_feed_url) setFeedUrl(dealerProfile.external_feed_url);
+    if (dealerProfile.external_feed_body) setFeedBody(dealerProfile.external_feed_body);
+    if (dealerProfile.external_feed_method === "POST") setFeedMethod("POST");
+  }
+
   async function triggerSync() {
     setSyncing(true);
     try {
@@ -56,6 +82,73 @@ function DealerDetailPage() {
     } finally {
       setSyncing(false);
     }
+  }
+
+  async function runTestFeed() {
+    const url = dealerProfile?.external_feed_url;
+    if (!url) { setTestResult({ kind: "none", message: "No feed URL configured for this dealer" }); return; }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await testFeed({
+        data: {
+          url,
+          method: (dealerProfile?.external_feed_method === "POST" ? "POST" : "GET"),
+          body: dealerProfile?.external_feed_body || undefined,
+        },
+      });
+      const preview = res.body.slice(0, 200);
+      const lower = res.body.toLowerCase();
+      if (!res.body.trim() || lower.includes('"success":false') || lower.includes('"success": false') || lower.includes('"error"')) {
+        setTestResult({ kind: "warn", message: "Feed URL returned an error — the dealer's API key may be expired or the endpoint may have changed. Ask the dealer to check their Kodllin/inventory system and provide a new URL.", preview });
+        return;
+      }
+      // Try to parse as JSON/CSV to count rows.
+      let rows: Array<Record<string, unknown>> = [];
+      if (res.format === "json") {
+        try {
+          const j = JSON.parse(res.body);
+          if (Array.isArray(j)) rows = j as any[];
+          else if (j && typeof j === "object") {
+            for (const k of ["items", "stones", "data", "results"]) {
+              if (Array.isArray((j as any)[k])) { rows = (j as any)[k]; break; }
+            }
+          }
+        } catch { /* ignore */ }
+      } else if (res.format === "csv") {
+        const lines = res.body.split(/\r?\n/).filter(Boolean);
+        rows = new Array(Math.max(0, lines.length - 1)).fill({});
+      }
+      if (rows.length === 0) {
+        setTestResult({ kind: "warn", message: "Feed URL returned an error — the dealer's API key may be expired or the endpoint may have changed. Ask the dealer to check their Kodllin/inventory system and provide a new URL.", preview });
+        return;
+      }
+      const preset = detectPreset(rows);
+      setTestResult({
+        kind: "ok",
+        count: rows.length,
+        preset: preset ? preset.label : "Custom",
+        status: 200,
+        preview,
+      });
+    } catch (e) {
+      setTestResult({ kind: "warn", message: e instanceof Error ? e.message : "Request failed" });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function saveFeedSettings() {
+    setSavingFeed(true);
+    const { error } = await supabase.from("dealer_profiles").update({
+      external_feed_url: feedUrl || null,
+      external_feed_method: feedMethod,
+      external_feed_body: feedBody || null,
+    }).eq("id", id);
+    setSavingFeed(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Feed settings updated");
+    await refetch();
   }
 
   async function setApproved(value: boolean) {
@@ -170,9 +263,62 @@ function DealerDetailPage() {
               <div><span className="text-muted-foreground">Method:</span> {dealerProfile?.external_feed_method || "GET"}</div>
               <div><span className="text-muted-foreground">Auto-sync:</span> {dealerProfile?.auto_sync_enabled ? "On" : "Off"}</div>
               <div><span className="text-muted-foreground">Last synced:</span> {dealerProfile?.last_synced_at ? new Date(dealerProfile.last_synced_at).toLocaleString() : "Never"}</div>
-              <Button size="sm" disabled={syncing || !dealerProfile?.external_feed_url} onClick={triggerSync}>
-                {syncing ? "Syncing…" : "Sync now"}
-              </Button>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button size="sm" disabled={syncing || !dealerProfile?.external_feed_url} onClick={triggerSync}>
+                  {syncing ? "Syncing…" : "Sync now"}
+                </Button>
+                <Button size="sm" variant="outline" disabled={testing} onClick={runTestFeed}>
+                  {testing ? "Testing…" : "Test feed URL now"}
+                </Button>
+              </div>
+              {testResult && (
+                <div className="mt-2">
+                  {testResult.kind === "ok" && (
+                    <div className="rounded-md border border-green-200 bg-green-50 p-3 text-xs text-green-900">
+                      <div className="font-medium">✓ Feed is live — {testResult.count} stones detected, preset: {testResult.preset}</div>
+                      <div className="mt-1 text-[11px] text-green-800/80">HTTP {testResult.status}</div>
+                      <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all rounded bg-white/60 p-2 text-[11px] text-foreground">{testResult.preview}</pre>
+                    </div>
+                  )}
+                  {testResult.kind === "warn" && (
+                    <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+                      <div className="font-medium">{testResult.message}</div>
+                      {testResult.preview && (
+                        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all rounded bg-white/60 p-2 text-[11px] text-foreground">{testResult.preview}</pre>
+                      )}
+                    </div>
+                  )}
+                  {testResult.kind === "none" && (
+                    <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">{testResult.message}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Update feed URL form */}
+              <div className="mt-4 border-t border-border pt-3 space-y-2">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Update feed URL</div>
+                <Input
+                  value={feedUrl}
+                  onChange={(e) => setFeedUrl(e.target.value)}
+                  placeholder="https://…"
+                />
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant={feedMethod === "GET" ? "default" : "outline"} onClick={() => setFeedMethod("GET")}>GET</Button>
+                  <Button type="button" size="sm" variant={feedMethod === "POST" ? "default" : "outline"} onClick={() => setFeedMethod("POST")}>POST</Button>
+                </div>
+                {feedMethod === "POST" && (
+                  <Textarea
+                    value={feedBody}
+                    onChange={(e) => setFeedBody(e.target.value)}
+                    placeholder='Optional request body, e.g. {"apiKey":"…"}'
+                    rows={3}
+                  />
+                )}
+                <Button size="sm" disabled={savingFeed} onClick={saveFeedSettings}>
+                  {savingFeed ? "Saving…" : "Save"}
+                </Button>
+              </div>
+            </div>
             </div>
             <div className="overflow-hidden rounded-lg border border-border bg-card">
               <div className="border-b border-border bg-muted/30 px-3 py-2 text-xs uppercase tracking-wider text-muted-foreground">Last 10 sync runs</div>
