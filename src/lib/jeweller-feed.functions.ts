@@ -257,9 +257,10 @@ export const getApprovedDealersWithStoneCounts = createServerFn({ method: "GET" 
     }
 
     const { data: dealers, error } = await supabaseAdmin
-      .from("dealer_profiles")
-      .select("id, slug, specialities, profiles!inner(company_name, country, is_approved)")
-      .eq("profiles.is_approved", true);
+      .from("profiles")
+      .select("id, company_name, full_name, country, dealer_profiles(*)")
+      .eq("is_approved", true)
+      .or("account_type.eq.dealer,account_types.cs.{dealer}");
 
     if (error) throw new Error(error.message);
 
@@ -281,8 +282,18 @@ export const getApprovedDealersWithStoneCounts = createServerFn({ method: "GET" 
       }
     }
 
-    return (dealers ?? []).map((dealer: any) => ({
-      ...dealer,
-      stoneCount: counts.get(dealer.id) ?? 0,
-    }));
+    return (dealers ?? []).map((profile: any) => {
+      const dp = profile.dealer_profiles?.[0];
+      return {
+        id: profile.id,
+        slug: dp?.slug ?? `dealer-${profile.id.slice(0, 8)}`,
+        specialities: dp?.specialities ?? [],
+        profiles: {
+          company_name: profile.company_name,
+          country: profile.country,
+          is_approved: true,
+        },
+        stoneCount: counts.get(profile.id) ?? 0,
+      };
+    });
   });

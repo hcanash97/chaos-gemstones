@@ -57,6 +57,7 @@ export const Route = createFileRoute("/api/public/feed")({
         try {
           const url = new URL(request.url);
           const key = url.searchParams.get("key");
+          const includeTest = url.searchParams.get("include_test") === "true";
           if (!key) return json({ error: "Missing 'key' query parameter" }, 401);
 
           const keyHash = createHash("sha256").update(key).digest("hex");
@@ -77,6 +78,17 @@ export const Route = createFileRoute("/api/public/feed")({
           if (!checkRateLimit(apiKey.id)) {
             return json({ error: "Rate limit exceeded" }, 429, { "Retry-After": "60" });
           }
+
+          // Check if the jeweller is an admin
+          const { data: userRole } = await supabaseAdmin
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", apiKey.jeweller_id)
+            .eq("role", "admin")
+            .maybeSingle();
+
+          const isAdmin = !!userRole;
+          const showTest = includeTest && isAdmin;
 
           // Fire-and-forget last_used_at update
           supabaseAdmin
@@ -158,11 +170,15 @@ export const Route = createFileRoute("/api/public/feed")({
 
           if (dealerFollows.length) {
             const dealerIds = dealerFollows.map((d) => d.dealer_id as string);
-            const { data } = await supabaseAdmin
+            let query = supabaseAdmin
               .from("stones")
               .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("dealer_id", dealerIds)
               .eq("status", "available");
+            if (!showTest) {
+              query = query.eq("is_test", false);
+            }
+            const { data } = await query;
             (data ?? []).forEach((s) => {
               const override = dealerFollows.find((d) => d.dealer_id === (s as StoneRow).dealer_id)?.markup_override;
               const m = override != null ? Number(override) : globalMarkup;
@@ -172,11 +188,15 @@ export const Route = createFileRoute("/api/public/feed")({
 
           if (stonePins.length) {
             const stoneIds = stonePins.map((p) => p.stone_id as string);
-            const { data } = await supabaseAdmin
+            let query = supabaseAdmin
               .from("stones")
               .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("id", stoneIds)
               .eq("status", "available");
+            if (!showTest) {
+              query = query.eq("is_test", false);
+            }
+            const { data } = await query;
             (data ?? []).forEach((s) => {
               const pin = stonePins.find((p) => p.stone_id === (s as StoneRow).id);
               const m = pin?.markup_override != null ? Number(pin.markup_override) : globalMarkup;
