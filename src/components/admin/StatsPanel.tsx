@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { adminGetPlatformStats } from "@/lib/admin.functions";
+import { adminGetActivityFeed } from "@/lib/admin-dealer.functions";
+import { Link } from "@tanstack/react-router";
 
 export function StatsPanel() {
   const fn = useServerFn(adminGetPlatformStats);
@@ -8,6 +10,12 @@ export function StatsPanel() {
     queryKey: ["admin-platform-stats"],
     queryFn: () => fn(),
     staleTime: 5 * 60 * 1000,
+  });
+  const feedFn = useServerFn(adminGetActivityFeed);
+  const { data: feed } = useQuery({
+    queryKey: ["admin-activity-feed"],
+    queryFn: () => feedFn(),
+    staleTime: 30_000,
   });
 
   if (isLoading) return <div className="mt-6 p-8 text-center text-sm text-muted-foreground">Loading stats…</div>;
@@ -22,6 +30,24 @@ export function StatsPanel() {
 
   return (
     <div className="mt-6 space-y-6">
+      {feed && feed.events.length > 0 && (
+        <div className="rounded-lg border border-border bg-card">
+          <div className="border-b border-border px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground">Live activity</div>
+          <ul className="divide-y divide-border max-h-80 overflow-auto text-sm">
+            {feed.events.map((e) => (
+              <li key={e.id} className="flex items-center justify-between px-4 py-2">
+                {e.href ? (
+                  <Link to={e.href} className="hover:underline">{e.text}</Link>
+                ) : (
+                  <span>{e.text}</span>
+                )}
+                <span className="ml-3 shrink-0 text-xs text-muted-foreground">{relTime(e.ts)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-3">
         <Badge label="Pending approval" value={data.pending} accent={data.pending > 0 ? "amber" : "muted"} />
         <Badge label="Open reports" value={data.openReports} accent={data.openReports > 0 ? "red" : "muted"} />
