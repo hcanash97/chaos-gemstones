@@ -51,6 +51,7 @@ export function StatsPanel() {
         <Badge label="Pending approval" value={data.pending} accent={data.pending > 0 ? "amber" : "muted"} />
         <Badge label="Open reports" value={data.openReports} accent={data.openReports > 0 ? "red" : "muted"} />
         <Badge label="Recently approved" value={(data.recentDealers.length + data.recentJewellers.length)} accent="gold" />
+        <Badge label="Waitlist signups" value={data.waitlist ?? 0} accent={(data.waitlist ?? 0) > 0 ? "gold" : "muted"} />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
