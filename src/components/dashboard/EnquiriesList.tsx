@@ -15,6 +15,23 @@ type Side = "dealer" | "jeweller";
 
 export function EnquiriesList({ enquiries, side }: { enquiries: any[]; side: Side }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const counterpartyIds = Array.from(
+    new Set(enquiries.map((e) => (side === "dealer" ? e.from_jeweller_id : e.to_dealer_id)).filter(Boolean)),
+  );
+
+  const { data: jewellerLogos } = useQuery({
+    queryKey: ["enquiry-jeweller-logos", side, counterpartyIds.join(",")],
+    enabled: side === "dealer" && counterpartyIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("jeweller_profiles")
+        .select("id, logo_url")
+        .in("id", counterpartyIds);
+      const map: Record<string, string | null> = {};
+      for (const r of (data ?? []) as any[]) map[r.id] = r.logo_url ?? null;
+      return map;
+    },
+  });
 
   if (!enquiries.length) {
     return <div className="mt-6 rounded-md border border-border bg-card p-8 text-center text-sm text-muted-foreground">No enquiries yet.</div>;
@@ -26,16 +43,28 @@ export function EnquiriesList({ enquiries, side }: { enquiries: any[]; side: Sid
         const counterparty = side === "dealer"
           ? (e.profiles?.company_name || e.profiles?.full_name || "Jeweller")
           : (e.profiles?.company_name || "Dealer");
+        const cpId = side === "dealer" ? e.from_jeweller_id : e.to_dealer_id;
+        const logo = side === "dealer" ? jewellerLogos?.[cpId] : null;
+        const initials = (counterparty || "?").slice(0, 1).toUpperCase();
         return (
           <div key={e.id} className="rounded-md border border-border bg-card">
             <button
               className="flex w-full items-center justify-between p-4 text-left"
               onClick={() => setOpenId(openId === e.id ? null : e.id)}
             >
-              <div>
-                <div className="font-medium">{e.subject || "Enquiry"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {counterparty} · {new Date(e.created_at).toLocaleDateString()}
+              <div className="flex items-center gap-3">
+                {logo ? (
+                  <img src={logo} alt="" className="h-9 w-9 rounded-full border border-border object-cover" />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-muted text-xs font-medium">
+                    {initials}
+                  </div>
+                )}
+                <div>
+                  <div className="font-medium">{e.subject || "Enquiry"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {counterparty} · {new Date(e.created_at).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
               <Badge variant={e.status === "open" ? "default" : "outline"}>{e.status}</Badge>

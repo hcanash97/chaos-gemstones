@@ -39,8 +39,10 @@ export function Logo({
   const color = tone === "inverted" ? "text-primary-foreground" : "text-primary";
 
   return (
-    <Link to={to} className="inline-flex items-center gap-2.5">
-      <GemMark size={markPx} />
+    <Link to={to} className="group inline-flex items-center gap-2.5">
+      <span className="inline-block transition-transform duration-[600ms] ease-out group-hover:rotate-[360deg]">
+        <GemMark size={markPx} />
+      </span>
       <span className={`font-serif italic font-medium tracking-tight ${text} ${color}`}>
         CHAOS
       </span>

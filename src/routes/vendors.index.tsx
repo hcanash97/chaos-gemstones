@@ -40,6 +40,8 @@ function Vendors() {
   const [q, setQ] = useState("");
   const { data: vendors, isLoading } = useQuery({
     queryKey: ["vendors"],
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data } = await supabase
         .from("dealer_profiles")
@@ -51,6 +53,8 @@ function Vendors() {
 
   const { data: stoneCounts } = useQuery({
     queryKey: ["vendor-stone-counts"],
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")

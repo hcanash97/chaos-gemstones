@@ -155,6 +155,12 @@ function RootComponent() {
         <CompareProvider>
           <TooltipProvider delayDuration={200}>
           <ImpersonationBanner />
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:rounded focus:bg-[var(--color-gold)] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-[var(--color-gold-foreground)]"
+          >
+            Skip to main content
+          </a>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}
@@ -163,7 +169,7 @@ function RootComponent() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <main id="main" className="pb-16 md:pb-0"><Outlet /></main>
+              <main id="main-content" className="pb-16 md:pb-0"><Outlet /></main>
             </motion.div>
           </AnimatePresence>
           <CompareBar />

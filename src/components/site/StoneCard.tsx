@@ -104,7 +104,7 @@ function StoneCardImpl({
   }
 
   return (
-    <motion.div variants={fadeUp} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
+    <motion.div role="article" variants={fadeUp} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
     <Link
       to="/stone/$id"
       params={{ id: stone.id }}

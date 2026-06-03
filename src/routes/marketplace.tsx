@@ -99,10 +99,25 @@ function reducer(s: FilterState, a: Action): FilterState {
 }
 
 function Marketplace() {
-  const [f, dispatch] = useReducer(reducer, defaultFilters);
+  // Seed filter state from URL search params (so filters survive Back/refresh).
+  const initialFromUrl: FilterState = (() => {
+    if (typeof window === "undefined") return defaultFilters;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const raw = sp.get("f");
+      if (raw) {
+        const parsed = JSON.parse(decodeURIComponent(raw));
+        return { ...defaultFilters, ...parsed };
+      }
+    } catch {
+      /* ignore */
+    }
+    return defaultFilters;
+  })();
+  const [f, dispatch] = useReducer(reducer, initialFromUrl);
   const { user, profile } = useAuth();
   const [page, setPage] = useState(1);
-  const [debouncedF, setDebouncedF] = useState<FilterState>(defaultFilters);
+  const [debouncedF, setDebouncedF] = useState<FilterState>(initialFromUrl);
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
 
@@ -115,6 +130,28 @@ function Marketplace() {
   // Reset to page 1 whenever the (debounced) filters change.
   useEffect(() => {
     setPage(1);
+  }, [debouncedF]);
+
+  // Persist (debounced) filter state into the URL so navigating away and
+  // back preserves what the user had applied.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Only include keys that differ from defaults to keep the URL short-ish.
+    const diff: Record<string, unknown> = {};
+    for (const k of Object.keys(debouncedF) as (keyof FilterState)[]) {
+      const v = debouncedF[k];
+      const d = (defaultFilters as any)[k];
+      const same = JSON.stringify(v) === JSON.stringify(d);
+      if (!same) diff[k] = v;
+    }
+    const sp = new URLSearchParams(window.location.search);
+    if (Object.keys(diff).length === 0) sp.delete("f");
+    else sp.set("f", encodeURIComponent(JSON.stringify(diff)));
+    const qs = sp.toString();
+    const target = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    if (target !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, "", target);
+    }
   }, [debouncedF]);
 
   const search = useServerFn(searchMarketplace);
@@ -761,7 +798,7 @@ function Marketplace() {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-serif text-4xl">Marketplace</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
               {isLoading
                 ? "Loading…"
                 : `Showing ${visible.length} of ${total.toLocaleString()} results${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}

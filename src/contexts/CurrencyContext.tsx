@@ -42,19 +42,24 @@ function isCurrencyCode(v: string | null | undefined): v is CurrencyCode {
 }
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [displayCurrency, setDisplayCurrencyState] = useState<CurrencyCode>("USD");
-  const [rates, setRates] = useState<Record<string, number>>({ ...FALLBACK_RATES });
-  const [ratesLoading, setRatesLoading] = useState(false);
-
-  // Load from localStorage + remote rates on mount.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  // Read from localStorage synchronously so the UI never flashes USD on
+  // first render when the user previously picked another currency.
+  const [displayCurrency, setDisplayCurrencyState] = useState<CurrencyCode>(() => {
+    if (typeof window === "undefined") return "USD";
     try {
       const stored = window.localStorage.getItem(STORAGE_CURRENCY);
-      if (isCurrencyCode(stored)) setDisplayCurrencyState(stored);
+      if (isCurrencyCode(stored)) return stored;
     } catch {
       /* ignore */
     }
+    return "USD";
+  });
+  const [rates, setRates] = useState<Record<string, number>>({ ...FALLBACK_RATES });
+  const [ratesLoading, setRatesLoading] = useState(false);
+
+  // Fetch remote rates on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     setRatesLoading(true);
     getExchangeRates()
       .then((r) => setRates(r))

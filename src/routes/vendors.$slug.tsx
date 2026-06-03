@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Instagram } from "lucide-react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/vendors/$slug")({
   loader: async ({ params }) => {
     const { data } = await supabase
       .from("dealer_profiles")
-      .select("id, logo_url, bio, specialities, trade_memberships, profiles!inner(company_name, city, country, is_approved)")
+      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, profiles!inner(company_name, city, country, is_approved)")
       .eq("slug", params.slug)
       .maybeSingle();
     return { vendor: data as any };
@@ -98,7 +98,7 @@ function VendorProfile() {
     queryFn: async () => {
       const { data: vendor } = await supabase
         .from("dealer_profiles")
-        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, profiles!inner(company_name, city, country, website, is_verified, created_at)")
+        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
       if (!vendor) return { vendor: null, stones: [] };
@@ -233,32 +233,50 @@ function VendorProfile() {
       <SiteHeader />
       <section
         className="relative overflow-hidden text-primary-foreground"
-        style={{ background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }}
+        style={
+          v.cover_image_url
+            ? { backgroundImage: `linear-gradient(135deg, rgba(13,36,24,0.78), rgba(15,27,61,0.72)), url(${v.cover_image_url})`, backgroundSize: "cover", backgroundPosition: "center" }
+            : { background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }
+        }
       >
-        {/* Specialities watermark */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 flex items-center justify-end overflow-hidden pr-10 font-serif text-[8rem] uppercase leading-none opacity-[0.04]"
-        >
-          {(v.specialities ?? []).slice(0, 1).join(" · ") || v.profiles?.country}
-        </div>
+        {!v.cover_image_url && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 flex items-center justify-end overflow-hidden pr-10 font-serif text-[8rem] uppercase leading-none opacity-[0.04]"
+          >
+            {(v.specialities ?? []).slice(0, 1).join(" · ") || v.profiles?.country}
+          </div>
+        )}
         <div className="relative mx-auto max-w-7xl px-6 py-16">
           <Link to="/vendors" className="text-xs opacity-70 hover:opacity-100">← All vendors</Link>
           <div className="mt-4 flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-gold)] bg-[var(--color-gold)]/10 font-serif text-2xl text-[var(--color-gold)]">
-              {(v.profiles.company_name || "?").slice(0, 1).toUpperCase()}
-            </div>
+            {v.logo_url ? (
+              <img src={v.logo_url} alt={`${v.profiles.company_name} logo`} className="h-16 w-16 shrink-0 rounded-full border-2 border-[var(--color-gold)] object-cover shadow-lg" />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-gold)] bg-[var(--color-gold)]/10 font-serif text-2xl text-[var(--color-gold)]">
+                {(v.profiles.company_name || "?").slice(0, 1).toUpperCase()}
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <h1 className="font-serif text-5xl">{v.profiles.company_name}</h1>
               {v.profiles.is_verified && <ShieldCheck className="verified-cycle h-6 w-6" />}
             </div>
           </div>
+          {v.tagline && <p className="mt-3 max-w-2xl text-base italic opacity-90">{v.tagline}</p>}
           <div className="mt-2 text-sm opacity-70">
-            {v.profiles.city}, {v.profiles.country} · {v.years_trading} years trading · ~{v.response_time_hours}h response
+            {v.profiles.city}, {v.profiles.country}
+            {v.founded_year ? ` · Est. ${v.founded_year}` : ""}
+            {v.years_trading ? ` · ${v.years_trading} years trading` : ""}
+            {v.response_time_hours ? ` · ~${v.response_time_hours}h response` : ""}
             <span className="ml-3 inline-flex items-center rounded-full bg-[var(--color-gold)] px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-gold-foreground)]">
               {data.stones.length} stones
             </span>
           </div>
+          {v.instagram_url && (
+            <a href={v.instagram_url} target="_blank" rel="noreferrer noopener" className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--color-gold)] hover:opacity-90">
+              <Instagram className="h-4 w-4" /> Instagram
+            </a>
+          )}
           <p className="mt-6 max-w-2xl opacity-90">{v.bio}</p>
           <div className="mt-6 flex flex-wrap gap-1.5">
             {(v.specialities ?? []).map((s: string) => (
@@ -283,6 +301,30 @@ function VendorProfile() {
           </div>
         </div>
       </section>
+      {v.story && (
+        <section className="border-b border-border bg-background">
+          <div className="mx-auto max-w-4xl px-6 py-12">
+            <div className="text-xs uppercase tracking-[0.18em] text-[var(--color-gold)]">Our story</div>
+            <div className="mt-4 border-l-2 border-[var(--color-gold)] pl-5">
+              <p className="whitespace-pre-line text-base leading-relaxed text-foreground/85">{v.story}</p>
+            </div>
+          </div>
+        </section>
+      )}
+      {(v.certifications ?? []).length > 0 && (
+        <section className="border-b border-border bg-secondary/20">
+          <div className="mx-auto max-w-7xl px-6 py-8">
+            <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Certifications & memberships</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(v.certifications ?? []).map((c: string) => (
+                <span key={c} className="rounded-full border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-[var(--color-gold)]">
+                  {c}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
       {/* Verification */}
       <section className="border-b border-border bg-secondary/30">
         <div className="mx-auto max-w-7xl px-6 py-10">
