@@ -5,31 +5,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
 import { runDealerSyncForUser } from "@/lib/dealer-sync.server";
 
-// SSRF guard — same rules as feed-fetch.functions.ts.
-function assertSafeFeedUrl(urlStr: string): void {
-  const target = new URL(urlStr);
-  if (target.protocol !== "https:" && target.protocol !== "http:") {
-    throw new Error("Only http(s) URLs are supported");
-  }
-  const host = target.hostname.toLowerCase();
-  if (
-    host === "localhost" ||
-    host === "::1" ||
-    host === "127.0.0.1" ||
-    host === "0.0.0.0" ||
-    host.endsWith(".local") ||
-    host.endsWith(".internal") ||
-    host.startsWith("10.") ||
-    host.startsWith("192.168.") ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-    /^fd[0-9a-f]{2}:/i.test(host) ||
-    /^fe80:/i.test(host)
-  ) {
-    throw new Error("Private or local hosts are not allowed");
-  }
-}
-
 async function ensureApprovedDealer(supabase: any, userId: string) {
   const { data: profile } = await supabase
     .from("profiles")
