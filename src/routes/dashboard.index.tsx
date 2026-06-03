@@ -58,11 +58,16 @@ function DashboardOverview() {
           <h1 className="font-serif text-3xl text-foreground">Dealer Dashboard</h1>
           <p className="text-sm text-muted-foreground">Manage your gemstone inventory.</p>
         </div>
-        <Link to="/dashboard/stones/new">
-          <Button className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
-            + New stone
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/dashboard/import">
+            <Button variant="outline">Import stones via CSV →</Button>
+          </Link>
+          <Link to="/dashboard/stones/new">
+            <Button className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+              + New stone
+            </Button>
+          </Link>
+        </div>
       </div>
       {showOnboarding ? (
         <DealerOnboarding
@@ -99,7 +104,8 @@ function DealerOnboarding({
   const profileUrl = slug && typeof window !== "undefined" ? `${window.location.origin}/vendors/${slug}` : null;
   const steps = [
     { done: profileComplete, title: "Complete your dealer profile (bio, specialities, logo)", to: "/dashboard/account", cta: "Edit profile", action: null as null | (() => void) },
-    { done: false, title: "Upload your first stones manually or via CSV", to: "/dashboard/stones/new", cta: "Add stones", action: null },
+    { done: false, title: "Upload your first stones manually", to: "/dashboard/stones/new", cta: "Add stones", action: null },
+    { done: false, title: "Or bulk import stones via CSV", to: "/dashboard/import", cta: "Import stones via CSV →", action: null },
     { done: hasFeed, title: "Connect your inventory feed for automatic sync (optional)", to: "/dashboard/import", cta: "Set up feed sync", action: null },
     {
       done: false,

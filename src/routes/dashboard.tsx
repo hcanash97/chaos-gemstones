@@ -55,6 +55,7 @@ function DashboardLayout() {
   const jewellerNav = [
     { to: "/dashboard/jeweller", label: "Overview", exact: true },
     { to: "/dashboard/jeweller/feeds", label: "Vendors & Stones", exact: false },
+    { to: "/dashboard/import", label: "Import Stones", exact: false },
     { to: "/dashboard/jeweller/markup", label: "Markup", exact: false },
     { to: "/dashboard/jeweller/api", label: "API Feed", exact: false },
     { to: "/dashboard/jeweller/shopify", label: "Shopify Sync", exact: false },
