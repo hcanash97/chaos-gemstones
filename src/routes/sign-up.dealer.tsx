@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { z } from "zod";
+import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { supabase } from "@/integrations/supabase/client";
 import { captureRefFromUrl, applyStoredRefForUser } from "@/lib/referral";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
@@ -14,9 +16,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, AlertCircle } from "lucide-react";
 import { LaunchBanner } from "@/components/site/LaunchBanner";
 
-export const Route = createFileRoute("/sign-up/dealer")({
-  component: () => <SignUpForm accountType="dealer" />,
+const dealerSearch = z.object({
+  dual: fallback(z.enum(["true", "false"]).optional(), undefined),
 });
+
+export const Route = createFileRoute("/sign-up/dealer")({
+  validateSearch: zodValidator(dealerSearch),
+  component: DealerSignUpRoute,
+});
+
+function DealerSignUpRoute() {
+  const { dual } = Route.useSearch();
+  return <SignUpForm accountType="dealer" dual={dual === "true"} />;
+}
 
 const SPECIALITIES = [
   "Sapphires", "Rubies", "Emeralds", "Spinels", "Diamonds", "Lab-grown diamonds",
