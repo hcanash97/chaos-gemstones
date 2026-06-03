@@ -42,7 +42,7 @@ export function Logo({
     <Link to={to} className="inline-flex items-center gap-2.5">
       <GemMark size={markPx} />
       <span className={`font-serif italic font-medium tracking-tight ${text} ${color}`}>
-        Chaos
+        CHAOS
       </span>
       {withTagline && (
         <span className="hidden text-[10px] uppercase tracking-[0.2em] text-muted-foreground sm:inline">
