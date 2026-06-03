@@ -170,11 +170,15 @@ export const Route = createFileRoute("/api/public/feed")({
 
           if (dealerFollows.length) {
             const dealerIds = dealerFollows.map((d) => d.dealer_id as string);
-            const { data } = await supabaseAdmin
+            let query = supabaseAdmin
               .from("stones")
               .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("dealer_id", dealerIds)
               .eq("status", "available");
+            if (!showTest) {
+              query = query.eq("is_test", false);
+            }
+            const { data } = await query;
             (data ?? []).forEach((s) => {
               const override = dealerFollows.find((d) => d.dealer_id === (s as StoneRow).dealer_id)?.markup_override;
               const m = override != null ? Number(override) : globalMarkup;
