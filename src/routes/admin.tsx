@@ -13,6 +13,7 @@ import { EditRolesDialog } from "@/components/admin/EditRolesDialog";
 import { SendEmailDialog } from "@/components/admin/SendEmailDialog";
 import { StatsPanel } from "@/components/admin/StatsPanel";
 import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
+import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
 
 type ProfileRow = {
   id: string;
@@ -49,6 +50,8 @@ function AdminPage() {
   const [emailOpen, setEmailOpen] = useState(false);
   const bulkFn = useServerFn(adminBulkUpdateAccounts);
   const quickApproveFn = useServerFn(adminGenerateQuickApproveLink);
+  const healthFn = useServerFn(adminGetDealerHealth);
+  const [dealerHealth, setDealerHealth] = useState<Record<string, { stoneCount: number; lastStoneAt: string | null }>>({});
 
   useEffect(() => {
     if (loading) return;
@@ -71,6 +74,13 @@ function AdminPage() {
   }, [isAdmin, tab]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load dealer health stats for any dealers visible in the rows.
+  useEffect(() => {
+    const dealerIds = rows.filter((r) => isDealer(r)).map((r) => r.id);
+    if (dealerIds.length === 0) return;
+    healthFn({ data: { dealerIds } }).then((r) => setDealerHealth(r.health)).catch(() => {});
+  }, [rows, healthFn]);
 
   const loadTestCount = useCallback(async () => {
     if (!isAdmin) return;
@@ -388,6 +398,7 @@ function AdminPage() {
                   <th className="px-4 py-3">Country</th>
                   <th className="px-4 py-3">Signed up</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Health</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -408,7 +419,15 @@ function AdminPage() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.company_name || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {isDealer(r) ? (
+                        <Link to="/admin/dealer/$id" params={{ id: r.id }} className="text-primary hover:underline">
+                          {r.company_name || r.full_name || "—"}
+                        </Link>
+                      ) : (
+                        r.company_name || "—"
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.country || "—"}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {new Date(r.created_at).toLocaleDateString()}
@@ -426,6 +445,9 @@ function AdminPage() {
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <HealthDot dealer={r} health={dealerHealth[r.id]} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex flex-wrap justify-end gap-1">
@@ -656,6 +678,35 @@ function Stat({ label, value }: { label: string; value: number | string }) {
       <div className="mt-1 font-serif text-2xl">{value}</div>
     </div>
   );
+}
+
+function HealthDot({
+  dealer,
+  health,
+}: {
+  dealer: ProfileRow;
+  health: { stoneCount: number; lastStoneAt: string | null } | undefined;
+}) {
+  if (!isDealer(dealer)) return <span className="text-xs text-muted-foreground">—</span>;
+  if (!dealer.is_approved) {
+    return <Dot color="grey" title="Pending approval" />;
+  }
+  if (!health) return <span className="text-xs text-muted-foreground">…</span>;
+  if (health.stoneCount === 0) {
+    return <Dot color="red" title="Approved, but no stones listed" />;
+  }
+  const last = health.lastStoneAt ? new Date(health.lastStoneAt).getTime() : 0;
+  const days = (Date.now() - last) / 86_400_000;
+  if (days <= 30) return <Dot color="green" title={`Active — last listing ${Math.round(days)}d ago`} />;
+  return <Dot color="amber" title={`No new listings in ${Math.round(days)}d`} />;
+}
+
+function Dot({ color, title }: { color: "green" | "amber" | "red" | "grey"; title: string }) {
+  const cls =
+    color === "green" ? "bg-green-500" :
+    color === "amber" ? "bg-amber-500" :
+    color === "red" ? "bg-red-500" : "bg-muted-foreground/40";
+  return <span title={title} className={`inline-block h-2.5 w-2.5 rounded-full ${cls}`} />;
 }
 
 type FeeOrderRow = {

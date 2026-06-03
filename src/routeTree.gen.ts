@@ -59,6 +59,7 @@ import { Route as DashboardDealerPricingRouteImport } from './routes/dashboard.d
 import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.dealer.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
+import { Route as AdminDealerIdRouteImport } from './routes/admin.dealer.$id'
 import { Route as ApiPublicCronShopifySyncRouteImport } from './routes/api/public/cron/shopify-sync'
 import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
@@ -323,6 +324,11 @@ const ApiPublicChaosDotjsRoute = ApiPublicChaosDotjsRouteImport.update({
   path: '/api/public/chaos.js',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDealerIdRoute = AdminDealerIdRouteImport.update({
+  id: '/dealer/$id',
+  path: '/dealer/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiPublicCronShopifySyncRoute =
   ApiPublicCronShopifySyncRouteImport.update({
     id: '/api/public/cron/shopify-sync',
@@ -408,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/admin/dealer/$id': typeof AdminDealerIdRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
@@ -468,6 +475,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/learn': typeof LearnIndexRoute
   '/vendors': typeof VendorsIndexRoute
+  '/admin/dealer/$id': typeof AdminDealerIdRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
@@ -530,6 +538,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
+  '/admin/dealer/$id': typeof AdminDealerIdRoute
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
@@ -593,6 +602,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/learn/'
     | '/vendors/'
+    | '/admin/dealer/$id'
     | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/dealer/api'
@@ -653,6 +663,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/learn'
     | '/vendors'
+    | '/admin/dealer/$id'
     | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/dealer/api'
@@ -714,6 +725,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/learn/'
     | '/vendors/'
+    | '/admin/dealer/$id'
     | '/api/public/chaos.js'
     | '/api/public/feed'
     | '/dashboard/dealer/api'
@@ -1131,6 +1143,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicChaosDotjsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/dealer/$id': {
+      id: '/admin/dealer/$id'
+      path: '/dealer/$id'
+      fullPath: '/admin/dealer/$id'
+      preLoaderRoute: typeof AdminDealerIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/public/cron/shopify-sync': {
       id: '/api/public/cron/shopify-sync'
       path: '/api/public/cron/shopify-sync'
@@ -1200,11 +1219,13 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminImportTestRoute: typeof AdminImportTestRoute
   AdminQuickApproveRoute: typeof AdminQuickApproveRoute
+  AdminDealerIdRoute: typeof AdminDealerIdRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminImportTestRoute: AdminImportTestRoute,
   AdminQuickApproveRoute: AdminQuickApproveRoute,
+  AdminDealerIdRoute: AdminDealerIdRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -1322,13 +1343,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

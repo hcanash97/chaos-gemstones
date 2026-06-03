@@ -15,6 +15,7 @@ import { PwaRegister } from "@/components/site/PwaRegister";
 import { CompareProvider } from "@/contexts/CompareContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { CompareBar } from "@/components/site/CompareBar";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 
 function NotFoundComponent() {
   return (
@@ -151,6 +152,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
         <CompareProvider>
+          <ImpersonationBanner />
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}
