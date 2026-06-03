@@ -68,6 +68,7 @@ import { Route as ApiDealerV1StonesRouteImport } from './routes/api/dealer/v1/st
 import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
 import { Route as ApiDealerV1StonesBulkRouteImport } from './routes/api/dealer/v1/stones/bulk'
 import { Route as ApiDealerV1StonesIdRouteImport } from './routes/api/dealer/v1/stones/$id'
+import { Route as AdminDealerIdStonesNewRouteImport } from './routes/admin.dealer.$id.stones.new'
 import { Route as ApiDealerV1StonesIdMarkSoldRouteImport } from './routes/api/dealer/v1/stones/$id/mark-sold'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -373,6 +374,11 @@ const ApiDealerV1StonesIdRoute = ApiDealerV1StonesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiDealerV1StonesRoute,
 } as any)
+const AdminDealerIdStonesNewRoute = AdminDealerIdStonesNewRouteImport.update({
+  id: '/stones/new',
+  path: '/stones/new',
+  getParentRoute: () => AdminDealerIdRoute,
+} as any)
 const ApiDealerV1StonesIdMarkSoldRoute =
   ApiDealerV1StonesIdMarkSoldRouteImport.update({
     id: '/mark-sold',
@@ -414,7 +420,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
-  '/admin/dealer/$id': typeof AdminDealerIdRoute
+  '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
@@ -437,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
+  '/admin/dealer/$id/stones/new': typeof AdminDealerIdStonesNewRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
@@ -475,7 +482,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/learn': typeof LearnIndexRoute
   '/vendors': typeof VendorsIndexRoute
-  '/admin/dealer/$id': typeof AdminDealerIdRoute
+  '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
@@ -498,6 +505,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
+  '/admin/dealer/$id/stones/new': typeof AdminDealerIdStonesNewRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
@@ -538,7 +546,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/learn/': typeof LearnIndexRoute
   '/vendors/': typeof VendorsIndexRoute
-  '/admin/dealer/$id': typeof AdminDealerIdRoute
+  '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
@@ -561,6 +569,7 @@ export interface FileRoutesById {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
+  '/admin/dealer/$id/stones/new': typeof AdminDealerIdStonesNewRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
@@ -625,6 +634,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
+    | '/admin/dealer/$id/stones/new'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
@@ -686,6 +696,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
+    | '/admin/dealer/$id/stones/new'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
@@ -748,6 +759,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
+    | '/admin/dealer/$id/stones/new'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
@@ -1206,6 +1218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDealerV1StonesIdRouteImport
       parentRoute: typeof ApiDealerV1StonesRoute
     }
+    '/admin/dealer/$id/stones/new': {
+      id: '/admin/dealer/$id/stones/new'
+      path: '/stones/new'
+      fullPath: '/admin/dealer/$id/stones/new'
+      preLoaderRoute: typeof AdminDealerIdStonesNewRouteImport
+      parentRoute: typeof AdminDealerIdRoute
+    }
     '/api/dealer/v1/stones/$id/mark-sold': {
       id: '/api/dealer/v1/stones/$id/mark-sold'
       path: '/mark-sold'
@@ -1216,16 +1235,28 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminDealerIdRouteChildren {
+  AdminDealerIdStonesNewRoute: typeof AdminDealerIdStonesNewRoute
+}
+
+const AdminDealerIdRouteChildren: AdminDealerIdRouteChildren = {
+  AdminDealerIdStonesNewRoute: AdminDealerIdStonesNewRoute,
+}
+
+const AdminDealerIdRouteWithChildren = AdminDealerIdRoute._addFileChildren(
+  AdminDealerIdRouteChildren,
+)
+
 interface AdminRouteChildren {
   AdminImportTestRoute: typeof AdminImportTestRoute
   AdminQuickApproveRoute: typeof AdminQuickApproveRoute
-  AdminDealerIdRoute: typeof AdminDealerIdRoute
+  AdminDealerIdRoute: typeof AdminDealerIdRouteWithChildren
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminImportTestRoute: AdminImportTestRoute,
   AdminQuickApproveRoute: AdminQuickApproveRoute,
-  AdminDealerIdRoute: AdminDealerIdRoute,
+  AdminDealerIdRoute: AdminDealerIdRouteWithChildren,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

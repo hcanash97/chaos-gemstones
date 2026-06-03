@@ -212,6 +212,13 @@ function DealerDetailPage() {
             <Pill label="Reserved" value={counts.reserved} accent="amber" />
             <Pill label="Sold" value={counts.sold} />
             <Pill label="Feed inactive" value={counts.feed_inactive} accent="muted" />
+            <div className="ml-auto">
+              <Button size="sm" asChild>
+                <Link to="/admin/dealer/$id/stones/new" params={{ id }}>
+                  + Add stone for this dealer
+                </Link>
+              </Button>
+            </div>
           </div>
           <div className="overflow-hidden rounded-lg border border-border bg-card">
             {stones.length === 0 ? (
