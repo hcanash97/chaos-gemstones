@@ -319,7 +319,6 @@ function DealerDetailPage() {
                 </Button>
               </div>
             </div>
-            </div>
             <div className="overflow-hidden rounded-lg border border-border bg-card">
               <div className="border-b border-border bg-muted/30 px-3 py-2 text-xs uppercase tracking-wider text-muted-foreground">Last 10 sync runs</div>
               {syncLogs.length === 0 ? (
