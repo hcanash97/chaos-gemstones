@@ -41,6 +41,26 @@ export const Route = createFileRoute("/api/dealer/v1/stones/$id/mark-sold")({
         // Record an order row only when we have a jeweller_id; otherwise just mark sold.
         // (the orders table requires a non-null jeweller_id, so this is conditional.)
         if (body.jeweller_id) {
+          // Validate jeweller_id is a real, approved jeweller account before
+          // inserting an order row — otherwise a dealer could plant fake
+          // orders in arbitrary users' dashboards.
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.jeweller_id)) {
+            return json({ error: "Invalid jeweller_id format" }, 400);
+          }
+          const { data: jeweller } = await supabaseAdmin
+            .from("profiles")
+            .select("id, account_type, account_types, is_approved")
+            .eq("id", body.jeweller_id)
+            .maybeSingle();
+          const isJeweller =
+            !!jeweller &&
+            jeweller.is_approved === true &&
+            (jeweller.account_type === "jeweller" ||
+              (Array.isArray((jeweller as any).account_types) &&
+                (jeweller as any).account_types.includes("jeweller")));
+          if (!isJeweller) {
+            return json({ error: "jeweller_id does not match an approved jeweller account" }, 400);
+          }
           const { error: orderError } = await supabaseAdmin.from("orders").insert({
             stone_id: stone.id,
             dealer_id: auth.ctx.dealerId,
