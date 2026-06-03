@@ -680,6 +680,35 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+function HealthDot({
+  dealer,
+  health,
+}: {
+  dealer: ProfileRow;
+  health: { stoneCount: number; lastStoneAt: string | null } | undefined;
+}) {
+  if (!isDealer(dealer)) return <span className="text-xs text-muted-foreground">—</span>;
+  if (!dealer.is_approved) {
+    return <Dot color="grey" title="Pending approval" />;
+  }
+  if (!health) return <span className="text-xs text-muted-foreground">…</span>;
+  if (health.stoneCount === 0) {
+    return <Dot color="red" title="Approved, but no stones listed" />;
+  }
+  const last = health.lastStoneAt ? new Date(health.lastStoneAt).getTime() : 0;
+  const days = (Date.now() - last) / 86_400_000;
+  if (days <= 30) return <Dot color="green" title={`Active — last listing ${Math.round(days)}d ago`} />;
+  return <Dot color="amber" title={`No new listings in ${Math.round(days)}d`} />;
+}
+
+function Dot({ color, title }: { color: "green" | "amber" | "red" | "grey"; title: string }) {
+  const cls =
+    color === "green" ? "bg-green-500" :
+    color === "amber" ? "bg-amber-500" :
+    color === "red" ? "bg-red-500" : "bg-muted-foreground/40";
+  return <span title={title} className={`inline-block h-2.5 w-2.5 rounded-full ${cls}`} />;
+}
+
 type FeeOrderRow = {
   id: string;
   jeweller_id: string;
