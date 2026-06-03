@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlidersHorizontal, X, ChevronDown, ChevronUp, Save, LayoutGrid, List } from "lucide-react";
 import { StaggerGroup } from "@/components/anim/Motion";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
 import {
@@ -311,9 +313,14 @@ function Marketplace() {
       <CollapsibleSection title="Cert lab">
         <PillRow>
           {CERT_LABS.map((t) => (
-            <Pill key={t} active={f.labs.includes(t)} onClick={() => toggle("labs", t)}>
+            <PillWithHint
+              key={t}
+              active={f.labs.includes(t)}
+              onClick={() => toggle("labs", t)}
+              hint={CERT_LAB_HINTS[t]}
+            >
               {t}
-            </Pill>
+            </PillWithHint>
           ))}
         </PillRow>
       </CollapsibleSection>
@@ -328,9 +335,14 @@ function Marketplace() {
         </PillRow>
         <PillRow className="mt-3">
           {(["all", "single", "parcel"] as const).map((s) => (
-            <Pill key={s} active={f.listingType === s} onClick={() => set({ listingType: s })}>
+            <PillWithHint
+              key={s}
+              active={f.listingType === s}
+              onClick={() => set({ listingType: s })}
+              hint={s === "parcel" ? "Multiple matching stones sold together as a lot, rather than individually." : undefined}
+            >
               {s === "all" ? "All listings" : s}
-            </Pill>
+            </PillWithHint>
           ))}
         </PillRow>
         <label className="mt-3 flex items-center gap-2 text-xs">
