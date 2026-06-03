@@ -798,7 +798,7 @@ function Marketplace() {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <h1 className="font-serif text-4xl">Marketplace</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
               {isLoading
                 ? "Loading…"
                 : `Showing ${visible.length} of ${total.toLocaleString()} results${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}
