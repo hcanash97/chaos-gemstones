@@ -57,6 +57,7 @@ export const Route = createFileRoute("/api/public/feed")({
         try {
           const url = new URL(request.url);
           const key = url.searchParams.get("key");
+          const includeTest = url.searchParams.get("include_test") === "true";
           if (!key) return json({ error: "Missing 'key' query parameter" }, 401);
 
           const keyHash = createHash("sha256").update(key).digest("hex");
@@ -77,6 +78,17 @@ export const Route = createFileRoute("/api/public/feed")({
           if (!checkRateLimit(apiKey.id)) {
             return json({ error: "Rate limit exceeded" }, 429, { "Retry-After": "60" });
           }
+
+          // Check if the jeweller is an admin
+          const { data: userRole } = await supabaseAdmin
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", apiKey.jeweller_id)
+            .eq("role", "admin")
+            .maybeSingle();
+
+          const isAdmin = !!userRole;
+          const showTest = includeTest && isAdmin;
 
           // Fire-and-forget last_used_at update
           supabaseAdmin
