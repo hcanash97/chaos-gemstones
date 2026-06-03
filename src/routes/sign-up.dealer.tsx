@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { supabase } from "@/integrations/supabase/client";
 import { captureRefFromUrl, applyStoredRefForUser } from "@/lib/referral";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
@@ -17,11 +16,11 @@ import { Check, AlertCircle } from "lucide-react";
 import { LaunchBanner } from "@/components/site/LaunchBanner";
 
 const dealerSearch = z.object({
-  dual: fallback(z.enum(["true", "false"]).optional(), undefined),
+  dual: z.enum(["true", "false"]).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/sign-up/dealer")({
-  validateSearch: zodValidator(dealerSearch),
+  validateSearch: (search) => dealerSearch.parse(search),
   component: DealerSignUpRoute,
 });
 
