@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { adminGetPlatformStats } from "@/lib/admin.functions";
 import { adminGetActivityFeed } from "@/lib/admin-dealer.functions";
-import { Link } from "@tanstack/react-router";
 
 export function StatsPanel() {
   const fn = useServerFn(adminGetPlatformStats);
@@ -37,7 +36,7 @@ export function StatsPanel() {
             {feed.events.map((e) => (
               <li key={e.id} className="flex items-center justify-between px-4 py-2">
                 {e.href ? (
-                  <Link to={e.href} className="hover:underline">{e.text}</Link>
+                  <a href={e.href} className="hover:underline">{e.text}</a>
                 ) : (
                   <span>{e.text}</span>
                 )}
