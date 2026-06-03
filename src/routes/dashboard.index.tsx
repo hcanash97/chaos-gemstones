@@ -16,7 +16,7 @@ export const Route = createFileRoute("/dashboard/")({
 function DashboardOverview() {
   const { user, profile } = useAuth();
   const [stats, setStats] = useState({ total: 0, available: 0, sold: 0, featured: 0, views: 0, enquiries: 0 });
-  const [dealerProfile, setDealerProfile] = useState<{ bio: string | null; specialities: string[] | null; logo_url: string | null; slug: string | null; feed_url: string | null } | null>(null);
+  const [dealerProfile, setDealerProfile] = useState<{ bio: string | null; specialities: string[] | null; logo_url: string | null; slug: string | null; external_feed_url: string | null } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -24,8 +24,8 @@ function DashboardOverview() {
       const [{ data }, viewRes, enqRes, dp] = await Promise.all([
         supabase.from("stones").select("status, featured, view_count").eq("dealer_id", user.id),
         supabase.from("stones").select("view_count").eq("dealer_id", user.id),
-        supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("dealer_id", user.id),
-        supabase.from("dealer_profiles").select("bio, specialities, logo_url, slug, feed_url").eq("id", user.id).maybeSingle(),
+        supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("to_dealer_id", user.id),
+        supabase.from("dealer_profiles").select("bio, specialities, logo_url, slug, external_feed_url").eq("id", user.id).maybeSingle(),
       ]);
       const rows = data ?? [];
       const views = (viewRes.data ?? []).reduce((t: number, r: any) => t + (Number(r.view_count) || 0), 0);
@@ -37,7 +37,7 @@ function DashboardOverview() {
         views,
         enquiries: enqRes.count ?? 0,
       });
-      setDealerProfile(dp.data ?? null);
+      setDealerProfile((dp.data as any) ?? null);
     })();
   }, [user]);
 
@@ -67,7 +67,7 @@ function DashboardOverview() {
       {showOnboarding ? (
         <DealerOnboarding
           profileComplete={!!(dealerProfile?.bio && (dealerProfile?.specialities?.length ?? 0) > 0 && dealerProfile?.logo_url)}
-          hasFeed={!!dealerProfile?.feed_url}
+          hasFeed={!!dealerProfile?.external_feed_url}
           slug={dealerProfile?.slug ?? null}
         />
       ) : (
