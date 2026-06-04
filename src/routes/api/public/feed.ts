@@ -205,6 +205,7 @@ export const Route = createFileRoute("/api/public/feed")({
           }
 
           // Apply dealer pricing rules — drop stones below min_price / rap_floor.
+          let finalStones: unknown[] = stones;
           const dealerIdSet = new Set<string>();
           (stones as Array<{ dealer_id?: string }>).forEach((s) => {
             if (s.dealer_id) dealerIdSet.add(s.dealer_id);
@@ -248,11 +249,11 @@ export const Route = createFileRoute("/api/public/feed")({
                   kept.push(s);
                 }
               }
-              return json({ stones: kept, excluded, count: kept.length });
+              finalStones = kept;
             }
           }
 
-          return json({ stones, excluded, count: stones.length });
+          return json({ stones: finalStones, excluded, count: finalStones.length });
         } catch (e) {
           console.error("[feed] internal error", e);
           return json({ error: "Internal server error" }, 500);

@@ -17,6 +17,15 @@ const SCRIPT = `(function(){
   mount.innerHTML = '<div class="chaos-empty">Loading inventory…</div>';
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
   function safeUrl(u){ var str = String(u || ''); return /^https?:\\/\\//i.test(str) ? esc(str) : ''; }
+  function formatPrice(amount, currency){
+    if (amount == null) return '';
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(Number(amount));
+    } catch (e) {
+      // Fallback for unknown currency codes
+      return (currency || '') + ' ' + Number(amount).toLocaleString();
+    }
+  }
   fetch(base + '/api/public/feed?key=' + encodeURIComponent(key))
     .then(function(r){ if(!r.ok) throw new Error('feed'); return r.json(); })
     .then(function(data){
@@ -24,11 +33,17 @@ const SCRIPT = `(function(){
         mount.innerHTML = '<div class="chaos-empty">No stones in this feed yet.</div>'; return;
       }
       var html = '<div class="chaos-grid">' + data.stones.map(function(s){
-        var img = (s.stone_images || []).find(function(i){return i.is_primary;});
-        img = (img && img.storage_url) || (s.stone_images && s.stone_images[0] && s.stone_images[0].storage_url) || '';
+        // The feed exposes a flat image_url field (resolved from stone_images
+        // on the server). We fall back to legacy stone_images in case the
+        // jeweller is on an older feed format.
+        var img = s.image_url || '';
+        if (!img && s.stone_images && s.stone_images.length) {
+          var p = s.stone_images.find(function(i){return i.is_primary;}) || s.stone_images[0];
+          img = (p && (p.storage_url || p.external_image_url)) || '';
+        }
         var imgUrl = safeUrl(img);
         var bits = esc([s.shape, s.origin || s.country_of_origin, s.cert_lab].filter(Boolean).join(' · '));
-        var price = s.retail_price != null ? '$' + esc(Number(s.retail_price).toLocaleString()) : '';
+        var price = formatPrice(s.retail_price, s.retail_currency);
         var stoneType = esc(s.stone_type);
         var carat = s.carat_weight ? esc(s.carat_weight) + 'ct ' : '';
         return '<div class="chaos-card">' +
@@ -36,7 +51,7 @@ const SCRIPT = `(function(){
           '<div class="chaos-meta">' +
             '<div class="chaos-title">' + carat + stoneType + '</div>' +
             '<div class="chaos-sub">' + bits + '</div>' +
-            (price ? '<div class="chaos-price">' + price + '</div>' : '') +
+            (price ? '<div class="chaos-price">' + esc(price) + '</div>' : '') +
           '</div></div>';
       }).join('') + '</div>';
       mount.innerHTML = html;

@@ -88,6 +88,24 @@ function ImportPage() {
     })();
   }, [user]);
 
+  // Build mapped rows + validation for preview.
+  // IMPORTANT: this useMemo must run on EVERY render (Rules of Hooks).
+  // It must therefore appear BEFORE any early returns below.
+  const mappedPreview = useMemo(() => {
+    return rows.map((row) => {
+      const mapped: Record<string, unknown> = {};
+      for (const [src, dst] of Object.entries(mapping)) {
+        if (!dst || dst === "__skip__") continue;
+        mapped[dst] = row[src];
+      }
+      const errors = validateMappedRow(mapped, existingCerts);
+      return { row, mapped, errors };
+    });
+  }, [rows, mapping, existingCerts]);
+
+  const validCount = mappedPreview.filter((r) => r.errors.length === 0).length;
+  const errorCount = mappedPreview.length - validCount;
+
   if (loading) {
     return (
       <div className="space-y-4 py-12">
@@ -172,20 +190,7 @@ function ImportPage() {
   }
 
   // Build mapped rows + validation for preview.
-  const mappedPreview = useMemo(() => {
-    return rows.map((row) => {
-      const mapped: Record<string, unknown> = {};
-      for (const [src, dst] of Object.entries(mapping)) {
-        if (!dst || dst === "__skip__") continue;
-        mapped[dst] = row[src];
-      }
-      const errors = validateMappedRow(mapped, existingCerts);
-      return { row, mapped, errors };
-    });
-  }, [rows, mapping, existingCerts]);
-
-  const validCount = mappedPreview.filter((r) => r.errors.length === 0).length;
-  const errorCount = mappedPreview.length - validCount;
+  // (Moved above early returns to comply with the Rules of Hooks.)
 
   async function runImport(validOnly: boolean) {
     if (!user) return;

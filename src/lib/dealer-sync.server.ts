@@ -104,9 +104,27 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     if (!res.ok) throw new Error(`Source returned HTTP ${res.status}`);
 
     const contentType = res.headers.get("content-type") ?? "";
+    const rawText = await res.text();
+    if (rawText.length > 10 * 1024 * 1024) {
+      throw new Error("Feed too large (>10 MB)");
+    }
+    // Detect format defensively: many dealer inventory systems (Kodllin and
+    // similar) return JSON with content-type: text/html or text/plain. Sniff
+    // the body if the header is unhelpful.
+    const trimmed = rawText.trimStart();
+    const looksLikeJson = trimmed.startsWith("{") || trimmed.startsWith("[");
+    const isJson = contentType.includes("json") || (contentType.includes("text") && looksLikeJson) || looksLikeJson;
+
     let rows: Array<Record<string, unknown>> = [];
-    if (contentType.includes("json")) {
-      const data = await res.json();
+    if (isJson) {
+      let data: unknown;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseErr) {
+        throw new Error(
+          `Feed body looked like JSON but failed to parse: ${(parseErr as Error).message}`,
+        );
+      }
       if (
         data &&
         typeof data === "object" &&
@@ -123,10 +141,27 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         : Array.isArray((data as any)?.stones) ? (data as any).stones
         : Array.isArray((data as any)?.data) ? (data as any).data
         : Array.isArray((data as any)?.result) ? (data as any).result
+        : Array.isArray((data as any)?.items) ? (data as any).items
+        : Array.isArray((data as any)?.results) ? (data as any).results
         : [];
+      if (rows.length === 0) {
+        // Don't silently report "0 stones imported" when the JSON wrapper
+        // is unrecognised. Surface a clear error to the dealer.
+        const topKeys =
+          data && typeof data === "object" && !Array.isArray(data)
+            ? Object.keys(data as Record<string, unknown>).slice(0, 6).join(", ")
+            : "(non-object)";
+        throw new Error(
+          `Feed JSON parsed but no array of stones found. Top-level keys: [${topKeys}]. Expected an array, or an object with a "stones"/"data"/"results"/"items" property.`,
+        );
+      }
     } else {
-      const text = await res.text();
-      rows = parseCsv(text);
+      rows = parseCsv(rawText);
+      if (rows.length === 0) {
+        throw new Error(
+          "Feed appeared to be CSV but no rows were parsed. Check that the feed has a header row and at least one data row.",
+        );
+      }
     }
 
     if (rows.length > 2000) throw new Error(`Feed contains ${rows.length} rows; maximum supported is 2000`);

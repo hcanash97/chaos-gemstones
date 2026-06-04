@@ -5,14 +5,38 @@ import { BASE_URL, btn, esc, shell } from "@/lib/email/templates";
 
 // Daily digest: for each jeweller, send a summary of new stones (last 24h)
 // from dealers they follow. Called by pg_cron at 08:00 UTC.
+//
+// AUTHENTICATION: a shared secret must be sent in the Authorization header,
+// matching the CRON_SECRET environment variable. Without this the endpoint
+// was world-callable, which let any attacker trigger an email blast.
 export const Route = createFileRoute("/api/public/cron/digest")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const secret = process.env.CRON_SECRET;
+        if (!secret) {
+          console.error("[cron/digest] CRON_SECRET env var is not set — refusing to run");
+          return new Response(JSON.stringify({ error: "Server not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
+        }
+        const auth = request.headers.get("authorization") || request.headers.get("Authorization") || "";
+        const provided = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+        if (provided !== secret) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+        }
         try {
+          // IMPORTANT: the "follow a dealer" UI writes to feed_selections
+          // (selection_type = 'dealer_follow'), NOT to dealer_follows. The
+          // dealer_follows table exists in the schema but is never populated
+          // by any user-facing code path, so the digest used to silently
+          // email no one. Use feed_selections instead.
+          // feed_selections has api_key_id (not jeweller_id directly), so
+          // we join via api_keys to recover the jeweller.
           const { data: follows } = await supabaseAdmin
-            .from("dealer_follows")
-            .select("jeweller_id, dealer_id");
+            .from("feed_selections")
+            .select("dealer_id, api_keys!inner(jeweller_id, is_active)")
+            .eq("selection_type", "dealer_follow")
+            .not("dealer_id", "is", null)
+            .eq("api_keys.is_active", true);
           if (!follows?.length) {
             return new Response(JSON.stringify({ sent: 0, reason: "no follows" }), {
               status: 200,
@@ -22,9 +46,13 @@ export const Route = createFileRoute("/api/public/cron/digest")({
 
           const byJeweller = new Map<string, string[]>();
           for (const f of follows) {
-            const arr = byJeweller.get(f.jeweller_id) ?? [];
-            arr.push(f.dealer_id);
-            byJeweller.set(f.jeweller_id, arr);
+            const ak = (f as any).api_keys;
+            const jewellerId = ak?.jeweller_id as string | undefined;
+            const dealerId = (f as any).dealer_id as string | undefined;
+            if (!jewellerId || !dealerId) continue;
+            const arr = byJeweller.get(jewellerId) ?? [];
+            if (!arr.includes(dealerId)) arr.push(dealerId);
+            byJeweller.set(jewellerId, arr);
           }
 
           const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

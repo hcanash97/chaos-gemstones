@@ -199,7 +199,7 @@ function Marketplace() {
         .from("feed_selections")
         .select("dealer_id")
         .eq("api_key_id", keys[0].id)
-        .eq("selection_type", "vendor")
+        .eq("selection_type", "dealer_follow")
         .not("dealer_id", "is", null);
       return new Set((sels ?? []).map((s: any) => s.dealer_id as string));
     },

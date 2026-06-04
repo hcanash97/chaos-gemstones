@@ -2,10 +2,25 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runShopifySync } from "@/lib/shopify.server";
 
+// AUTHENTICATION: a shared secret must be sent in the Authorization header,
+// matching the CRON_SECRET environment variable. Without this the endpoint
+// was world-callable, which let any attacker trigger Shopify-side traffic
+// for every connected jeweller.
 export const Route = createFileRoute("/api/public/cron/shopify-sync")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const secret = process.env.CRON_SECRET;
+        if (!secret) {
+          console.error("[cron/shopify-sync] CRON_SECRET env var is not set — refusing to run");
+          return new Response(JSON.stringify({ error: "Server not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
+        }
+        const auth = request.headers.get("authorization") || request.headers.get("Authorization") || "";
+        const provided = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+        if (provided !== secret) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+        }
+
         const { data: conns } = await supabaseAdmin
           .from("shopify_connections")
           .select("jeweller_id, last_sync_at")

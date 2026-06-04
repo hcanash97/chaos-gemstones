@@ -11,13 +11,11 @@ export const Route = createFileRoute("/dashboard/enquiries")({
 
 function DealerEnquiries() {
   const { user, profile } = useAuth();
-  if (!isDealer(profile) && !hasAdminRole(profile)) {
-    return <div>Dealers only.</div>;
-  }
+  const allowed = isDealer(profile) || hasAdminRole(profile);
 
   const { data } = useQuery({
     queryKey: ["my-enquiries-dealer", user?.id],
-    enabled: !!user?.id,
+    enabled: allowed && !!user?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("enquiries")
@@ -27,6 +25,10 @@ function DealerEnquiries() {
       return data ?? [];
     },
   });
+
+  if (!allowed) {
+    return <div>Dealers only.</div>;
+  }
 
   return (
     <div>

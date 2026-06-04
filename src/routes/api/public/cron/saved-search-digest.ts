@@ -6,10 +6,23 @@ import { applyFilters, type FilterState } from "@/lib/marketplace/filters";
 
 // Daily digest of new stones matching each jeweller's saved searches.
 // Schedule with pg_cron, see /docs.api for cadence.
+//
+// AUTHENTICATION: a shared secret must be sent in the Authorization header,
+// matching the CRON_SECRET environment variable.
 export const Route = createFileRoute("/api/public/cron/saved-search-digest")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const secret = process.env.CRON_SECRET;
+        if (!secret) {
+          console.error("[cron/saved-search-digest] CRON_SECRET env var is not set — refusing to run");
+          return new Response(JSON.stringify({ error: "Server not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
+        }
+        const auth = request.headers.get("authorization") || request.headers.get("Authorization") || "";
+        const provided = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+        if (provided !== secret) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+        }
         try {
           const { data: searches } = await supabaseAdmin
             .from("saved_searches")

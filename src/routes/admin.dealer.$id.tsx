@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth, signOut } from "@/hooks/useAuth";
@@ -54,6 +54,20 @@ function DealerDetailPage() {
     staleTime: 30_000,
   });
 
+  // Sync local form state with loaded dealer profile, but only on first paint
+  // after the data lands. NOTE: this useEffect MUST sit before any early
+  // returns to satisfy the Rules of Hooks.
+  const dealerProfileFromData = data?.dealerProfile;
+  useEffect(() => {
+    if (!dealerProfileFromData) return;
+    // Only initialise if the user hasn't started editing yet.
+    if (feedUrl !== "" || feedBody !== "" || feedMethod !== "GET") return;
+    if (dealerProfileFromData.external_feed_url) setFeedUrl(dealerProfileFromData.external_feed_url);
+    if (dealerProfileFromData.external_feed_body) setFeedBody(dealerProfileFromData.external_feed_body);
+    if (dealerProfileFromData.external_feed_method === "POST") setFeedMethod("POST");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealerProfileFromData?.external_feed_url, dealerProfileFromData?.external_feed_body, dealerProfileFromData?.external_feed_method]);
+
   if (loading) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;
   if (!user) { navigate({ to: "/login", replace: true }); return null; }
   if (!isAdmin) { navigate({ to: "/", replace: true }); return null; }
@@ -62,14 +76,7 @@ function DealerDetailPage() {
   const { profile, dealerProfile, stones, counts, syncLogs, apiKey, enquiries, orders, enquiryCounts, analytics } = data;
   if (!profile) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Dealer not found.</div>;
 
-  // Sync local form state with loaded dealer profile (first paint after fetch).
-  if (dealerProfile && feedUrl === "" && feedBody === "" && feedMethod === "GET" &&
-      (dealerProfile.external_feed_url || dealerProfile.external_feed_body || dealerProfile.external_feed_method)) {
-    // Initialise only if untouched.
-    if (dealerProfile.external_feed_url) setFeedUrl(dealerProfile.external_feed_url);
-    if (dealerProfile.external_feed_body) setFeedBody(dealerProfile.external_feed_body);
-    if (dealerProfile.external_feed_method === "POST") setFeedMethod("POST");
-  }
+  // (Sync of local form state happens in the useEffect below, NOT during render.)
 
   async function triggerSync() {
     setSyncing(true);

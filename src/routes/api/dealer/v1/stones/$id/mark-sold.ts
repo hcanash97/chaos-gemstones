@@ -28,6 +28,13 @@ export const Route = createFileRoute("/api/dealer/v1/stones/$id/mark-sold")({
           .maybeSingle();
         if (!stone) return json({ error: "Stone not found" }, 404);
 
+        // Idempotency: if the stone is already sold, just return the row
+        // (with already_sold:true so the caller can distinguish). Do NOT
+        // create a second order row for the same sale.
+        if (stone.status === "sold") {
+          return json({ ...stone, already_sold: true });
+        }
+
         // Update stone status
         const { data: updated, error: updateError } = await supabaseAdmin
           .from("stones")

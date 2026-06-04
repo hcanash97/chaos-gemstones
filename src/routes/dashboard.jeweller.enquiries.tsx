@@ -11,11 +11,11 @@ export const Route = createFileRoute("/dashboard/jeweller/enquiries")({
 
 function JewellerEnquiries() {
   const { user, profile } = useAuth();
-  if (!isJeweller(profile)) return <div>Jewellers only.</div>;
+  const allowed = isJeweller(profile);
 
   const { data } = useQuery({
     queryKey: ["my-enquiries-jeweller", user?.id],
-    enabled: !!user?.id,
+    enabled: allowed && !!user?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("enquiries")
@@ -25,6 +25,8 @@ function JewellerEnquiries() {
       return data ?? [];
     },
   });
+
+  if (!allowed) return <div>Jewellers only.</div>;
 
   return (
     <div>

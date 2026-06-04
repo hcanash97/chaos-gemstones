@@ -17,13 +17,11 @@ export const Route = createFileRoute("/dashboard/sales")({
 function DealerSales() {
   const { user, profile } = useAuth();
   const { format, displayCurrency } = useCurrency();
-  if (!isDealer(profile) && !hasAdminRole(profile)) {
-    return <div>Dealers only.</div>;
-  }
+  const allowed = isDealer(profile) || hasAdminRole(profile);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["dealer-sales", user?.id],
-    enabled: !!user?.id,
+    enabled: allowed && !!user?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("orders")
@@ -38,6 +36,8 @@ function DealerSales() {
     (sum, o: any) => sum + (Number(o.wholesale_price_usd) || 0),
     0,
   );
+
+  if (!allowed) return <div>Dealers only.</div>;
 
   return (
     <div>
