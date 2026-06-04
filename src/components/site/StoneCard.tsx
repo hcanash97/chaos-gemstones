@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { countryFlag } from "@/lib/countries";
 import { fadeUp } from "@/components/anim/Motion";
-import { ShieldCheck, Heart, Scale } from "lucide-react";
+import { ShieldCheck, Heart, Scale, RotateCcw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJeweller, isDealer as checkDealer, isAdmin as checkAdmin } from "@/lib/auth.utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,7 +120,18 @@ function StoneCardImpl({
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No image</div>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            {(stone.has_360 || stone.has_video) ? (
+              <>
+                <RotateCcw className="h-7 w-7 opacity-40" />
+                <span className="text-[11px] font-medium uppercase tracking-wider opacity-60">
+                  {stone.has_360 ? "360° view inside" : "Video inside"}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs opacity-50">No image</span>
+            )}
+          </div>
         )}
         <span className="shimmer-overlay" aria-hidden />
         {inFeed && (
@@ -140,34 +152,45 @@ function StoneCardImpl({
           )}
         </div>
         <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onCompare}
-            aria-label={inCompare ? "Remove from comparison" : "Add to comparison"}
-            title={
-              compareDisabled
-                ? `Up to ${compare.max} stones`
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onCompare}
+                aria-label={inCompare ? "Remove from comparison" : "Add to comparison"}
+                className={`flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background ${compareDisabled ? "opacity-50" : ""}`}
+              >
+                <Scale
+                  className={`h-4 w-4 transition ${inCompare ? "fill-[var(--color-gold)]/30 text-[var(--color-gold)]" : "text-foreground"}`}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs">
+              {compareDisabled
+                ? `Max ${compare.max} stones at once`
                 : inCompare
                   ? "Remove from comparison"
-                  : "Add to comparison"
-            }
-            className={`flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background ${compareDisabled ? "opacity-50" : ""}`}
-          >
-            <Scale
-              className={`h-4 w-4 transition ${inCompare ? "fill-[var(--color-gold)]/30 text-[var(--color-gold)]" : "text-foreground"}`}
-            />
-          </button>
+                  : "Compare side-by-side"}
+            </TooltipContent>
+          </Tooltip>
           {isJeweller && (
-            <button
-              type="button"
-              onClick={toggleWishlist}
-              aria-label={saved ? "Remove from wishlist" : "Add to wishlist"}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background"
-            >
-              <Heart
-                className={`h-4 w-4 transition ${saved ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "text-foreground"}`}
-              />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={toggleWishlist}
+                  aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background"
+                >
+                  <Heart
+                    className={`h-4 w-4 transition ${saved ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "text-foreground"}`}
+                  />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="text-xs">
+                {saved ? "Remove from wishlist" : "Save to wishlist"}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>

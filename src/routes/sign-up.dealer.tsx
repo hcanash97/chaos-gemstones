@@ -273,7 +273,7 @@ function StepAccount({ form, setForm }: StepProps) {
   const linkClass = "text-[var(--color-gold)] underline-offset-4 hover:underline";
   return (
     <>
-      <div><Label>Full name</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="mt-1.5" /></div>
+      <div><Label>Full name <span className="text-destructive">*</span></Label><Input value={form.full_name} onChange={(e) => { const v = e.target.value; setForm({ ...form, full_name: v.replace(/\b\w/g, (c) => c.toUpperCase()) }); }} placeholder="e.g. Raj Patel" className="mt-1.5" /></div>
       <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1.5" /></div>
       <div><Label>Password</Label><Input type="password" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-1.5" /><p className="mt-1 text-[11px] text-muted-foreground">At least 8 characters.</p></div>
       <label className="flex cursor-pointer items-start gap-2.5 pt-1 text-xs text-muted-foreground">
@@ -296,11 +296,29 @@ function StepAccount({ form, setForm }: StepProps) {
 }
 
 function StepCompany({ form, setForm, isDealer }: StepProps & { isDealer: boolean }) {
+  const DEALER_COUNTRIES = [
+    "India","Sri Lanka","Thailand","Myanmar","Colombia","Brazil","Zambia","Mozambique",
+    "Madagascar","Tanzania","Kenya","Nigeria","Australia","United States","Canada",
+    "United Kingdom","Belgium","Israel","Hong Kong","China","Japan","Singapore",
+    "United Arab Emirates","Switzerland","France","Germany","Italy","Other",
+  ];
   return (
     <>
-      <div><Label>Company name</Label><Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="mt-1.5" /></div>
+      <div><Label>Company name <span className="text-destructive">*</span></Label><Input value={form.company_name} onChange={(e) => { const v = e.target.value; setForm({ ...form, company_name: v.replace(/\b\w/g, (c) => c.toUpperCase()) }); }} placeholder="e.g. Patel Gems Ltd" className="mt-1.5" /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Country</Label><Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="mt-1.5" /></div>
+        <div>
+          <Label>Country <span className="text-destructive">*</span></Label>
+          <select
+            className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={form.country}
+            onChange={(e) => setForm({ ...form, country: e.target.value })}
+          >
+            <option value="">Select country…</option>
+            {DEALER_COUNTRIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
         <div><Label>City</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="mt-1.5" /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">

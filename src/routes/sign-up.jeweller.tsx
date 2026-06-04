@@ -16,7 +16,33 @@ export const Route = createFileRoute("/sign-up/jeweller")({
   component: JewellerSignUp,
 });
 
-const MARKETS = ["United Kingdom", "United States", "Canada", "Australia", "Europe", "Other"];
+const MARKETS = [
+  "United Kingdom",
+  "United States",
+  "Canada",
+  "Australia",
+  "New Zealand",
+  "Ireland",
+  "France",
+  "Germany",
+  "Netherlands",
+  "Belgium",
+  "Switzerland",
+  "Italy",
+  "Spain",
+  "Sweden",
+  "Norway",
+  "Denmark",
+  "Finland",
+  "Austria",
+  "Portugal",
+  "Singapore",
+  "Hong Kong",
+  "Japan",
+  "United Arab Emirates",
+  "South Africa",
+  "Other",
+];
 
 const SOURCING_OPTIONS = ["Trade shows", "Personal contacts", "Existing platforms", "Social media", "Other"];
 
@@ -212,10 +238,14 @@ function JewellerSignUp() {
               {step === 0 && (
                 <>
                   <div>
-                    <Label>Full name</Label>
+                    <Label>Full name <span className="text-destructive">*</span></Label>
                     <Input
                       value={form.full_name}
-                      onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setForm({ ...form, full_name: v.replace(/\b\w/g, (c) => c.toUpperCase()) });
+                      }}
+                      placeholder="e.g. Jane Smith"
                       className="mt-1.5"
                     />
                   </div>
@@ -263,10 +293,14 @@ function JewellerSignUp() {
               {step === 1 && (
                 <>
                   <div>
-                    <Label>Company name</Label>
+                    <Label>Company name <span className="text-destructive">*</span></Label>
                     <Input
                       value={form.company_name}
-                      onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setForm({ ...form, company_name: v.replace(/\b\w/g, (c) => c.toUpperCase()) });
+                      }}
+                      placeholder="e.g. Smith Jewellers"
                       className="mt-1.5"
                     />
                   </div>

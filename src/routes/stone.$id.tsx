@@ -284,18 +284,28 @@ function StoneDetail() {
             )}
             {stone.video_url && (
               <div className="mt-4">
-                {/gem360|v360|diamond360|vision360|segoma|sarine/i.test(stone.video_url) ? (
+                {/* Use iframe for any 360° viewer or hosted video page.
+                    Use <video> only for direct video file URLs (.mp4 etc).
+                    This covers all known supplier URL patterns:
+                    Nivoda S3, Azure Blob Vision360, GCS Vision360,
+                    PKStone, Diamonds360, VV360, Gem360, Sarine, Segoma. */}
+                {/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(stone.video_url) ? (
+                  <video
+                    src={stone.video_url}
+                    controls
+                    className="w-full rounded-md border border-border bg-card"
+                  />
+                ) : (
                   <div className="aspect-square overflow-hidden rounded-md border border-border bg-card">
                     <iframe
                       src={stone.video_url}
-                      title="360° viewer"
+                      title={stone.has_360 ? "360° viewer" : "Video viewer"}
                       className="h-full w-full"
                       allow="autoplay; fullscreen"
                       loading="lazy"
+                      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                     />
                   </div>
-                ) : (
-                  <video src={stone.video_url} controls className="w-full rounded-md border border-border bg-card" />
                 )}
               </div>
             )}
