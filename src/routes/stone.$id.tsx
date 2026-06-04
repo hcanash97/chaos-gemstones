@@ -186,12 +186,28 @@ function StoneDetail() {
   }
 
   const stone: any = data;
+
+  // Sanitise video_url — CSV imports often store "nan" as a literal string.
+  const NULL_MARKERS = new Set(["nan", "null", "none", "n/a", "na", "", "-", "undefined"]);
+  const cleanVideoUrl =
+    stone.video_url && !NULL_MARKERS.has(String(stone.video_url).trim().toLowerCase())
+      ? String(stone.video_url).trim()
+      : null;
+
   const images: string[] = (stone.stone_images ?? [])
     .sort((a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99))
     .map((i: any) => i.storage_url || i.external_image_url)
     .filter(Boolean);
   const primaryImage = images[0];
   const slug = stone.dealer?.dealer_profiles?.slug;
+
+  // Does this stone have a working 360° viewer?
+  // Nivoda S3 "inhouse-360-*" URLs are actually MP4 video files despite the name.
+  const isDirectVideo = cleanVideoUrl && (
+    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(cleanVideoUrl) ||
+    /nivoda-inhousemedia\.s3\.amazonaws\.com\/inhouse-360-/i.test(cleanVideoUrl)
+  );
+  const has360Viewer = !!cleanVideoUrl && !isDirectVideo;
 
 
   const specs: Array<[string, any]> = [
@@ -253,8 +269,12 @@ function StoneDetail() {
         <div className="mt-4 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
           {/* Gallery */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-            <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-card">
-              {primaryImage ? (
+            {/* PRIMARY DISPLAY:
+                - If still images exist → show them
+                - If no images but 360° viewer exists → show 360° as primary
+                - If neither → placeholder */}
+            {primaryImage ? (
+              <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-card">
                 <motion.img
                   src={primaryImage}
                   alt=""
@@ -263,10 +283,48 @@ function StoneDetail() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
                 />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No image</div>
-              )}
-            </div>
+              </div>
+            ) : has360Viewer ? (
+              <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-card">
+                <iframe
+                  src={cleanVideoUrl!}
+                  title="360° interactive viewer"
+                  className="h-full w-full"
+                  allow="autoplay; fullscreen"
+                  loading="eager"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground backdrop-blur">
+                  360° Interactive
+                </div>
+              </div>
+            ) : isDirectVideo ? (
+              <div className="relative overflow-hidden rounded-md border border-border bg-black">
+                <video
+                  src={cleanVideoUrl!}
+                  controls
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="aspect-square w-full object-contain"
+                />
+                <div className="pointer-events-none absolute left-3 top-3 rounded-full bg-background/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground backdrop-blur">
+                  Video
+                </div>
+              </div>
+            ) : (
+              <div className="relative flex aspect-square items-center justify-center rounded-md border border-border bg-card">
+                <div className="text-center text-muted-foreground">
+                  <div className="text-sm">No image available</div>
+                  {stone.cert_number && stone.cert_lab && (
+                    <div className="mt-1 text-xs opacity-60">
+                      See {stone.cert_lab} report #{stone.cert_number} below
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {images.length > 1 && (
               <div className="mt-3 grid grid-cols-5 gap-2">
                 {images.slice(0, 5).map((src, i) => (
@@ -282,31 +340,26 @@ function StoneDetail() {
                 ))}
               </div>
             )}
-            {stone.video_url && (
+            {/* If we showed images as primary but also have a 360° viewer,
+                show it below the image gallery as a secondary view. */}
+            {primaryImage && has360Viewer && (
               <div className="mt-4">
-                {/* Use iframe for any 360° viewer or hosted video page.
-                    Use <video> only for direct video file URLs (.mp4 etc).
-                    This covers all known supplier URL patterns:
-                    Nivoda S3, Azure Blob Vision360, GCS Vision360,
-                    PKStone, Diamonds360, VV360, Gem360, Sarine, Segoma. */}
-                {/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(stone.video_url) ? (
-                  <video
-                    src={stone.video_url}
-                    controls
-                    className="w-full rounded-md border border-border bg-card"
+                <div className="aspect-square overflow-hidden rounded-md border border-border bg-card">
+                  <iframe
+                    src={cleanVideoUrl!}
+                    title="360° viewer"
+                    className="h-full w-full"
+                    allow="autoplay; fullscreen"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
                   />
-                ) : (
-                  <div className="aspect-square overflow-hidden rounded-md border border-border bg-card">
-                    <iframe
-                      src={stone.video_url}
-                      title={stone.has_360 ? "360° viewer" : "Video viewer"}
-                      className="h-full w-full"
-                      allow="autoplay; fullscreen"
-                      loading="lazy"
-                      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                    />
-                  </div>
-                )}
+                </div>
+              </div>
+            )}
+            {/* Direct video that wasn't used as primary */}
+            {primaryImage && isDirectVideo && (
+              <div className="mt-4">
+                <video src={cleanVideoUrl!} controls className="w-full rounded-md border border-border bg-card" />
               </div>
             )}
           </motion.div>
@@ -393,6 +446,20 @@ function StoneDetail() {
               </div>
               <ReportListing stoneId={stone.id} />
             </div>
+
+            {/* Cert verification CTA — primary trust signal */}
+            {certHref && stone.cert_number && (
+              <a
+                href={certHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-md border border-[var(--color-gold)]/50 bg-[var(--color-gold)]/5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-[var(--color-gold)]/10"
+              >
+                <ShieldCheck className="h-4 w-4 text-[var(--color-gold)]" />
+                Verify on {stone.cert_lab || "lab website"} · Report #{stone.cert_number}
+                <span className="text-[var(--color-gold)]">↗</span>
+              </a>
+            )}
 
             {/* Vendor card */}
             {slug && (

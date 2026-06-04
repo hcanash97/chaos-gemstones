@@ -374,9 +374,13 @@ export function normaliseValue(field: StoneField, value: unknown): unknown {
 
 export function coerceForInsert(mapped: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  // Common spreadsheet/CSV null markers that should be treated as empty.
+  const NULL_MARKERS = new Set(["nan", "null", "none", "n/a", "na", "-", "--", ".", "undefined"]);
   for (const f of STONE_FIELDS) {
-    const v = mapped[f.key];
+    let v = mapped[f.key];
     if (v === undefined || v === null || v === "") continue;
+    // Strip out common CSV null marker strings (e.g. pandas "nan").
+    if (typeof v === "string" && NULL_MARKERS.has(v.trim().toLowerCase())) continue;
     if (f.type === "number") {
       const n = Number(String(v).replace(/[^0-9.\-]/g, ""));
       if (!isNaN(n)) out[f.key] = n;
