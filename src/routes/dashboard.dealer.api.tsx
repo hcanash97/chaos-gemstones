@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
-import { Copy, Eye, EyeOff, RefreshCw, BookOpen, Terminal } from "lucide-react";
+import { Copy, Eye, EyeOff, RefreshCw, BookOpen, Terminal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { isDealer as checkD } from "@/lib/auth.utils";
@@ -16,7 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  getDealerApiStatus, generateDealerApiKey, updateDealerSyncSettings, runDealerSync,
+  getDealerApiStatus, generateDealerApiKey, updateDealerSyncSettings, runDealerSync, clearDealerImportedInventory,
 } from "@/lib/dealer-api.functions";
 import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
 import { detectPreset } from "@/lib/dealer-feed-mappings";
@@ -130,11 +130,13 @@ function DealerApiPage() {
   const createKey = useServerFn(generateDealerApiKey);
   const saveSync = useServerFn(updateDealerSyncSettings);
   const triggerSync = useServerFn(runDealerSync);
+  const clearImported = useServerFn(clearDealerImportedInventory);
   const fetchFeed = useServerFn(fetchExternalFeed);
 
   const [revealed, setRevealed] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [feedUrl, setFeedUrl] = useState("");
   const [autoSync, setAutoSync] = useState(false);
   const [method, setMethod] = useState<"GET" | "POST">("GET");
@@ -307,6 +309,36 @@ function DealerApiPage() {
     }
   }
 
+  async function clearImportedInventory() {
+    setClearing(true);
+    try {
+      const result = await clearImported();
+      setSyncDiagnostics([
+        {
+          level: "success",
+          field: "_clear",
+          message: `Cleared ${result.deleted ?? 0} imported feed listing${result.deleted === 1 ? "" : "s"} and reset the sync log.`,
+        },
+      ]);
+      setSyncProgress(0);
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["dealer-api-status"] });
+      toast.success(`Cleared ${result.deleted ?? 0} imported feed listing${result.deleted === 1 ? "" : "s"}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Clear failed";
+      setSyncDiagnostics([
+        {
+          level: "error",
+          field: "_clear",
+          message: msg,
+        },
+      ]);
+      toast.error(msg);
+    } finally {
+      setClearing(false);
+    }
+  }
+
   const lastLog: any = (status?.syncLogs ?? [])[0] ?? null;
   const lastLogErrors: any[] = Array.isArray(lastLog?.errors) ? lastLog.errors : [];
   const lastLogErrorCount = errorDiagnosticCount(lastLogErrors);
@@ -439,6 +471,38 @@ function DealerApiPage() {
             <Button size="sm" onClick={sync} disabled={syncing || !feedUrl.trim()}>
               {syncing ? "Syncing…" : "Sync now"}
             </Button>
+          </div>
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm font-medium">Imported feed inventory</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Clears listings created by this feed so the next sync can rebuild from a clean slate.
+                </div>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="destructive" disabled={clearing || syncing}>
+                    <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    {clearing ? "Clearing…" : "Clear Imported Inventory"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear imported feed inventory?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This removes listings imported from this feed for your dealer account and clears the sync log. It will not delete other dealers' inventory.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={clearImportedInventory} disabled={clearing}>
+                      Clear imported inventory
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
           {(syncing || syncDiagnostics.length > 0) && (
             <div className="space-y-2">

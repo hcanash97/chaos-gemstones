@@ -37,6 +37,13 @@ type SyncCandidate = {
   existingId?: string;
 };
 
+type ExistingStoneRef = {
+  id: string;
+  cert_number: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+};
+
 function assertSafeFeedUrl(urlStr: string): void {
   const target = new URL(urlStr);
   if (target.protocol !== "https:" && target.protocol !== "http:") {
@@ -231,6 +238,25 @@ function withStoneDefaults(data: Record<string, unknown>): Record<string, unknow
   };
 }
 
+async function fetchAllExistingDealerStones(dealerId: string): Promise<ExistingStoneRef[]> {
+  const rows: ExistingStoneRef[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("stones")
+      .select("id, cert_number, updated_at, created_at")
+      .eq("dealer_id", dealerId)
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw new Error(`Could not load existing inventory for duplicate detection: ${error.message}`);
+    const page = (data ?? []) as ExistingStoneRef[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows;
+}
+
 export async function runDealerSyncForUser(dealerId: string, source: "manual" | "admin" | "cron" = "manual") {
   const { data: dealer } = await (supabaseAdmin as any)
     .from("dealer_profiles")
@@ -345,15 +371,37 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     const diagnostics: SyncDiagnostic[] = [];
 
-    // Fetch all existing stones for this dealer so we can diff create vs update.
-    const { data: existing } = await supabaseAdmin
-      .from("stones")
-      .select("id, cert_number")
-      .eq("dealer_id", dealerId);
+    const existing = await fetchAllExistingDealerStones(dealerId);
     const certToId = new Map<string, string>();
-    for (const s of existing ?? []) {
+    const duplicateExistingIds: string[] = [];
+    for (const s of existing) {
       const cert = cleanString(s.cert_number);
-      if (cert) certToId.set(cert, s.id);
+      if (!cert) continue;
+      if (certToId.has(cert)) {
+        duplicateExistingIds.push(s.id);
+      } else {
+        certToId.set(cert, s.id);
+      }
+    }
+
+    if (duplicateExistingIds.length) {
+      for (let i = 0; i < duplicateExistingIds.length; i += SYNC_BATCH_SIZE) {
+        const ids = duplicateExistingIds.slice(i, i + SYNC_BATCH_SIZE);
+        const { error } = await supabaseAdmin
+          .from("stones")
+          .delete()
+          .eq("dealer_id", dealerId)
+          .in("id", ids);
+        if (error) {
+          diagnostics.push(postgresDiagnostic("Could not remove older duplicate rows before sync. Chaos will continue using the newest row for each sync key", error, {
+            field: "_dedupe",
+          }));
+          break;
+        }
+      }
+      diagnostics.push(diagnostic("warning", `Removed ${duplicateExistingIds.length} older duplicate row${duplicateExistingIds.length === 1 ? "" : "s"} before syncing.`, {
+        field: "_dedupe",
+      }));
     }
 
     // Numeric fields that often arrive as strings from JSON feeds.

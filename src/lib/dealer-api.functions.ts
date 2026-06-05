@@ -125,3 +125,32 @@ export const runDealerSync = createServerFn({ method: "POST" })
     await ensureApprovedDealer(supabaseAdmin, userId);
     return runDealerSyncForUser(userId, "manual");
   });
+
+export const clearDealerImportedInventory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    await ensureApprovedDealer(supabaseAdmin, userId);
+
+    const importedFilter = "cert_number.like.stock:*,notes_for_buyers.ilike.*Stock ref:*";
+    const { count, error } = await supabaseAdmin
+      .from("stones")
+      .delete({ count: "exact" })
+      .eq("dealer_id", userId)
+      .or(importedFilter);
+
+    if (error) throw new Error(error.message);
+
+    await supabaseAdmin
+      .from("sync_logs")
+      .delete()
+      .eq("dealer_id", userId)
+      .in("source", ["manual", "admin", "cron"]);
+
+    await supabaseAdmin
+      .from("dealer_profiles")
+      .update({ last_synced_at: null } as never)
+      .eq("id", userId);
+
+    return { ok: true, deleted: count ?? 0 };
+  });

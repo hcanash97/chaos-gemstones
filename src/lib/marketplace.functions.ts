@@ -22,8 +22,9 @@ export const searchMarketplace = createServerFn({ method: "POST" })
 
     let q = supabaseAdmin
       .from("stones")
-      .select(STONE_SELECT, { count: "exact" })
-      .eq("is_test", false);
+      .select(STONE_SELECT, { count: "planned" })
+      .eq("is_test", false)
+      .eq("feed_inactive", false);
 
     // Availability (defaults to ['available'])
     const availability = f.availability && f.availability.length ? f.availability : (["available"] as const);
