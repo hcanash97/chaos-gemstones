@@ -106,6 +106,23 @@ function stockRef(raw: Record<string, unknown>): string | null {
     cleanString(raw.stockNo) ??
     cleanString(raw.stock_no) ??
     cleanString(raw.stockNumber) ??
+    cleanString(raw.stock_number) ??
+    cleanString(raw.LotNo) ??
+    cleanString(raw.lotNo) ??
+    cleanString(raw.lot_number) ??
+    cleanString(raw.LotNumber) ??
+    cleanString(raw.lotNumber) ??
+    cleanString(raw.RefNo) ??
+    cleanString(raw.refNo) ??
+    cleanString(raw.ref_number) ??
+    cleanString(raw.StoneID) ??
+    cleanString(raw.stoneId) ??
+    cleanString(raw.stoneID) ??
+    cleanString(raw.PacketNo) ??
+    cleanString(raw.packetNo) ??
+    cleanString(raw.SlipNo) ??
+    cleanString(raw.slipNo) ??
+    cleanString(raw["货号"]) ??
     cleanString(raw.sku) ??
     cleanString(raw.ref) ??
     cleanString(raw.id)
@@ -119,14 +136,24 @@ function certRef(raw: Record<string, unknown>, payload: Record<string, unknown>)
     cleanString(raw.report_no) ??
     cleanString(raw.reportNumber) ??
     cleanString(raw.report_number) ??
+    cleanString(raw.ReportID) ??
+    cleanString(raw.reportID) ??
+    cleanString(raw.reportId) ??
     cleanString(raw.certNo) ??
     cleanString(raw.certNumber) ??
     cleanString(raw.cert_no) ??
     cleanString(raw.cert_number) ??
+    cleanString(raw.CertiNo) ??
+    cleanString(raw.certiNo) ??
+    cleanString(raw.certi_no) ??
+    cleanString(raw.LabNo) ??
+    cleanString(raw.labNo) ??
+    cleanString(raw.lab_no) ??
     cleanString(raw.certificateNo) ??
     cleanString(raw.certificateNumber) ??
     cleanString(raw.certificate_no) ??
-    cleanString(raw.certificate_number)
+    cleanString(raw.certificate_number) ??
+    cleanString(raw["证书号"])
   );
 }
 

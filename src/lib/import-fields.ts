@@ -52,42 +52,42 @@ export const STONE_FIELDS: StoneField[] = [
     label: "Stone type",
     type: "string",
     required: true,
-    aliases: ["type", "gem", "gemstone", "stone"],
+    aliases: ["type", "gem", "gemstone", "stone", "item_type", "product_type", "material", "species", "variety", "品种", "宝石"],
   },
-  { key: "shape", label: "Shape", type: "string", required: true, aliases: ["cut shape", "outline"] },
+  { key: "shape", label: "Shape", type: "string", required: true, aliases: ["cut shape", "outline", "shape_name", "shapeName", "sh", "shp", "cutShape", "style", "silhouette", "形状"] },
   {
     key: "carat_weight",
     label: "Carat weight",
     type: "number",
     required: true,
-    aliases: ["weight", "carats", "ct", "carat", "carat_wt"],
+    aliases: ["weight", "carats", "ct", "cts", "carat", "carat_wt", "caratWeight", "stoneWeight", "stone_weight", "wt", "size", "克拉"],
   },
   {
     key: "wholesale_price_usd",
     label: "Wholesale price (USD)",
     type: "number",
     required: true,
-    aliases: ["price", "price_usd", "wholesale", "total", "amount"],
+    aliases: ["price", "price_usd", "wholesale", "total", "amount", "totalPrice", "total_price", "netPrice", "net_price", "salePrice", "sale_price", "askPrice", "asking_price", "value", "usdPrice", "usd_price", "价格"],
   },
   {
     key: "price_currency",
     label: "Price currency",
     type: "enum",
     enumValues: ["USD", "GBP", "EUR", "AUD", "CAD", "INR", "THB", "LKR", "HKD", "SGD", "JPY", "AED", "CHF", "ZAR"],
-    aliases: ["currency", "price_ccy", "ccy", "currency_code", "priceCurrency"],
+    aliases: ["currency", "price_ccy", "ccy", "currency_code", "priceCurrency", "curr", "货币"],
   },
   {
     key: "colour_grade",
     label: "Colour grade",
     type: "string",
-    aliases: ["color", "colour", "color_grade", "color grade"],
+    aliases: ["color", "colour", "color_grade", "colour_grade", "color grade", "colour grade", "colorGrade", "colourGrade", "col", "cl", "clr", "colorName", "baseColor", "ys", "颜色"],
   },
-  { key: "clarity_grade", label: "Clarity grade", type: "enum", enumValues: CLARITY_VALUES, aliases: ["clarity"] },
-  { key: "cut_grade", label: "Cut grade", type: "string", aliases: ["cut", "make"] },
-  { key: "polish", label: "Polish", type: "string", aliases: ["pol"] },
-  { key: "symmetry", label: "Symmetry", type: "string", aliases: ["sym"] },
-  { key: "fluorescence", label: "Fluorescence", type: "string", aliases: ["fluo", "fluor", "fluorescence_intensity"] },
-  { key: "fluorescence_colour", label: "Fluorescence colour", type: "string", aliases: ["fluo_color", "fluo_colour"] },
+  { key: "clarity_grade", label: "Clarity grade", type: "enum", enumValues: CLARITY_VALUES, aliases: ["clarity", "clarityGrade", "cla", "cly", "purity", "pur", "cleanliness", "净度"] },
+  { key: "cut_grade", label: "Cut grade", type: "string", aliases: ["cut", "make", "cutGrade", "cut_grade", "cutting", "切工"] },
+  { key: "polish", label: "Polish", type: "string", aliases: ["pol", "polishGrade", "polish_grade", "抛光"] },
+  { key: "symmetry", label: "Symmetry", type: "string", aliases: ["sym", "symm", "symmetryGrade", "symmetry_grade", "对称"] },
+  { key: "fluorescence", label: "Fluorescence", type: "string", aliases: ["fluo", "fluor", "fluorescence_intensity", "fluorescenceIntensity", "fl", "荧光"] },
+  { key: "fluorescence_colour", label: "Fluorescence colour", type: "string", aliases: ["fluo_color", "fluo_colour", "fluorescenceColor", "fluorescenceColour", "fluor_color", "荧光颜色"] },
   {
     key: "cert_lab",
     label: "Cert lab",
@@ -104,6 +104,13 @@ export const STONE_FIELDS: StoneField[] = [
       "certificateLab",
       "certifying_lab",
       "grading_laboratory",
+      "LabName",
+      "labName",
+      "CertBy",
+      "certBy",
+      "Auth",
+      "authority",
+      "检测机构",
     ],
   },
   {
@@ -112,17 +119,24 @@ export const STONE_FIELDS: StoneField[] = [
     type: "string",
     aliases: [
       "cert_no",
+      "certi_no",
+      "CertiNo",
+      "certiNo",
       "certificate",
       "certificate_number",
+      "certificateNumber",
       "report_no",
       "report_number",
       "reportNo",
       "reportNumber",
-      "certificateNumber",
       "certificate_no",
       "certNo",
       "certNumber",
       "cert_num",
+      "labNo",
+      "LabNo",
+      "reportID",
+      "ReportID",
       "grading_report",
       "gradingReport",
       "lab_report",
@@ -133,39 +147,40 @@ export const STONE_FIELDS: StoneField[] = [
       "hrd_cert",
       "stone_cert",
       "stone_report",
+      "证书号",
     ],
   },
-  { key: "cert_url", label: "Certificate URL", type: "string", aliases: ["certificate_url", "report_url", "cert_link", "certificate_link"] },
-  { key: "origin", label: "Origin (region)", type: "string", aliases: ["region", "mine", "source"] },
-  { key: "country_of_origin", label: "Country of origin", type: "string", aliases: ["country", "country_origin"] },
-  { key: "treatment", label: "Treatment", type: "string", aliases: ["treatments", "enhancement_type"] },
-  { key: "colour_hue", label: "Colour hue", type: "string", aliases: ["hue", "primary_hue"] },
-  { key: "colour_tone", label: "Colour tone", type: "string", aliases: ["tone"] },
-  { key: "colour_saturation", label: "Colour saturation", type: "string", aliases: ["saturation"] },
+  { key: "cert_url", label: "Certificate URL", type: "string", aliases: ["certificate_url", "report_url", "cert_link", "certificate_link", "certUrl", "reportUrl", "证书链接"] },
+  { key: "origin", label: "Origin (region)", type: "string", aliases: ["region", "mine", "source", "growthType", "growth_method", "growthMethod", "originType", "makeMethod", "labMethod", "process", "种植类型"] },
+  { key: "country_of_origin", label: "Country of origin", type: "string", aliases: ["country", "country_origin", "countryOfOrigin", "origin_country", "originCountry", "来源国", "产地"] },
+  { key: "treatment", label: "Treatment", type: "string", aliases: ["treatments", "enhancement_type", "enhancementType", "treated", "treat", "处理"] },
+  { key: "colour_hue", label: "Colour hue", type: "string", aliases: ["hue", "primary_hue", "fancyColor", "fancy_color", "mainColor"] },
+  { key: "colour_tone", label: "Colour tone", type: "string", aliases: ["tone", "overtone", "fancyColorOvertone", "sideTone", "咖色"] },
+  { key: "colour_saturation", label: "Colour saturation", type: "string", aliases: ["saturation", "fancyColorIntensity", "intensity"] },
   { key: "phenomenon", label: "Phenomenon", type: "string", aliases: ["optical_phenomenon"] },
-  { key: "measurements_length", label: "Length (mm)", type: "number", aliases: ["length", "length_mm"] },
-  { key: "measurements_width", label: "Width (mm)", type: "number", aliases: ["width", "width_mm"] },
-  { key: "measurements_height", label: "Height (mm)", type: "number", aliases: ["height", "depth_mm", "height_mm"] },
-  { key: "lw_ratio", label: "L/W ratio", type: "number", aliases: ["ratio", "lw"] },
-  { key: "depth_pct", label: "Depth %", type: "number", aliases: ["depth", "depth_percent"] },
-  { key: "table_pct", label: "Table %", type: "number", aliases: ["table", "table_percent"] },
-  { key: "girdle", label: "Girdle", type: "string", aliases: [] },
-  { key: "culet_size", label: "Culet size", type: "string", aliases: ["culet"] },
+  { key: "measurements_length", label: "Length (mm)", type: "number", aliases: ["length", "length_mm", "len", "l", "measurement_length", "measurements_length", "尺寸长"] },
+  { key: "measurements_width", label: "Width (mm)", type: "number", aliases: ["width", "width_mm", "wid", "w", "measurement_width", "measurements_width", "尺寸宽"] },
+  { key: "measurements_height", label: "Height (mm)", type: "number", aliases: ["height", "depth_mm", "height_mm", "dep", "h", "measurement_height", "measurements_height", "尺寸高"] },
+  { key: "lw_ratio", label: "L/W ratio", type: "number", aliases: ["ratio", "lw", "l_w", "l/w", "lwr", "lengthWidthRatio"] },
+  { key: "depth_pct", label: "Depth %", type: "number", aliases: ["depth", "depth_percent", "depth%", "depth_pct", "d", "dp", "dpPct", "totalDepth", "heightPct", "驼高"] },
+  { key: "table_pct", label: "Table %", type: "number", aliases: ["table", "table_percent", "table%", "table_pct", "t", "tb", "tbPct", "tableWidth", "台面", "台宽比"] },
+  { key: "girdle", label: "Girdle", type: "string", aliases: ["girdleThin", "girdleThick", "girdleCondition", "腰棱"] },
+  { key: "culet_size", label: "Culet size", type: "string", aliases: ["culet", "culetSize", "culet_size", "底尖"] },
   { key: "culet_condition", label: "Culet condition", type: "string", aliases: [] },
-  { key: "shade", label: "Shade", type: "string", aliases: ["tinge"] },
-  { key: "milky", label: "Milky", type: "string", aliases: [] },
-  { key: "eye_clean", label: "Eye clean", type: "string", aliases: ["eyeclean"] },
-  { key: "black_inclusion", label: "Black inclusion", type: "string", aliases: ["bgm"] },
-  { key: "enhancement", label: "Enhancement", type: "string", aliases: [] },
+  { key: "shade", label: "Shade", type: "string", aliases: ["tinge", "overtone", "brn", "grn", "tng", "sideTone", "shadeColor", "咖色"] },
+  { key: "milky", label: "Milky", type: "string", aliases: ["milkiness", "cloudy", "mlk", "mlkGrade", "haze", "cloud", "奶色"] },
+  { key: "eye_clean", label: "Eye clean", type: "string", aliases: ["eyeclean", "eyeClean", "isEyeClean", "ec", "natClean", "lupaClean", "loupeClean", "肉眼"] },
+  { key: "black_inclusion", label: "Black inclusion", type: "string", aliases: ["bgm", "black", "blackInclusion", "black_inclusions", "black_table", "黑点"] },
+  { key: "enhancement", label: "Enhancement", type: "string", aliases: ["openInclusion", "open_inclusion", "enhanced"] },
   { key: "listing_type", label: "Listing type", type: "string", aliases: [] },
-  { key: "parcel_quantity", label: "Parcel quantity", type: "number", aliases: ["parcel_qty"] },
-  { key: "matching_pair", label: "Matching pair", type: "boolean", aliases: ["pair"] },
-  { key: "has_video", label: "Has video", type: "boolean", aliases: ["video"] },
+  { key: "parcel_quantity", label: "Parcel quantity", type: "number", aliases: ["parcel_qty", "parcelQty", "lot_qty", "lotQty"] },
+  { key: "matching_pair", label: "Matching pair", type: "boolean", aliases: ["pair", "matchingPair", "matched_pair"] },
+  { key: "has_video", label: "Has video", type: "boolean", aliases: ["video", "hasVideo", "videoAvailable"] },
   { key: "has_360", label: "Has 360°", type: "boolean", aliases: ["360", "three_sixty"] },
   { key: "provenance_report", label: "Provenance report", type: "string", aliases: ["provenance", "traceability"] },
-  { key: "video_url", label: "Video URL", type: "string", aliases: ["video_link", "videoLink", "video_url_360", "360_url"] },
-  { key: "image_url", label: "Image URL", type: "string", aliases: ["external_image_url", "imageLink", "image", "photo_url", "img_url", "picture_url", "photo", "image_link", "img"], virtual: true },
-  { key: "available_qty", label: "Available qty", type: "number", aliases: ["qty", "quantity", "stock"] },
+  { key: "video_url", label: "Video URL", type: "string", aliases: ["video_link", "videoLink", "video_url_360", "360_url", "vdbVideo", "videoUrl", "视频"] },
+  { key: "image_url", label: "Image URL", type: "string", aliases: ["external_image_url", "imageLink", "image", "photo_url", "img_url", "picture_url", "photo", "image_link", "img", "imageUrl", "pic", "picture", "图片"] , virtual: true },
+  { key: "available_qty", label: "Available qty", type: "number", aliases: ["qty", "quantity", "stock", "availableQty", "available_qty", "pieces", "pcs", "数量"] },
   { key: "minimum_order_qty", label: "Minimum order qty", type: "number", aliases: ["moq", "min_qty"] },
   { key: "lead_time_days", label: "Lead time (days)", type: "number", aliases: ["lead_time"] },
   { key: "notes_for_buyers", label: "Notes for buyers", type: "string", aliases: ["notes", "description", "comments"] },
@@ -175,30 +190,67 @@ export const STONE_FIELDS: StoneField[] = [
 
 export const FIELD_MAP = Object.fromEntries(STONE_FIELDS.map((f) => [f.key, f]));
 
-function normalise(s: string): string {
-  return s
+export function normalizeKey(key: string): string {
+  return key
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[\s\-]+/g, "_")
-    .replace(/[^a-z0-9_]/g, "");
+    .replace(/colour/g, "color")
+    .replace(/purity/g, "clarity")
+    .replace(/certificate/g, "cert")
+    .replace(/carats/g, "carat")
+    .replace(/[\s_\-%()/.$#:[\]{}]+/g, "")
+    .replace(/[^\p{Letter}\p{Number}]/gu, "")
+    .trim();
+}
+
+const FIELD_ALIAS_LOOKUP = new Map<string, string>();
+for (const field of STONE_FIELDS) {
+  FIELD_ALIAS_LOOKUP.set(normalizeKey(field.key), field.key);
+  FIELD_ALIAS_LOOKUP.set(normalizeKey(field.label), field.key);
+  for (const alias of field.aliases) {
+    FIELD_ALIAS_LOOKUP.set(normalizeKey(alias), field.key);
+  }
+}
+
+const FUZZY_KEY_HINTS: Array<[RegExp, string | "__skip__"]> = [
+  [/^(cert|report|labreport|gradingreport)(no|num|number|id)$/i, "cert_number"],
+  [/^(cert|grading|lab)(lab|laboratory|by|auth|authority|name)$/i, "cert_lab"],
+  [/^(stock|lot|ref|packet|slip|stone)(no|num|number|id)$/i, "__skip__"],
+  [/^(color|col|clr|ys|basecolor|colorname)$/i, "colour_grade"],
+  [/^(clarity|cla|cly|cleanliness)$/i, "clarity_grade"],
+  [/^(carat|ct|cts|weight|wt|stoneweight|size)$/i, "carat_weight"],
+  [/^(shape|sh|shp|cutshape|style|silhouette)$/i, "shape"],
+  [/^(measurement|measurements|meas|dim|dimensions|sizemm|mmsize|lwh)$/i, "__skip__"],
+  [/^(depth|depthpct|depthpercent|dp|dppct|totaldepth|heightpct)$/i, "depth_pct"],
+  [/^(table|tablepct|tablepercent|tb|tbpct|tablewidth)$/i, "table_pct"],
+  [/^(milky|milkiness|mlk|mlkgrade|haze|cloud|cloudy)$/i, "milky"],
+  [/^(shade|tinge|overtone|brn|grn|tng|sidetone)$/i, "shade"],
+  [/^(eyeclean|iseyeclean|ec|natclean|lupaclean|loupeclean)$/i, "eye_clean"],
+  [/^(price|totalprice|netprice|saleprice|askprice|amount|value|usdprice)$/i, "wholesale_price_usd"],
+];
+
+export function resolveFieldKey(header: string): string | "__skip__" {
+  const n = normalizeKey(header);
+  if (!n) return "__skip__";
+
+  const exact = FIELD_ALIAS_LOOKUP.get(n);
+  if (exact) return exact;
+
+  for (const [pattern, field] of FUZZY_KEY_HINTS) {
+    if (pattern.test(n)) return field as string | "__skip__";
+  }
+
+  const fuzzy = STONE_FIELDS.find((f) => {
+    const fieldKey = normalizeKey(f.key);
+    return n.includes(fieldKey) || fieldKey.includes(n);
+  });
+  return fuzzy ? fuzzy.key : "__skip__";
 }
 
 export function suggestMapping(headers: string[]): Record<string, string | "__skip__"> {
   const out: Record<string, string | "__skip__"> = {};
   for (const h of headers) {
-    const n = normalise(h);
-    const direct = STONE_FIELDS.find((f) => f.key === n);
-    if (direct) {
-      out[h] = direct.key;
-      continue;
-    }
-    const aliased = STONE_FIELDS.find((f) => f.aliases.some((a) => normalise(a) === n));
-    if (aliased) {
-      out[h] = aliased.key;
-      continue;
-    }
-    // contains-based fuzzy match
-    const fuzzy = STONE_FIELDS.find((f) => n.includes(f.key) || f.key.includes(n));
-    out[h] = fuzzy ? fuzzy.key : "__skip__";
+    out[h] = resolveFieldKey(h);
   }
   return out;
 }
@@ -259,19 +311,21 @@ export function normaliseValue(field: StoneField, value: unknown): unknown {
   const v = String(value).trim();
 
   if (field.key === "cert_lab") {
-    const up = v.toUpperCase().replace(/[\.\-\s]/g, "");
-    if (up === "GIA" || up === "GIACOLOURED") return up === "GIACOLOURED" ? "GIA-coloured" : "GIA";
-    if (up === "IGI" || up === "IGIUSA" || up === "IGIINDIA") return "IGI";
-    if (up === "HRD") return "HRD";
-    if (up === "AGS") return "AGS";
-    if (up === "GRS") return "GRS";
-    if (up === "AGL") return "AGL";
-    if (up === "GCAL") return "GCAL";
-    if (up === "EGL") return "EGL";
-    if (up === "SSEF") return "SSEF";
-    if (up === "LOTUS" || up === "LOTUSGEMS") return "Lotus";
-    if (up === "GIT") return "GIT";
-    if (up === "GUBELIN" || up === "GÜBELIN") return "Gübelin";
+    const up = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (["NA", "NONE", "NO", "NULL", "NIL", "UNCERTIFIED", "NONCERTIFIED", "NOCERT", "NOCERTIFICATE"].includes(up)) return "";
+    if (up.includes("GIACOLOURED") || up.includes("GIACOLORED")) return "GIA-coloured";
+    if (up.includes("GIA")) return "GIA";
+    if (up.includes("IGI")) return "IGI";
+    if (up.includes("HRD")) return "HRD";
+    if (up.includes("AGS")) return "AGS";
+    if (up.includes("GRS")) return "GRS";
+    if (up.includes("AGL")) return "AGL";
+    if (up.includes("GCAL")) return "GCAL";
+    if (up.includes("EGL")) return "EGL";
+    if (up.includes("SSEF")) return "SSEF";
+    if (up.includes("LOTUS")) return "Lotus";
+    if (up.includes("GIT")) return "GIT";
+    if (up.includes("GUBELIN") || up.includes("GUEBELIN")) return "Gübelin";
     return v;
   }
 

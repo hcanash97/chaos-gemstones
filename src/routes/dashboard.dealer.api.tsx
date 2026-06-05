@@ -100,7 +100,7 @@ function ErrorDiagnosticsLog({
         </span>
       </summary>
       <div className="max-h-72 overflow-auto border-t border-border bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-100">
-        {syncing && <div className="text-zinc-300">ℹ Sync request sent. Waiting for the server to finish chunked upserts...</div>}
+        {syncing && <div className="text-zinc-300">ℹ Sync request sent. Waiting for the server to finish chunked database writes...</div>}
         {!syncing && !hasLogs && <div className="text-zinc-400">Run a sync to see batch-by-batch diagnostics here.</div>}
         {logs.map((log, idx) => (
           <div
@@ -210,7 +210,7 @@ function DealerApiPage() {
       {
         level: "info",
         field: "_start",
-        message: `Saving the visible sync settings, then starting sync with ${method}. Chaos will clean rows, deduplicate sync keys, then upsert in batches of 200.`,
+        message: `Saving the visible sync settings, then starting sync with ${method}. Chaos will clean rows, deduplicate sync keys, then save database changes in batches of 200.`,
       },
     ]);
     try {
@@ -385,7 +385,7 @@ function DealerApiPage() {
         <h2 className="font-serif text-xl">Sync URL</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Optional: paste a URL that returns your inventory as JSON or CSV. Chaos will fetch
-          and upsert stones by <code>cert_number</code>.
+          and sync stones by <code>cert_number</code>.
         </p>
         <div className="mt-4 space-y-3">
           <div>

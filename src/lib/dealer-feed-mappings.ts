@@ -5,6 +5,8 @@
 // plus a preset name we can show in the UI ("Kodllin / Nancy Diamond format",
 // "Custom mapping", etc.).
 
+import { FIELD_MAP, resolveFieldKey } from "@/lib/import-fields";
+
 export type MappedRow = {
   stone: Record<string, unknown>;
   image_url?: string;
@@ -237,6 +239,17 @@ export function detectPreset(rows: Array<Record<string, unknown>>): FeedPreset |
  */
 export function mapRow(row: Record<string, unknown>, preset: FeedPreset | null): MappedRow {
   if (preset) return preset.map(row);
-  // Identity passthrough — assume already-Chaos shape.
-  return { stone: row };
+  const stone: Record<string, unknown> = {};
+  let image_url: string | undefined;
+  for (const [sourceKey, value] of Object.entries(row)) {
+    const targetKey = resolveFieldKey(sourceKey);
+    if (targetKey === "__skip__") continue;
+    const field = FIELD_MAP[targetKey];
+    if (field?.virtual && targetKey === "image_url") {
+      image_url = value === undefined || value === null ? undefined : String(value).trim() || undefined;
+      continue;
+    }
+    stone[targetKey] = value;
+  }
+  return { stone, image_url };
 }
