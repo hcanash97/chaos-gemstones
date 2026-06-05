@@ -394,7 +394,55 @@ function normaliseComparable(value: unknown): string {
   return String(value ?? "")
     .trim()
     .toLowerCase()
-    .replace(/[_\s]+/g, "-");
+    .replace(/[_\s]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+function compactComparable(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function textMatchesAny(stored: unknown, selected: string[]): boolean {
+  const storedNormal = normaliseComparable(stored);
+  const storedCompact = compactComparable(stored);
+  return selected.flatMap(filterValueVariants).some((option) => {
+    return normaliseComparable(option) === storedNormal || compactComparable(option) === storedCompact;
+  });
+}
+
+function textContainsAny(stored: unknown, selected: string[]): boolean {
+  const storedCompact = compactComparable(stored);
+  return selected.flatMap(filterValueVariants).some((option) => {
+    const needle = compactComparable(option);
+    return needle.length > 0 && storedCompact.includes(needle);
+  });
+}
+
+function gradeValueVariants(value: string): string[] {
+  const compact = compactComparable(value);
+  const aliases: Record<string, string[]> = {
+    excellent: ["Excellent", "EX", "Exc", "Ex"],
+    verygood: ["Very Good", "VG", "V Good", "VeryGood"],
+    good: ["Good", "G", "GD"],
+    fair: ["Fair", "F"],
+    poor: ["Poor", "P"],
+    ideal: ["Ideal", "ID"],
+    none: ["None", "N", "NO", "Non", "Nil"],
+    faint: ["Faint", "FNT", "FA"],
+    slight: ["Slight", "SL"],
+    medium: ["Medium", "M", "MED"],
+    strong: ["Strong", "S", "STG"],
+    verystrong: ["Very Strong", "VS", "VST"],
+  };
+  return uniqueValues([...filterValueVariants(value), ...(aliases[compact] ?? [])]);
+}
+
+function clarityValueVariants(value: string): string[] {
+  const compact = String(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return uniqueValues([value, compact, value.toUpperCase(), value.replace(/\s+/g, ""), value.replace(/-/g, "")]);
 }
 
 function stoneTypeMatches(stored: unknown, selected: string): boolean {
@@ -461,8 +509,7 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
     list = list.filter((s) => s.shape && shapes.has(normaliseComparable(s.shape)));
   }
   if (f.labs.length) {
-    const labs = new Set(f.labs.flatMap(filterValueVariants).map(normaliseComparable));
-    list = list.filter((s) => s.cert_lab && labs.has(normaliseComparable(s.cert_lab)));
+    list = list.filter((s) => s.cert_lab && textMatchesAny(s.cert_lab, f.labs));
   }
   if (f.certNumber.trim()) {
     const q = f.certNumber.trim().toLowerCase();
@@ -508,28 +555,25 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
 
   // Diamond-only
   if (f.colourGrades.length) {
-    const values = new Set(f.colourGrades.flatMap(filterValueVariants));
-    list = list.filter((s) => s.colour_grade && values.has(s.colour_grade));
+    list = list.filter((s) => s.colour_grade && textMatchesAny(s.colour_grade, f.colourGrades));
   }
   if (f.fancyHues.length) {
-    const values = new Set(f.fancyHues.flatMap(filterValueVariants));
-    list = list.filter((s) => s.colour_hue && values.has(s.colour_hue));
+    list = list.filter((s) => textContainsAny(s.colour_hue, f.fancyHues) || textContainsAny(s.colour_grade, f.fancyHues));
   }
   if (f.fancyIntensities.length) {
-    const values = new Set(f.fancyIntensities.flatMap(filterValueVariants));
-    list = list.filter((s) => s.colour_saturation && values.has(s.colour_saturation));
+    list = list.filter((s) => s.colour_saturation && textMatchesAny(s.colour_saturation, f.fancyIntensities.flatMap(gradeValueVariants)));
   }
-  if (f.clarities.length) list = list.filter((s) => s.clarity_grade && f.clarities.includes(s.clarity_grade));
-  if (f.cutGrades.length) list = list.filter((s) => s.cut_grade && f.cutGrades.includes(s.cut_grade));
-  if (f.polish.length) list = list.filter((s) => s.polish && f.polish.includes(s.polish));
-  if (f.symmetry.length) list = list.filter((s) => s.symmetry && f.symmetry.includes(s.symmetry));
-  if (f.fluorescenceIntensity.length) list = list.filter((s) => s.fluorescence && f.fluorescenceIntensity.includes(s.fluorescence));
-  if (f.fluorescenceColour.length) list = list.filter((s) => s.fluorescence_colour && f.fluorescenceColour.includes(s.fluorescence_colour));
-  if (f.girdle.length) list = list.filter((s) => s.girdle && f.girdle.includes(s.girdle));
-  if (f.culetSize.length) list = list.filter((s) => s.culet_size && f.culetSize.includes(s.culet_size));
-  if (f.milky.length) list = list.filter((s) => s.milky && f.milky.includes(s.milky));
-  if (f.eyeClean.length) list = list.filter((s) => s.eye_clean && f.eyeClean.includes(s.eye_clean));
-  if (f.blackInclusion.length) list = list.filter((s) => s.black_inclusion && f.blackInclusion.includes(s.black_inclusion));
+  if (f.clarities.length) list = list.filter((s) => s.clarity_grade && textMatchesAny(s.clarity_grade, f.clarities.flatMap(clarityValueVariants)));
+  if (f.cutGrades.length) list = list.filter((s) => s.cut_grade && textMatchesAny(s.cut_grade, f.cutGrades.flatMap(gradeValueVariants)));
+  if (f.polish.length) list = list.filter((s) => s.polish && textMatchesAny(s.polish, f.polish.flatMap(gradeValueVariants)));
+  if (f.symmetry.length) list = list.filter((s) => s.symmetry && textMatchesAny(s.symmetry, f.symmetry.flatMap(gradeValueVariants)));
+  if (f.fluorescenceIntensity.length) list = list.filter((s) => s.fluorescence && textMatchesAny(s.fluorescence, f.fluorescenceIntensity.flatMap(gradeValueVariants)));
+  if (f.fluorescenceColour.length) list = list.filter((s) => s.fluorescence_colour && textMatchesAny(s.fluorescence_colour, f.fluorescenceColour));
+  if (f.girdle.length) list = list.filter((s) => s.girdle && textContainsAny(s.girdle, f.girdle));
+  if (f.culetSize.length) list = list.filter((s) => s.culet_size && textMatchesAny(s.culet_size, f.culetSize));
+  if (f.milky.length) list = list.filter((s) => s.milky && textMatchesAny(s.milky, f.milky));
+  if (f.eyeClean.length) list = list.filter((s) => s.eye_clean && textMatchesAny(s.eye_clean, f.eyeClean));
+  if (f.blackInclusion.length) list = list.filter((s) => s.black_inclusion && textMatchesAny(s.black_inclusion, f.blackInclusion));
 
   const ranges: [number | null, number | null, string][] = [
     [f.lengthMin, f.lengthMax, "measurements_length"],
@@ -555,14 +599,13 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
 
   // Coloured
   if (f.primaryColours.length) {
-    const values = new Set(f.primaryColours.flatMap(filterValueVariants));
-    list = list.filter((s) => s.colour_hue && values.has(s.colour_hue));
+    list = list.filter((s) => textContainsAny(s.colour_hue, f.primaryColours) || textContainsAny(s.colour_grade, f.primaryColours));
   }
-  if (f.tones.length) list = list.filter((s) => s.colour_tone && f.tones.includes(s.colour_tone));
-  if (f.saturations.length) list = list.filter((s) => s.colour_saturation && f.saturations.includes(s.colour_saturation));
-  if (f.treatments.length) list = list.filter((s) => s.treatment && f.treatments.includes(s.treatment));
-  if (f.phenomena.length) list = list.filter((s) => s.phenomenon && f.phenomena.includes(s.phenomenon));
-  if (f.premiumOriginsOnly) list = list.filter((s) => s.country_of_origin && PREMIUM_ORIGINS.includes(s.country_of_origin));
+  if (f.tones.length) list = list.filter((s) => s.colour_tone && textMatchesAny(s.colour_tone, f.tones));
+  if (f.saturations.length) list = list.filter((s) => s.colour_saturation && textMatchesAny(s.colour_saturation, f.saturations));
+  if (f.treatments.length) list = list.filter((s) => s.treatment && textMatchesAny(s.treatment, f.treatments));
+  if (f.phenomena.length) list = list.filter((s) => s.phenomenon && textMatchesAny(s.phenomenon, f.phenomena));
+  if (f.premiumOriginsOnly) list = list.filter((s) => s.country_of_origin && textMatchesAny(s.country_of_origin, PREMIUM_ORIGINS));
   if (f.matchingPairOnly) list = list.filter((s) => s.matching_pair);
   if (f.parcelOnly) list = list.filter((s) => (s.listing_type ?? "single") === "parcel");
   if (f.parcelMinQty != null) list = list.filter((s) => (s.parcel_quantity ?? 0) >= (f.parcelMinQty ?? 0));

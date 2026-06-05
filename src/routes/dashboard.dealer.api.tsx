@@ -477,7 +477,7 @@ function DealerApiPage() {
               <div>
                 <div className="text-sm font-medium">Imported feed inventory</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  Clears all listings in your dealer inventory so the next sync can rebuild from a clean slate.
+                  Clears listings created by the inventory feed so the next sync can rebuild from a clean slate. Manual listings are left alone.
                 </div>
               </div>
               <AlertDialog>
@@ -491,7 +491,7 @@ function DealerApiPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Clear imported feed inventory?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This removes all listings for your dealer account and clears the sync log. It will not delete other dealers' inventory.
+                      This removes imported feed listings for your dealer account and clears the sync log. Manual listings and other dealers' inventory are left alone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

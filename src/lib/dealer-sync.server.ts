@@ -40,6 +40,8 @@ type SyncCandidate = {
 type ExistingStoneRef = {
   id: string;
   cert_number: string | null;
+  external_sync_key?: string | null;
+  source_stock_no?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
 };
@@ -244,7 +246,7 @@ async function fetchAllExistingDealerStones(dealerId: string): Promise<ExistingS
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabaseAdmin
       .from("stones")
-      .select("id, cert_number, updated_at, created_at")
+      .select("id, cert_number, external_sync_key, source_stock_no, updated_at, created_at")
       .eq("dealer_id", dealerId)
       .order("updated_at", { ascending: false, nullsFirst: false })
       .range(from, from + pageSize - 1);
@@ -373,8 +375,13 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     const existing = await fetchAllExistingDealerStones(dealerId);
     const certToId = new Map<string, string>();
+    const externalKeyToId = new Map<string, string>();
     const duplicateExistingIds: string[] = [];
     for (const s of existing) {
+      const externalKey = cleanString(s.external_sync_key);
+      if (externalKey && !externalKeyToId.has(externalKey)) {
+        externalKeyToId.set(externalKey, s.id);
+      }
       const cert = cleanString(s.cert_number);
       if (!cert) continue;
       if (certToId.has(cert)) {
@@ -463,9 +470,10 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       }
 
       const cert = String(payload.cert_number).trim();
+      const externalSyncKey = originalCert ? `cert:${cert}` : cert;
       if (cert) seenCerts.add(cert);
 
-      const existingId = cert ? certToId.get(cert) : undefined;
+      const existingId = externalKeyToId.get(externalSyncKey) ?? (cert ? certToId.get(cert) : undefined);
       const mode = existingId ? "update" : "create";
       const result = validateStonePayload(payload, mode);
       if (!result.ok) {
@@ -496,6 +504,11 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
           ...result.data,
           dealer_id: dealerId,
           cert_number: cert,
+          external_source: preset?.id ?? "custom_feed",
+          source_stock_no: stockNo,
+          external_sync_key: externalSyncKey,
+          last_imported_at: new Date().toISOString(),
+          raw_import_row: sourceRow,
           feed_inactive: false,
         }),
         image_url: mapped.image_url,
@@ -642,7 +655,11 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     let markedInactive = 0;
     if (seenCerts.size && existing && existing.length) {
-      const inactiveIds = (existing ?? []).filter((s) => s.cert_number && !seenCerts.has(s.cert_number)).map((s) => s.id);
+      const inactiveIds = (existing ?? []).filter((s) => {
+        const key = cleanString(s.external_sync_key);
+        const cert = cleanString(s.cert_number);
+        return (key && !seenCerts.has(key.replace(/^cert:/, ""))) || (!key && cert && !seenCerts.has(cert));
+      }).map((s) => s.id);
       if (inactiveIds.length) {
         for (let i = 0; i < inactiveIds.length; i += SYNC_BATCH_SIZE) {
           const ids = inactiveIds.slice(i, i + SYNC_BATCH_SIZE);

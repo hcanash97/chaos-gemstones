@@ -140,6 +140,7 @@ export const clearDealerImportedInventory = createServerFn({ method: "POST" })
         .from("stones")
         .select("id")
         .eq("dealer_id", userId)
+        .or("external_sync_key.not.is.null,notes_for_buyers.ilike.Stock ref:%")
         .limit(batchSize);
 
       if (selectError) throw new Error(selectError.message);
@@ -150,6 +151,7 @@ export const clearDealerImportedInventory = createServerFn({ method: "POST" })
         .from("stones")
         .delete()
         .eq("dealer_id", userId)
+        .or("external_sync_key.not.is.null,notes_for_buyers.ilike.Stock ref:%")
         .in("id", ids);
 
       if (deleteError) throw new Error(deleteError.message);

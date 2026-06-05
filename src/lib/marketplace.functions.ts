@@ -37,6 +37,52 @@ function filterValueVariants(value: string): string[] {
   ]);
 }
 
+function compactValue(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function gradeValueVariants(value: string): string[] {
+  const compact = compactValue(value);
+  const aliases: Record<string, string[]> = {
+    excellent: ["Excellent", "EX", "Exc", "Ex"],
+    verygood: ["Very Good", "VG", "V Good", "VeryGood"],
+    good: ["Good", "G", "GD"],
+    fair: ["Fair", "F"],
+    poor: ["Poor", "P"],
+    ideal: ["Ideal", "ID"],
+    none: ["None", "N", "NO", "Non", "Nil"],
+    faint: ["Faint", "FNT", "FA"],
+    slight: ["Slight", "SL"],
+    medium: ["Medium", "M", "MED"],
+    strong: ["Strong", "S", "STG"],
+    verystrong: ["Very Strong", "VS", "VST"],
+  };
+  return uniqueValues([...filterValueVariants(value), ...(aliases[compact] ?? [])]);
+}
+
+function clarityValueVariants(value: string): string[] {
+  const compact = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return uniqueValues([value, compact, value.toUpperCase(), value.replace(/\s+/g, ""), value.replace(/-/g, "")]);
+}
+
+function normalizedFilterSet(values: string[]): string[] {
+  return uniqueValues(values.flatMap((value) => {
+    const variants = filterValueVariants(value);
+    return [...variants, ...variants.map(compactValue)];
+  }));
+}
+
+function escapeFilterText(value: string): string {
+  return value.replace(/[%(),]/g, "").trim();
+}
+
+function ilikeAny(columns: string[], values: string[]): string {
+  const terms = uniqueValues(values.map(escapeFilterText).filter(Boolean));
+  return columns
+    .flatMap((column) => terms.map((value) => `${column}.ilike.%${value}%`))
+    .join(",");
+}
+
 function stoneTypeValuesForFilter(type: string): string[] {
   const map: Record<string, string[]> = {
     diamond: ["diamond", "Diamond", "DIAMOND"],
@@ -192,23 +238,23 @@ export const searchMarketplace = createServerFn({ method: "POST" })
 
     // Diamond-specific
     if (f.colourGrades && f.colourGrades.length) q = q.in("colour_grade", uniqueValues(f.colourGrades.flatMap(filterValueVariants)));
-    if (f.fancyHues && f.fancyHues.length) q = q.in("colour_hue", uniqueValues(f.fancyHues.flatMap(filterValueVariants)));
-    if (f.fancyIntensities && f.fancyIntensities.length) q = q.in("colour_saturation", uniqueValues(f.fancyIntensities.flatMap(filterValueVariants)));
-    if (f.clarities && f.clarities.length) q = q.in("clarity_grade", f.clarities);
-    if (f.cutGrades && f.cutGrades.length) q = q.in("cut_grade", f.cutGrades);
-    if (f.polish && f.polish.length) q = q.in("polish", f.polish);
-    if (f.symmetry && f.symmetry.length) q = q.in("symmetry", f.symmetry);
+    if (f.fancyHues && f.fancyHues.length) q = q.or(ilikeAny(["colour_hue", "colour_grade"], f.fancyHues));
+    if (f.fancyIntensities && f.fancyIntensities.length) q = q.in("colour_saturation", uniqueValues(f.fancyIntensities.flatMap(gradeValueVariants)));
+    if (f.clarities && f.clarities.length) q = q.in("clarity_grade", uniqueValues(f.clarities.flatMap(clarityValueVariants)));
+    if (f.cutGrades && f.cutGrades.length) q = q.in("cut_grade", uniqueValues(f.cutGrades.flatMap(gradeValueVariants)));
+    if (f.polish && f.polish.length) q = q.in("polish", uniqueValues(f.polish.flatMap(gradeValueVariants)));
+    if (f.symmetry && f.symmetry.length) q = q.in("symmetry", uniqueValues(f.symmetry.flatMap(gradeValueVariants)));
     if (f.fluorescenceIntensity && f.fluorescenceIntensity.length)
-      q = q.in("fluorescence", f.fluorescenceIntensity);
+      q = q.in("fluorescence", uniqueValues(f.fluorescenceIntensity.flatMap(gradeValueVariants)));
     if (f.fluorescenceColour && f.fluorescenceColour.length)
-      q = q.in("fluorescence_colour", f.fluorescenceColour);
-    if (f.girdle && f.girdle.length) q = q.in("girdle", f.girdle);
-    if (f.culetSize && f.culetSize.length) q = q.in("culet_size", f.culetSize);
-    if (f.culetCondition && f.culetCondition.length) q = q.in("culet_condition", f.culetCondition);
-    if (f.milky && f.milky.length) q = q.in("milky", f.milky);
-    if (f.eyeClean && f.eyeClean.length) q = q.in("eye_clean", f.eyeClean);
-    if (f.blackInclusion && f.blackInclusion.length) q = q.in("black_inclusion", f.blackInclusion);
-    if (f.provenance && f.provenance.length) q = q.in("provenance_report", f.provenance);
+      q = q.in("fluorescence_colour", normalizedFilterSet(f.fluorescenceColour));
+    if (f.girdle && f.girdle.length) q = q.or(ilikeAny(["girdle"], f.girdle));
+    if (f.culetSize && f.culetSize.length) q = q.in("culet_size", normalizedFilterSet(f.culetSize));
+    if (f.culetCondition && f.culetCondition.length) q = q.in("culet_condition", normalizedFilterSet(f.culetCondition));
+    if (f.milky && f.milky.length) q = q.in("milky", normalizedFilterSet(f.milky));
+    if (f.eyeClean && f.eyeClean.length) q = q.in("eye_clean", normalizedFilterSet(f.eyeClean));
+    if (f.blackInclusion && f.blackInclusion.length) q = q.in("black_inclusion", normalizedFilterSet(f.blackInclusion));
+    if (f.provenance && f.provenance.length) q = q.in("provenance_report", normalizedFilterSet(f.provenance));
 
     if (f.enhancement === "only") q = q.neq("enhancement", "none").not("enhancement", "is", null);
     if (f.enhancement === "exclude") q = q.or("enhancement.is.null,enhancement.eq.none");
@@ -235,12 +281,12 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     if (f.hasCertScan) q = q.not("cert_url", "is", null);
 
     // Coloured
-    if (f.primaryColours && f.primaryColours.length) q = q.in("colour_hue", uniqueValues(f.primaryColours.flatMap(filterValueVariants)));
-    if (f.tones && f.tones.length) q = q.in("colour_tone", f.tones);
-    if (f.saturations && f.saturations.length) q = q.in("colour_saturation", f.saturations);
-    if (f.treatments && f.treatments.length) q = q.in("treatment", f.treatments);
-    if (f.phenomena && f.phenomena.length) q = q.in("phenomenon", f.phenomena);
-    if (f.premiumOriginsOnly) q = q.in("country_of_origin", PREMIUM_ORIGINS);
+    if (f.primaryColours && f.primaryColours.length) q = q.or(ilikeAny(["colour_hue", "colour_grade"], f.primaryColours));
+    if (f.tones && f.tones.length) q = q.in("colour_tone", normalizedFilterSet(f.tones));
+    if (f.saturations && f.saturations.length) q = q.in("colour_saturation", normalizedFilterSet(f.saturations));
+    if (f.treatments && f.treatments.length) q = q.in("treatment", normalizedFilterSet(f.treatments));
+    if (f.phenomena && f.phenomena.length) q = q.in("phenomenon", normalizedFilterSet(f.phenomena));
+    if (f.premiumOriginsOnly) q = q.in("country_of_origin", uniqueValues(PREMIUM_ORIGINS.flatMap(filterValueVariants)));
     if (f.matchingPairOnly) q = q.eq("matching_pair", true);
     if (f.parcelOnly) q = q.eq("listing_type", "parcel");
     if (typeof f.parcelMinQty === "number") q = q.gte("parcel_quantity", f.parcelMinQty);

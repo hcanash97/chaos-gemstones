@@ -37,6 +37,65 @@ function titleCase(str: string): string {
     .join(" ");
 }
 
+function normaliseGrade(value: unknown): string | undefined {
+  const raw = s(value);
+  if (!raw) return undefined;
+  const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const map: Record<string, string> = {
+    EX: "Excellent",
+    EXC: "Excellent",
+    EXCELLENT: "Excellent",
+    VG: "Very Good",
+    VGOOD: "Very Good",
+    VERYGOOD: "Very Good",
+    G: "Good",
+    GD: "Good",
+    GOOD: "Good",
+    F: "Fair",
+    FAIR: "Fair",
+    P: "Poor",
+    POOR: "Poor",
+    N: "None",
+    NON: "None",
+    NONE: "None",
+    NIL: "None",
+    MED: "Medium",
+    MEDIUM: "Medium",
+    STG: "Strong",
+    STRONG: "Strong",
+    VST: "Very Strong",
+    VERYSTRONG: "Very Strong",
+  };
+  return map[compact] ?? raw;
+}
+
+function fancyHueFromColour(value: unknown): string | undefined {
+  const raw = s(value);
+  if (!raw) return undefined;
+  const compact = raw.toUpperCase().replace(/[^A-Z]/g, "");
+  if (/^[DEFGHIJKLMN]$/.test(compact) || compact === "OP" || compact === "N" || compact === "NZ") return undefined;
+  const hues = [
+    "YELLOW",
+    "ORANGE",
+    "PINK",
+    "BLUE",
+    "GREEN",
+    "RED",
+    "BROWN",
+    "GREY",
+    "GRAY",
+    "BLACK",
+    "CHAMPAGNE",
+    "COGNAC",
+    "CHAMELEON",
+    "VIOLET",
+    "PURPLE",
+  ];
+  const found = hues.find((hue) => compact.includes(hue));
+  if (!found) return undefined;
+  return titleCase(found === "GRAY" ? "Grey" : found);
+}
+
 function normaliseLab(value: unknown): string | undefined {
   const raw = s(value);
   if (!raw) return undefined;
@@ -107,10 +166,6 @@ const KODLLIN: FeedPreset = {
     const map: Array<[string, string]> = [
       ["color", "colour_grade"],
       ["clarity", "clarity_grade"],
-      ["cut", "cut_grade"],
-      ["polish", "polish"],
-      ["symmetry", "symmetry"],
-      ["fluorescenceIntensity", "fluorescence"],
       ["fluorescenceColor", "fluorescence_colour"],
       ["shade", "shade"],
       ["milky", "milky"],
@@ -136,6 +191,18 @@ const KODLLIN: FeedPreset = {
       const v = s(row[src]);
       if (v) stone[dst] = v;
     }
+
+    const cut = normaliseGrade(row.cut);
+    if (cut) stone.cut_grade = cut;
+    const polish = normaliseGrade(row.polish);
+    if (polish) stone.polish = polish;
+    const symmetry = normaliseGrade(row.symmetry);
+    if (symmetry) stone.symmetry = symmetry;
+    const fluorescence = normaliseGrade(row.fluorescenceIntensity);
+    if (fluorescence) stone.fluorescence = fluorescence;
+
+    const hueFromColour = fancyHueFromColour(row.color);
+    if (hueFromColour) stone.colour_hue = hueFromColour;
 
     const lab =
       normaliseLab(row.lab) ??
