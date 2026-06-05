@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import {
   STONE_FIELDS, FIELD_MAP, suggestMapping, validateMappedRow, coerceForInsert,
-  buildTemplateCsv, type RowError,
+  extractVirtualFields, buildTemplateCsv, type RowError,
 } from "@/lib/import-fields";
 import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
 
@@ -194,9 +194,12 @@ function ImportPage() {
 
   async function runImport(validOnly: boolean) {
     if (!user) return;
-    const toImport = mappedPreview
-      .filter((r) => validOnly ? r.errors.length === 0 : true)
-      .map((r) => ({ ...coerceForInsert(r.mapped), dealer_id: user.id }));
+    const filtered = mappedPreview.filter((r) => validOnly ? r.errors.length === 0 : true);
+    // Separate virtual fields (image_url) from regular stone fields.
+    const toImport = filtered.map((r) => ({
+      stone: { ...coerceForInsert(r.mapped), dealer_id: user.id },
+      virtual: extractVirtualFields(r.mapped),
+    }));
     if (toImport.length === 0) { toast.error("Nothing to import"); return; }
     setImporting(true);
     const errorBreakdown: Record<string, number> = {};
@@ -205,14 +208,38 @@ function ImportPage() {
     });
     // Insert in chunks of 100.
     let imported = 0;
+    const imageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
     for (let i = 0; i < toImport.length; i += 100) {
       const chunk = toImport.slice(i, i + 100);
-      const { error } = await supabase.from("stones").insert(chunk as any);
+      const { data: inserted, error } = await supabase
+        .from("stones")
+        .insert(chunk.map((c) => c.stone) as any)
+        .select("id");
       if (error) {
         toast.error(error.message);
         break;
       }
-      imported += chunk.length;
+      // Match inserted stone IDs back to their image URLs.
+      if (inserted) {
+        for (let j = 0; j < inserted.length; j++) {
+          const imgUrl = chunk[j]?.virtual?.image_url;
+          if (imgUrl) {
+            imageRows.push({
+              stone_id: inserted[j].id,
+              storage_url: imgUrl,
+              external_image_url: imgUrl,
+              is_primary: true,
+              sort_order: 0,
+            });
+          }
+        }
+      }
+      imported += (inserted?.length ?? 0);
+    }
+    // Batch-insert stone_images for any rows that had an image URL.
+    if (imageRows.length > 0) {
+      const { error: imgErr } = await supabase.from("stone_images").insert(imageRows as any);
+      if (imgErr) toast.error(`Stones imported but image links failed: ${imgErr.message}`);
     }
     setImporting(false);
     setSummary({ imported, skipped: mappedPreview.length - imported, errorBreakdown });

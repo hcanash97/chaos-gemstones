@@ -90,7 +90,7 @@ function AdminPage() {
     if (!isAdmin) return;
     const { count } = await supabase
       .from("stones")
-      .select("id", { count: "exact", head: true })
+      .select("id")
       .eq("is_test", true);
     setTestCount(count ?? 0);
   }, [isAdmin]);
@@ -352,7 +352,10 @@ function AdminPage() {
         ) : tab === "referrals" ? (
           <ReferralsPanel />
         ) : tab === "stats" ? (
-          <StatsPanel />
+          <>
+            <StatsPanel />
+            <DataCleanupPanel />
+          </>
         ) : (
         <>
           {tab === "all" && (
@@ -1148,6 +1151,95 @@ function ReportsPanel() {
           </table>
         )}
       </div>
+    </div>
+  );
+}
+function DataCleanupPanel() {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  async function runCleanup() {
+    setRunning(true);
+    setResult(null);
+    const log: string[] = [];
+    try {
+      // 1. Clean "nan" values from video_url
+      const { data: nanVideos } = await supabase
+        .from("stones")
+        .update({ video_url: null } as any)
+        .or("video_url.ilike.nan,video_url.ilike.null,video_url.ilike.none,video_url.eq.N/A,video_url.eq.-")
+        .select("id");
+      log.push(`Cleaned ${nanVideos?.length ?? 0} invalid video_url values`);
+
+      // 2. Set has_video/has_360 to false where video_url is now null
+      const { data: flagsCleared } = await supabase
+        .from("stones")
+        .update({ has_video: false, has_360: false } as any)
+        .is("video_url", null)
+        .or("has_video.eq.true,has_360.eq.true")
+        .select("id");
+      log.push(`Cleared has_video/has_360 flags on ${flagsCleared?.length ?? 0} stones with no video`);
+
+      // 3. Clean "nan" from text fields
+      for (const col of ["shade", "milky", "eye_clean", "black_inclusion", "notes_for_buyers"]) {
+        const { data: cleaned } = await supabase
+          .from("stones")
+          .update({ [col]: null } as any)
+          .or(`${col}.ilike.nan,${col}.ilike.null,${col}.ilike.none,${col}.eq.N/A,${col}.eq.-`)
+          .select("id");
+        if (cleaned && cleaned.length > 0) log.push(`Cleaned ${cleaned.length} invalid ${col} values`);
+      }
+
+      // 4. Feature top stones (if none are featured yet)
+      const { data: featuredStones } = await supabase
+        .from("stones")
+        .select("id")
+        .eq("featured", true)
+        .eq("is_test", false);
+      const featuredCount = featuredStones?.length ?? 0;
+      if (featuredCount === 0) {
+        const { data: topStones } = await supabase
+          .from("stones")
+          .select("id")
+          .eq("status", "available")
+          .eq("is_test", false)
+          .not("video_url", "is", null)
+          .order("wholesale_price_usd", { ascending: false })
+          .limit(6);
+        if (topStones && topStones.length > 0) {
+          const ids = topStones.map((s: any) => s.id);
+          await supabase.from("stones").update({ featured: true } as any).in("id", ids);
+          log.push(`Featured ${ids.length} top stones on homepage`);
+        }
+      } else {
+        log.push(`${featuredCount} stones already featured — skipped`);
+      }
+
+      setResult(log.join("\n"));
+      toast.success("Cleanup complete");
+    } catch (err) {
+      setResult(`Error: ${(err as Error).message}`);
+      toast.error("Cleanup failed");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="mt-8 rounded-md border border-border bg-card p-5">
+      <h3 className="font-serif text-lg">Data Cleanup</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Cleans up invalid values from CSV imports (like &quot;nan&quot; stored as text),
+        corrects video/360° flags, and features top stones on the homepage.
+      </p>
+      <div className="mt-4 flex items-center gap-3">
+        <Button onClick={runCleanup} disabled={running} size="sm">
+          {running ? "Running…" : "Run Cleanup"}
+        </Button>
+      </div>
+      {result && (
+        <pre className="mt-3 whitespace-pre-wrap rounded bg-muted p-3 text-xs">{result}</pre>
+      )}
     </div>
   );
 }

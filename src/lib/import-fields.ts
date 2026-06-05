@@ -1,5 +1,7 @@
 // Canonical list of stones fields that the importer can write to,
 // plus aliases for friendly column matching.
+// Fields with `virtual: true` are NOT columns on the stones table —
+// they need special handling (e.g. image_url inserts into stone_images).
 export type StoneField = {
   key: string;
   label: string;
@@ -7,6 +9,7 @@ export type StoneField = {
   required?: boolean;
   aliases: string[];
   enumValues?: string[];
+  virtual?: boolean;
 };
 
 export const CLARITY_VALUES = [
@@ -159,7 +162,8 @@ export const STONE_FIELDS: StoneField[] = [
   { key: "has_video", label: "Has video", type: "boolean", aliases: ["video"] },
   { key: "has_360", label: "Has 360°", type: "boolean", aliases: ["360", "three_sixty"] },
   { key: "provenance_report", label: "Provenance report", type: "string", aliases: ["provenance", "traceability"] },
-  { key: "video_url", label: "Video URL", type: "string", aliases: ["video_link"] },
+  { key: "video_url", label: "Video URL", type: "string", aliases: ["video_link", "videoLink", "video_url_360", "360_url"] },
+  { key: "image_url", label: "Image URL", type: "string", aliases: ["external_image_url", "imageLink", "image", "photo_url", "img_url", "picture_url", "photo", "image_link", "img"], virtual: true },
   { key: "available_qty", label: "Available qty", type: "number", aliases: ["qty", "quantity", "stock"] },
   { key: "minimum_order_qty", label: "Minimum order qty", type: "number", aliases: ["moq", "min_qty"] },
   { key: "lead_time_days", label: "Lead time (days)", type: "number", aliases: ["lead_time"] },
@@ -377,6 +381,8 @@ export function coerceForInsert(mapped: Record<string, unknown>): Record<string,
   // Common spreadsheet/CSV null markers that should be treated as empty.
   const NULL_MARKERS = new Set(["nan", "null", "none", "n/a", "na", "-", "--", ".", "undefined"]);
   for (const f of STONE_FIELDS) {
+    // Virtual fields (e.g. image_url) are not columns on the stones table.
+    if (f.virtual) continue;
     let v = mapped[f.key];
     if (v === undefined || v === null || v === "") continue;
     // Strip out common CSV null marker strings (e.g. pandas "nan").
@@ -390,6 +396,22 @@ export function coerceForInsert(mapped: Record<string, unknown>): Record<string,
     } else {
       out[f.key] = normaliseValue(f, String(v).trim());
     }
+  }
+  return out;
+}
+
+/** Extract virtual fields (like image_url) from a mapped row.
+ *  These need separate handling — e.g. inserting into stone_images. */
+export function extractVirtualFields(mapped: Record<string, unknown>): Record<string, string | null> {
+  const NULL_MARKERS = new Set(["nan", "null", "none", "n/a", "na", "-", "--", ".", "undefined"]);
+  const out: Record<string, string | null> = {};
+  for (const f of STONE_FIELDS) {
+    if (!f.virtual) continue;
+    const v = mapped[f.key];
+    if (v === undefined || v === null || v === "") { out[f.key] = null; continue; }
+    const s = String(v).trim();
+    if (NULL_MARKERS.has(s.toLowerCase())) { out[f.key] = null; continue; }
+    out[f.key] = s;
   }
   return out;
 }
@@ -421,6 +443,7 @@ export function buildTemplateCsv(): string {
     available_qty: "1",
     listing_type: "single",
     notes_for_buyers: "Premium make, eye-clean to 10x.",
+    image_url: "https://example.com/stones/12345.jpg",
   };
   const row = headers.map((h) => {
     const v = example[h] ?? "";
