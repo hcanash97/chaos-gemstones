@@ -35,6 +35,28 @@ function titleCase(str: string): string {
     .join(" ");
 }
 
+function normaliseLab(value: unknown): string | undefined {
+  const raw = s(value);
+  if (!raw) return undefined;
+  const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (["NA", "NONE", "NO", "NULL", "NIL", "NON", "UNCERTIFIED", "NONCERTIFIED", "NOCERT", "NOCERTIFICATE"].includes(compact)) {
+    return undefined;
+  }
+  if (compact.includes("IGI")) return "IGI";
+  if (compact.includes("GIA")) return "GIA";
+  if (compact.includes("HRD")) return "HRD";
+  if (compact.includes("GCAL")) return "GCAL";
+  if (compact.includes("AGS")) return "AGS";
+  if (compact.includes("EGL")) return "EGL";
+  if (compact.includes("GRS")) return "GRS";
+  if (compact.includes("SSEF")) return "SSEF";
+  if (compact.includes("GUBELIN") || compact.includes("GUEBELIN")) return "Gübelin";
+  if (compact.includes("AGL")) return "AGL";
+  if (compact.includes("LOTUS")) return "Lotus";
+  if (compact.includes("GIT")) return "GIT";
+  return raw;
+}
+
 function parseMeasurements(value: unknown): {
   measurements_length?: number;
   measurements_width?: number;
@@ -90,14 +112,18 @@ const KODLLIN: FeedPreset = {
       ["fluorescenceColor", "fluorescence_colour"],
       ["shade", "shade"],
       ["milky", "milky"],
-      ["lab", "cert_lab"],
       ["reportNo", "cert_number"],
       ["report_no", "cert_number"],
       ["reportNumber", "cert_number"],
+      ["report_number", "cert_number"],
       ["certNo", "cert_number"],
       ["certNumber", "cert_number"],
+      ["cert_no", "cert_number"],
+      ["cert_number", "cert_number"],
       ["certificateNo", "cert_number"],
       ["certificateNumber", "cert_number"],
+      ["certificate_no", "cert_number"],
+      ["certificate_number", "cert_number"],
       ["treatment", "treatment"],
       ["culetSize", "culet_size"],
       ["culetCondition", "culet_condition"],
@@ -111,6 +137,15 @@ const KODLLIN: FeedPreset = {
       const v = s(row[src]);
       if (v) stone[dst] = v;
     }
+
+    const lab =
+      normaliseLab(row.lab) ??
+      normaliseLab(row.certLab) ??
+      normaliseLab(row.certificateLab) ??
+      normaliseLab(row.gradingLab) ??
+      normaliseLab(row.grading_lab);
+    if (lab) stone.cert_lab = lab;
+    else if (s(stone.cert_number).toUpperCase().startsWith("LG")) stone.cert_lab = "IGI";
 
     const eye = s(row.eyeClean);
     if (eye) stone.eye_clean = eye.toUpperCase() === "EC" ? "Yes" : eye;

@@ -34,6 +34,7 @@ type SyncCandidate = {
   data: Record<string, unknown>;
   image_url?: string;
   existedBefore: boolean;
+  existingId?: string;
 };
 
 function assertSafeFeedUrl(urlStr: string): void {
@@ -117,10 +118,15 @@ function certRef(raw: Record<string, unknown>, payload: Record<string, unknown>)
     cleanString(raw.reportNo) ??
     cleanString(raw.report_no) ??
     cleanString(raw.reportNumber) ??
+    cleanString(raw.report_number) ??
     cleanString(raw.certNo) ??
     cleanString(raw.certNumber) ??
+    cleanString(raw.cert_no) ??
+    cleanString(raw.cert_number) ??
     cleanString(raw.certificateNo) ??
-    cleanString(raw.certificateNumber)
+    cleanString(raw.certificateNumber) ??
+    cleanString(raw.certificate_no) ??
+    cleanString(raw.certificate_number)
   );
 }
 
@@ -289,7 +295,8 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       .eq("dealer_id", dealerId);
     const certToId = new Map<string, string>();
     for (const s of existing ?? []) {
-      if (s.cert_number) certToId.set(s.cert_number, s.id);
+      const cert = cleanString(s.cert_number);
+      if (cert) certToId.set(cert, s.id);
     }
 
     // Numeric fields that often arrive as strings from JSON feeds.
@@ -388,6 +395,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         },
         image_url: mapped.image_url,
         existedBefore: !!existingId,
+        existingId,
       });
     });
 
@@ -401,84 +409,119 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     let updated = 0;
     const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
 
-    diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Running database upserts in batches of ${SYNC_BATCH_SIZE}.`, {
+    diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Saving database changes in batches of ${SYNC_BATCH_SIZE}.`, {
       field: "_prepare",
     }));
 
     for (let i = 0; i < candidates.length; i += SYNC_BATCH_SIZE) {
       const chunk = candidates.slice(i, i + SYNC_BATCH_SIZE);
       const batchNumber = Math.floor(i / SYNC_BATCH_SIZE) + 1;
-      const batchStartRow = chunk[0]?.sourceIndex + 1;
-      const batchEndRow = chunk[chunk.length - 1]?.sourceIndex + 1;
+      const toCreate = chunk.filter((candidate) => !candidate.existedBefore);
+      const toUpdate = chunk.filter((candidate) => candidate.existedBefore);
 
-      const { data, error } = await supabaseAdmin
-        .from("stones")
-        .upsert(chunk.map((c) => c.data) as never, { onConflict: "dealer_id,cert_number" })
-        .select("id, cert_number");
+      for (const candidate of toUpdate) {
+        if (!candidate.existingId) {
+          errors.push(diagnostic("error", "Chaos found this stone as an existing row but could not find its internal database id.", {
+            row: candidate.sourceIndex + 1,
+            batch: batchNumber,
+            stockNo: candidate.stockNo,
+            certNumber: candidate.certNumber,
+            field: "_update",
+          }));
+          continue;
+        }
 
-      if (error) {
-        errors.push(postgresDiagnostic(`Batch ${batchNumber} failed while upserting feed rows ${batchStartRow}-${batchEndRow}. Retrying this batch row-by-row to find the exact failing stone`, error, {
-          batch: batchNumber,
-          field: "_upsert",
-        }));
+        const { error } = await supabaseAdmin
+          .from("stones")
+          .update(candidate.data as never)
+          .eq("id", candidate.existingId)
+          .eq("dealer_id", dealerId);
 
-        for (const candidate of chunk) {
-          const { data: singleData, error: singleError } = await supabaseAdmin
-            .from("stones")
-            .upsert(candidate.data as never, { onConflict: "dealer_id,cert_number" })
-            .select("id, cert_number")
-            .single();
+        if (error) {
+          errors.push(postgresDiagnostic("Row failed while updating existing stone", error, {
+            row: candidate.sourceIndex + 1,
+            batch: batchNumber,
+            stockNo: candidate.stockNo,
+            certNumber: candidate.certNumber,
+            field: "_update",
+          }));
+        } else {
+          updated += 1;
+        }
+      }
 
-          if (singleError) {
-            errors.push(postgresDiagnostic("Row failed during isolated retry", singleError, {
-              row: candidate.sourceIndex + 1,
-              batch: batchNumber,
-              stockNo: candidate.stockNo,
-              certNumber: candidate.certNumber,
-              field: "_upsert",
-            }));
-            continue;
+      if (toCreate.length) {
+        const { data, error } = await supabaseAdmin
+          .from("stones")
+          .insert(toCreate.map((candidate) => candidate.data) as never)
+          .select("id, cert_number");
+
+        if (error) {
+          errors.push(postgresDiagnostic(`Batch ${batchNumber} failed while inserting new stones. Retrying this insert batch row-by-row to find the exact failing stone`, error, {
+            batch: batchNumber,
+            field: "_insert",
+          }));
+
+          for (const candidate of toCreate) {
+            const { data: singleData, error: singleError } = await supabaseAdmin
+              .from("stones")
+              .insert(candidate.data as never)
+              .select("id, cert_number")
+              .single();
+
+            if (singleError) {
+              errors.push(postgresDiagnostic("Row failed during isolated insert retry", singleError, {
+                row: candidate.sourceIndex + 1,
+                batch: batchNumber,
+                stockNo: candidate.stockNo,
+                certNumber: candidate.certNumber,
+                field: "_insert",
+              }));
+              continue;
+            }
+
+            created += 1;
+            if (candidate.image_url && singleData?.id) {
+              createdImageRows.push({
+                stone_id: singleData.id,
+                storage_url: candidate.image_url,
+                external_image_url: candidate.image_url,
+                is_primary: true,
+                sort_order: 0,
+              });
+            }
           }
+        } else {
+          created += data?.length ?? 0;
 
-          if (candidate.existedBefore) updated += 1;
-          else created += 1;
-
-          if (!candidate.existedBefore && candidate.image_url && singleData?.id) {
-            createdImageRows.push({
-              stone_id: singleData.id,
-              storage_url: candidate.image_url,
-              external_image_url: candidate.image_url,
-              is_primary: true,
-              sort_order: 0,
-            });
+          const idByCert = new Map<string, string>();
+          for (const row of data ?? []) {
+            if ((row as any).cert_number && (row as any).id) idByCert.set((row as any).cert_number, (row as any).id);
+          }
+          for (const candidate of toCreate) {
+            const id = idByCert.get(candidate.certNumber);
+            if (candidate.image_url && id) {
+              createdImageRows.push({
+                stone_id: id,
+                storage_url: candidate.image_url,
+                external_image_url: candidate.image_url,
+                is_primary: true,
+                sort_order: 0,
+              });
+            }
           }
         }
       } else {
-        for (const candidate of chunk) {
-          if (candidate.existedBefore) updated += 1;
-          else created += 1;
-        }
-
-        const idByCert = new Map<string, string>();
-        for (const row of data ?? []) {
-          if ((row as any).cert_number && (row as any).id) idByCert.set((row as any).cert_number, (row as any).id);
-        }
-        for (const candidate of chunk) {
-          const id = idByCert.get(candidate.certNumber);
-          if (!candidate.existedBefore && candidate.image_url && id) {
-            createdImageRows.push({
-              stone_id: id,
-              storage_url: candidate.image_url,
-              external_image_url: candidate.image_url,
-              is_primary: true,
-              sort_order: 0,
-            });
-          }
-        }
-
-        diagnostics.push(diagnostic("success", `Batch ${batchNumber} upserted ${chunk.length} rows successfully.`, {
+        diagnostics.push(diagnostic("success", `Batch ${batchNumber} updated ${toUpdate.length} existing rows.`, {
           batch: batchNumber,
-          field: "_upsert",
+          field: "_update",
+        }));
+      }
+
+      if (toCreate.length && !errors.some((error) => error.batch === batchNumber && (error.field === "_insert" || error.field === "_update"))) {
+        diagnostics.push(diagnostic("success", `Batch ${batchNumber} saved ${chunk.length} rows: ${toCreate.length} new, ${toUpdate.length} existing.`, {
+          batch: batchNumber,
+          field: "_write",
         }));
       }
     }
@@ -486,7 +529,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     if (createdImageRows.length) {
       const { error } = await supabaseAdmin.from("stone_images").insert(createdImageRows as never);
       if (error) {
-        errors.push(postgresDiagnostic("Stone image insert failed after stone upsert. Stones were still synced, but some external images may not appear", error, {
+        errors.push(postgresDiagnostic("Stone image insert failed after stone sync. Stones were still synced, but some external images may not appear", error, {
           field: "_images",
         }));
       }

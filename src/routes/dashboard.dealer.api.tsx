@@ -47,11 +47,15 @@ function diagnosticPrefix(log: SyncDiagnostic) {
 function fieldLabel(field?: string) {
   const labels: Record<string, string> = {
     cert_number: "Certificate/report number",
+    cert_lab: "Certificate lab",
     carat_weight: "Carat weight",
     wholesale_price_usd: "Wholesale price",
     stone_type: "Stone type",
     shape: "Shape",
     _upsert: "Database upsert",
+    _insert: "Database insert",
+    _update: "Database update",
+    _write: "Database write",
     _prepare: "Preparation",
     _sync: "Sync",
     _fetch: "Feed fetch",
