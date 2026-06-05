@@ -94,7 +94,13 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     const method = (dealerRow.external_feed_method ?? "GET").toUpperCase();
     const init: RequestInit = {
       method,
-      headers: { Accept: "application/json,text/csv" },
+      headers: {
+        // Use the same User-Agent as the test function — some API gateways
+        // reject requests without one (returning 405 or 403).
+        "User-Agent": "Chaos-Feed-Importer/1.0",
+        Accept: "application/json, text/csv, */*;q=0.5",
+      },
+      redirect: "follow",
     };
     if (method === "POST" && dealerRow.external_feed_body) {
       (init.headers as Record<string, string>)["Content-Type"] = "application/json";
