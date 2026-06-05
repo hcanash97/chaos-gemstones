@@ -24,7 +24,50 @@ function titleCase(value: string): string {
 }
 
 function filterValueVariants(value: string): string[] {
-  return uniqueValues([value, titleCase(value), value.toUpperCase(), value.toLowerCase()]);
+  const spaced = value.replace(/-/g, " ");
+  const dashed = value.replace(/\s+/g, "-");
+  return uniqueValues([
+    value,
+    spaced,
+    dashed,
+    titleCase(value),
+    titleCase(spaced),
+    value.toUpperCase(),
+    value.toLowerCase(),
+  ]);
+}
+
+function stoneTypeValuesForFilter(type: string): string[] {
+  const map: Record<string, string[]> = {
+    diamond: ["diamond", "Diamond", "DIAMOND"],
+    ruby: ["ruby", "Ruby", "RUBY"],
+    sapphire: ["sapphire", "Sapphire", "SAPPHIRE"],
+    emerald: ["emerald", "Emerald", "EMERALD"],
+  };
+  return uniqueValues([type, titleCase(type), type.toUpperCase(), ...(map[type] ?? [])]);
+}
+
+function originValuesForFilter(origin: "natural" | "lab-grown"): string[] {
+  if (origin === "lab-grown") {
+    return [
+      "lab-grown",
+      "Lab-grown",
+      "Lab-Grown",
+      "LAB-GROWN",
+      "lab grown",
+      "Lab Grown",
+      "LAB GROWN",
+      "lab",
+      "Lab",
+      "CVD",
+      "HPHT",
+    ];
+  }
+  return ["natural", "Natural", "NATURAL"];
+}
+
+function postgresInList(values: string[]): string {
+  return `(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",")})`;
 }
 
 function shapeValuesForFilter(shape: string): string[] {
@@ -58,7 +101,7 @@ function shapeValuesForFilter(shape: string): string[] {
     calf: ["Calf", "Calf Head"],
     "oval-portuguese": ["Oval Portuguese"],
   };
-  return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])]);
+  return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])].flatMap(filterValueVariants));
 }
 
 export const searchMarketplace = createServerFn({ method: "POST" })
@@ -89,16 +132,20 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       const others = f.types.filter((t) => t !== "diamond-natural" && t !== "diamond-lab");
       const expanded: string[] = [...others];
       if (wantsDiamondNat || wantsDiamondLab) expanded.push("diamond");
-      q = q.in("stone_type", expanded);
-      if (wantsDiamondNat && !wantsDiamondLab) q = q.neq("origin", "lab-grown");
-      if (wantsDiamondLab && !wantsDiamondNat) q = q.eq("origin", "lab-grown");
+      q = q.in("stone_type", uniqueValues(expanded.flatMap(stoneTypeValuesForFilter)));
+      if (wantsDiamondNat && !wantsDiamondLab) {
+        q = q.not("origin", "in", postgresInList(originValuesForFilter("lab-grown")));
+      }
+      if (wantsDiamondLab && !wantsDiamondNat) {
+        q = q.in("origin", originValuesForFilter("lab-grown"));
+      }
     }
 
     if (f.shapes && f.shapes.length) q = q.in("shape", uniqueValues(f.shapes.flatMap(shapeValuesForFilter)));
-    if (f.labs && f.labs.length) q = q.in("cert_lab", f.labs);
+    if (f.labs && f.labs.length) q = q.in("cert_lab", uniqueValues(f.labs.flatMap(filterValueVariants)));
     if (f.certNumber && f.certNumber.trim()) q = q.ilike("cert_number", `%${f.certNumber.trim()}%`);
     if (f.countries && f.countries.length) q = q.in("country_of_origin", f.countries);
-    if (f.origin && f.origin !== "all") q = q.eq("origin", f.origin);
+    if (f.origin && f.origin !== "all") q = q.in("origin", originValuesForFilter(f.origin));
     if (f.listingType && f.listingType !== "all") q = q.eq("listing_type", f.listingType);
     if (f.bulkPricingOnly) q = q.eq("bulk_pricing_available", true);
 

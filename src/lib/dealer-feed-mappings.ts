@@ -83,7 +83,7 @@ const KODLLIN: FeedPreset = {
     const stone: Record<string, unknown> = {};
 
     // Nancy Diamond / Kodllin only returns lab-grown diamonds.
-    stone.stone_type = "Diamond";
+    stone.stone_type = "diamond";
     // Kodllin feeds are quoted in USD.
     stone.price_currency = "USD";
 
@@ -163,8 +163,8 @@ const KODLLIN: FeedPreset = {
     if (ratio !== undefined) stone.lw_ratio = ratio;
 
     const growth = s(row.growthType).toUpperCase();
-    if (growth === "CVD" || growth === "HPHT") stone.origin = "Lab-grown";
-    else if ("growthType" in row) stone.origin = "Natural";
+    if (growth === "CVD" || growth === "HPHT") stone.origin = "lab-grown";
+    else if ("growthType" in row) stone.origin = "natural";
 
     const depth = n(row.depth);
     if (depth !== undefined) stone.depth_pct = depth;

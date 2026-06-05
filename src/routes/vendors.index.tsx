@@ -56,16 +56,21 @@ function Vendors() {
     staleTime: 60_000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("stones")
-        .select("dealer_id")
-        .eq("status", "available")
-        .eq("feed_inactive", false)
-        .limit(1000);
       const counts: Record<string, number> = {};
-      (data ?? []).forEach((s: any) => {
-        counts[s.dealer_id] = (counts[s.dealer_id] ?? 0) + 1;
-      });
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("stones")
+          .select("dealer_id")
+          .eq("status", "available")
+          .eq("feed_inactive", false)
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        (data ?? []).forEach((s: any) => {
+          counts[s.dealer_id] = (counts[s.dealer_id] ?? 0) + 1;
+        });
+        if (!data || data.length < pageSize) break;
+      }
       return counts;
     },
   });

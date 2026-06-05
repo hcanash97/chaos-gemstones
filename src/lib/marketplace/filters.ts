@@ -209,7 +209,21 @@ export const PRICE_BANDS: { label: string; min: number; max: number }[] = [
   { label: "$20,000+", min: 20000, max: PRICE_MAX },
 ];
 
-export const CERT_LABS = ["GIA", "IGI", "HRD", "AGS", "GCAL", "GRS", "AGL", "Gübelin", "SSEF", "Lotus"];
+export const CERT_LABS = [
+  "GIA",
+  "IGI",
+  "HRD",
+  "AGS",
+  "GCAL",
+  "EGL",
+  "GRS",
+  "AGL",
+  "Gübelin",
+  "SSEF",
+  "Lotus",
+  "GIT",
+  "GIA-coloured",
+];
 
 export const COUNTRIES = [
   "Myanmar", "Sri Lanka", "Colombia", "Zambia", "India", "Thailand", "Brazil",
@@ -363,7 +377,36 @@ function titleCase(value: string): string {
 }
 
 function filterValueVariants(value: string): string[] {
-  return uniqueValues([value, titleCase(value), value.toUpperCase(), value.toLowerCase()]);
+  const spaced = value.replace(/-/g, " ");
+  const dashed = value.replace(/\s+/g, "-");
+  return uniqueValues([
+    value,
+    spaced,
+    dashed,
+    titleCase(value),
+    titleCase(spaced),
+    value.toUpperCase(),
+    value.toLowerCase(),
+  ]);
+}
+
+function normaliseComparable(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+}
+
+function stoneTypeMatches(stored: unknown, selected: string): boolean {
+  return normaliseComparable(stored) === normaliseComparable(selected);
+}
+
+function originMatches(stored: unknown, selected: "natural" | "lab-grown"): boolean {
+  const value = normaliseComparable(stored);
+  if (selected === "lab-grown") {
+    return ["lab-grown", "lab", "cvd", "hpht"].includes(value);
+  }
+  return value === "natural";
 }
 
 function shapeValuesForFilter(shape: string): string[] {
@@ -397,7 +440,7 @@ function shapeValuesForFilter(shape: string): string[] {
     calf: ["Calf", "Calf Head"],
     "oval-portuguese": ["Oval Portuguese"],
   };
-  return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])]);
+  return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])].flatMap(filterValueVariants));
 }
 
 // Apply filter state to a raw stone row (client-side filtering).
@@ -407,23 +450,26 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
   if (f.dealerId !== "all") list = list.filter((s) => s.dealer_id === f.dealerId);
   if (f.types.length) {
     list = list.filter((s) => {
-      const t = s.stone_type;
-      if (f.types.includes("diamond-natural") && t === "diamond" && s.origin !== "lab-grown") return true;
-      if (f.types.includes("diamond-lab") && t === "diamond" && s.origin === "lab-grown") return true;
-      return f.types.includes(t);
+      const isDiamond = stoneTypeMatches(s.stone_type, "diamond");
+      if (f.types.includes("diamond-natural") && isDiamond && !originMatches(s.origin, "lab-grown")) return true;
+      if (f.types.includes("diamond-lab") && isDiamond && originMatches(s.origin, "lab-grown")) return true;
+      return f.types.some((type) => stoneTypeMatches(s.stone_type, type));
     });
   }
   if (f.shapes.length) {
-    const shapes = new Set(f.shapes.flatMap(shapeValuesForFilter));
-    list = list.filter((s) => s.shape && shapes.has(s.shape));
+    const shapes = new Set(f.shapes.flatMap(shapeValuesForFilter).map(normaliseComparable));
+    list = list.filter((s) => s.shape && shapes.has(normaliseComparable(s.shape)));
   }
-  if (f.labs.length) list = list.filter((s) => s.cert_lab && f.labs.includes(s.cert_lab));
+  if (f.labs.length) {
+    const labs = new Set(f.labs.flatMap(filterValueVariants).map(normaliseComparable));
+    list = list.filter((s) => s.cert_lab && labs.has(normaliseComparable(s.cert_lab)));
+  }
   if (f.certNumber.trim()) {
     const q = f.certNumber.trim().toLowerCase();
     list = list.filter((s) => s.cert_number?.toLowerCase().includes(q));
   }
   if (f.countries.length) list = list.filter((s) => s.country_of_origin && f.countries.includes(s.country_of_origin));
-  if (f.origin !== "all") list = list.filter((s) => s.origin === f.origin);
+  if (f.origin !== "all") list = list.filter((s) => originMatches(s.origin, f.origin));
   if (f.availability.length) list = list.filter((s) => f.availability.includes(s.status));
   if (f.listingType !== "all") list = list.filter((s) => (s.listing_type ?? "single") === f.listingType);
   if (f.bulkPricingOnly) list = list.filter((s) => s.bulk_pricing_available);
