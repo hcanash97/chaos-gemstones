@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
+import { getMarketplaceFilterDiagnostics, searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
 import { joinWaitlist } from "@/lib/waitlist.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
@@ -970,6 +970,7 @@ function Marketplace() {
             {!isLoading && total === 0 && (
               <EmptyMarketplace
                 hasFilters={filterCount > 0}
+                filters={debouncedF}
                 onClearFilters={() => dispatch({ type: "reset" })}
               />
             )}
@@ -1230,9 +1231,11 @@ function SaveSearchDialog({ filters, userId }: { filters: FilterState; userId: s
 
 function EmptyMarketplace({
   hasFilters,
+  filters,
   onClearFilters,
 }: {
   hasFilters: boolean;
+  filters: FilterState;
   onClearFilters: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -1240,14 +1243,69 @@ function EmptyMarketplace({
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const join = useServerFn(joinWaitlist);
+  const getDiagnostics = useServerFn(getMarketplaceFilterDiagnostics);
+  const [diagnostics, setDiagnostics] = useState<any>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+
+  async function loadDiagnostics() {
+    setDiagnosticsLoading(true);
+    setDiagnostics(null);
+    try {
+      const result = await getDiagnostics({ data: { filters } });
+      setDiagnostics(result);
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }
 
   if (hasFilters) {
     return (
-      <div className="rounded-md border border-dashed border-border py-20 text-center text-sm text-muted-foreground">
-        <p>No stones match your current filters.</p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={onClearFilters}>
-          Clear all filters
-        </Button>
+      <div className="rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground md:p-10">
+        <div className="text-center">
+          <p>No stones match your current filters.</p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={onClearFilters}>
+            Clear all filters
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-4"
+            onClick={loadDiagnostics}
+            disabled={diagnosticsLoading}
+          >
+            {diagnosticsLoading ? "Checking values..." : "Show filter diagnostics"}
+          </Button>
+        </div>
+        {diagnostics && (
+          <div className="mt-6 rounded-md border border-border bg-card text-left">
+            <div className="border-b border-border px-4 py-3">
+              <div className="text-sm font-medium text-foreground">Filter Diagnostics</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Sampled {diagnostics.sampleSize?.toLocaleString?.() ?? diagnostics.sampleSize ?? 0} available stones. These are the raw values Chaos currently sees.
+              </div>
+            </div>
+            {diagnostics.error ? (
+              <div className="p-4 text-xs text-destructive">{diagnostics.error}</div>
+            ) : (
+              <div className="grid gap-4 p-4 md:grid-cols-2">
+                {Object.entries(diagnostics.fields ?? {}).map(([field, values]) => (
+                  <div key={field}>
+                    <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      {field.replace(/_/g, " ")}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {((values as Array<{ value: string; count: number }>) ?? []).slice(0, 12).map((item) => (
+                        <span key={`${field}-${item.value}`} className="rounded border border-border bg-background px-2 py-1 text-[11px] text-foreground">
+                          {item.value} <span className="text-muted-foreground">({item.count})</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }

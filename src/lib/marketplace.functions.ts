@@ -12,6 +12,27 @@ export type SearchInput = {
   page: number;
 };
 
+export type FilterDiagnosticsInput = {
+  filters: Partial<FilterState>;
+};
+
+const DIAGNOSTIC_FIELDS = [
+  "stone_type",
+  "origin",
+  "shape",
+  "cert_lab",
+  "colour_grade",
+  "colour_hue",
+  "colour_saturation",
+  "cut_grade",
+  "polish",
+  "symmetry",
+  "fluorescence",
+  "treatment",
+] as const;
+
+type DiagnosticField = (typeof DIAGNOSTIC_FIELDS)[number];
+
 function uniqueValues(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.filter((v): v is string => !!v && v.trim().length > 0)));
 }
@@ -334,4 +355,57 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     });
 
     return { stones, total: count ?? 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: null };
+  });
+
+export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" })
+  .inputValidator((input: FilterDiagnosticsInput) => input)
+  .handler(async ({ data }) => {
+    const f = data.filters ?? {};
+    const { data: rows, error } = await supabaseAdmin
+      .from("stones")
+      .select(DIAGNOSTIC_FIELDS.join(", "))
+      .eq("is_test", false)
+      .eq("feed_inactive", false)
+      .eq("status", "available")
+      .order("created_at", { ascending: false })
+      .limit(2000);
+
+    if (error) return { error: error.message, sampleSize: 0, fields: {} };
+
+    const fields: Record<DiagnosticField, Array<{ value: string; count: number }>> = {} as Record<
+      DiagnosticField,
+      Array<{ value: string; count: number }>
+    >;
+
+    for (const field of DIAGNOSTIC_FIELDS) {
+      const counts = new Map<string, number>();
+      for (const row of rows ?? []) {
+        const value = String((row as Record<string, unknown>)[field] ?? "").trim();
+        if (!value) continue;
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+      fields[field] = Array.from(counts.entries())
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value))
+        .slice(0, 20);
+    }
+
+    return {
+      error: null,
+      sampleSize: rows?.length ?? 0,
+      activeFilters: {
+        types: f.types ?? [],
+        shapes: f.shapes ?? [],
+        labs: f.labs ?? [],
+        origin: f.origin ?? "all",
+        colourGrades: f.colourGrades ?? [],
+        fancyHues: f.fancyHues ?? [],
+        fancyIntensities: f.fancyIntensities ?? [],
+        cutGrades: f.cutGrades ?? [],
+        polish: f.polish ?? [],
+        symmetry: f.symmetry ?? [],
+        treatments: f.treatments ?? [],
+      },
+      fields,
+    };
   });
