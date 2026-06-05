@@ -190,10 +190,19 @@ function DealerApiPage() {
       {
         level: "info",
         field: "_start",
-        message: "Starting sync. Chaos will fetch the feed, clean rows, deduplicate sync keys, then upsert in batches of 200.",
+        message: `Saving the visible sync settings, then starting sync with ${method}. Chaos will clean rows, deduplicate sync keys, then upsert in batches of 200.`,
       },
     ]);
     try {
+      await saveSync({
+        data: {
+          external_feed_url: feedUrl.trim() || null,
+          auto_sync_enabled: autoSync,
+          external_feed_method: method,
+          external_feed_body: method === "POST" ? body.trim() || null : null,
+        },
+      });
+      setSyncProgress(30);
       const result = await triggerSync();
       setSyncProgress(100);
       setLastPreset(result.preset?.label ?? "Custom mapping");

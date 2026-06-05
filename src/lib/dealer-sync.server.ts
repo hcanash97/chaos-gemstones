@@ -196,7 +196,11 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       init.body = dealerRow.external_feed_body;
     }
     const res = await fetch(dealerRow.external_feed_url, init);
-    if (!res.ok) throw new Error(`Source returned HTTP ${res.status}`);
+    if (!res.ok) {
+      throw new Error(
+        `Source returned HTTP ${res.status} when Chaos tried ${method} ${dealerRow.external_feed_url}. HTTP 405 usually means the feed only accepts a different request method, for example POST instead of GET. Save the sync settings, then try again.`,
+      );
+    }
 
     const contentType = res.headers.get("content-type") ?? "";
     const rawText = await res.text();
