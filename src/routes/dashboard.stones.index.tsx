@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Eye, Share2, Copy, X } from "lucide-react";
+import { Eye, Share2, Trash2, CheckSquare, X, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 type Row = {
@@ -38,6 +38,8 @@ function StonesList() {
   const [loading, setLoading] = useState(true);
   const [slug, setSlug] = useState<string | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -74,6 +76,41 @@ function StonesList() {
     const { error } = await supabase.from("stones").delete().eq("id", id);
     if (error) { alert(error.message); return; }
     setRows((r) => r.filter((x) => x.id !== id));
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected(selected.size === rows.length ? new Set() : new Set(rows.map((r) => r.id)));
+  }
+
+  async function bulkDelete() {
+    if (!confirm(`Permanently delete ${selected.size} stone${selected.size === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    setBulkBusy(true);
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("stones").delete().in("id", ids);
+    if (error) { toast.error(error.message); setBulkBusy(false); return; }
+    setRows((r) => r.filter((x) => !selected.has(x.id)));
+    setSelected(new Set());
+    toast.success(`Deleted ${ids.length} stone${ids.length === 1 ? "" : "s"}`);
+    setBulkBusy(false);
+  }
+
+  async function bulkSetStatus(status: "available" | "reserved" | "sold") {
+    setBulkBusy(true);
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("stones").update({ status }).in("id", ids);
+    if (error) { toast.error(error.message); setBulkBusy(false); return; }
+    setRows((r) => r.map((x) => (selected.has(x.id) ? { ...x, status } : x)));
+    setSelected(new Set());
+    toast.success(`Marked ${ids.length} stone${ids.length === 1 ? "" : "s"} as ${status}`);
+    setBulkBusy(false);
   }
 
   async function updateStatus(id: string, status: "available" | "reserved" | "sold") {
@@ -148,11 +185,37 @@ function StonesList() {
         </Link>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="mt-6">
+        {/* Bulk action bar — slides in when rows are selected */}
+        {selected.size > 0 && (
+          <div className="mb-3 flex items-center gap-3 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 px-4 py-2.5">
+            <CheckSquare className="h-4 w-4 text-[var(--color-gold)]" />
+            <span className="text-sm font-medium">{selected.size} selected</span>
+            <div className="ml-auto flex items-center gap-2">
+              <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulkSetStatus("available")}>
+                Mark available
+              </Button>
+              <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulkSetStatus("reserved")}>
+                Mark reserved
+              </Button>
+              <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulkSetStatus("sold")}>
+                Mark sold
+              </Button>
+              <Button size="sm" variant="destructive" disabled={bulkBusy} onClick={bulkDelete}>
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                Delete {selected.size}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
         {loading ? (
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
+                <th className="px-3 py-3 w-8"></th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Shape</th>
                 <th className="px-4 py-3">Carat</th>
@@ -166,7 +229,7 @@ function StonesList() {
             <tbody>
               {Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-border last:border-0">
-                  {Array.from({ length: 8 }).map((__, j) => (
+                  {Array.from({ length: 9 }).map((__, j) => (
                     <td key={j} className="px-4 py-3"><Skeleton className="h-4 w-full max-w-[100px]" /></td>
                   ))}
                 </tr>
@@ -184,6 +247,16 @@ function StonesList() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
+                <th className="px-3 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={selected.size === rows.length && rows.length > 0}
+                    ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < rows.length; }}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 cursor-pointer rounded"
+                    title="Select all"
+                  />
+                </th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Shape</th>
                 <th className="px-4 py-3">Carat</th>
@@ -196,7 +269,18 @@ function StonesList() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                <tr
+                  key={r.id}
+                  className={`border-b border-border last:border-0 hover:bg-muted/20 ${selected.has(r.id) ? "bg-[var(--color-gold)]/5" : ""}`}
+                >
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleSelect(r.id)}
+                      className="h-4 w-4 cursor-pointer rounded"
+                    />
+                  </td>
                   <td className="px-4 py-3 font-medium capitalize">{r.stone_type}</td>
                   <td className="px-4 py-3 capitalize text-muted-foreground">{r.shape || "—"}</td>
                   <td className="px-4 py-3">{r.carat_weight ?? "—"}</td>
@@ -243,6 +327,7 @@ function StonesList() {
             </tbody>
           </table>
         )}
+        </div>
       </div>
     </div>
   );

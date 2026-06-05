@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,6 +50,29 @@ function parseCsvString(text: string): { headers: string[]; rows: ParsedRow[] } 
   return { headers: res.meta.fields ?? [], rows: (res.data as ParsedRow[]).filter(Boolean) };
 }
 
+// Gemological terms used to auto-detect which row is the header in Excel files.
+const GEO_TERMS = new Set([
+  "carat","weight","ct","carats","cts","shape","cut","clarity","colour","color","col",
+  "lab","igi","gia","grs","agl","hrd","cert","certificate","report","price","value",
+  "cost","usd","gbp","polish","pol","symmetry","sym","fluorescence","flo","fluor",
+  "measurements","meas","dimensions","stone","type","origin","table","depth","treatment",
+]);
+
+function detectExcelHeaderRow(rawRows: unknown[][]): { headerRow: number; headers: string[] } {
+  for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+    const row = rawRows[i] as unknown[];
+    const cells = row.filter((c) => c !== null && c !== undefined && String(c).trim() !== "");
+    const hits = cells.filter((c) => {
+      const s = String(c).toLowerCase().trim();
+      return GEO_TERMS.has(s) || [...GEO_TERMS].some((t) => s.includes(t));
+    });
+    if (hits.length >= 3 && cells.length >= 3) {
+      return { headerRow: i, headers: row.map((c) => String(c ?? "").trim()) };
+    }
+  }
+  return { headerRow: 0, headers: (rawRows[0] as unknown[] ?? []).map((c) => String(c ?? "").trim()) };
+}
+
 function ImportPage() {
   const { user, profile, loading } = useAuth();
   const fetchFeed = useServerFn(fetchExternalFeed);
@@ -60,6 +84,7 @@ function ImportPage() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [existingCerts, setExistingCerts] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [summary, setSummary] = useState<{ imported: number; skipped: number; errorBreakdown: Record<string, number> } | null>(null);
   const [feedUrl, setFeedUrl] = useState("");
   const [savedFeedUrl, setSavedFeedUrl] = useState<string | null>(null);
@@ -141,16 +166,56 @@ function ImportPage() {
     setStage("map");
   }
 
-  function onCsvFile(e: React.ChangeEvent<HTMLInputElement>) {
+  // Unified file handler — accepts .csv, .xlsx, .xls
+  async function onFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setOriginalSource("csv");
-    Papa.parse<ParsedRow>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => ingestParsed({ headers: res.meta.fields ?? [], rows: (res.data as ParsedRow[]).filter(Boolean) }),
-      error: (err) => toast.error(err.message),
-    });
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext === "xlsx" || ext === "xls") {
+      // Excel path — use SheetJS
+      try {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array", cellDates: true });
+        const sheetName = wb.SheetNames[0];
+        if (wb.SheetNames.length > 1) {
+          toast.info(`Found ${wb.SheetNames.length} sheets — using "${sheetName}". Rename another sheet to Sheet1 to use it instead.`);
+        }
+        const ws = wb.Sheets[sheetName];
+        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", blankrows: false }) as unknown[][];
+        if (rawRows.length < 2) { toast.error("Excel file appears empty"); return; }
+        const { headerRow, headers } = detectExcelHeaderRow(rawRows);
+        const dataRows = rawRows.slice(headerRow + 1);
+        const parsedRows: ParsedRow[] = dataRows
+          .filter((row) => (row as unknown[]).some((c) => c !== "" && c !== null))
+          .map((row) => {
+            const obj: ParsedRow = {};
+            headers.forEach((h, i) => {
+              if (h) {
+                const v = (row as unknown[])[i];
+                obj[h] = v === null || v === undefined ? "" : String(v);
+              }
+            });
+            return obj;
+          });
+        if (parsedRows.length === 0) { toast.error("No data rows found after the header row"); return; }
+        const validHeaders = headers.filter((h) => h.trim() !== "");
+        if (headerRow > 0) {
+          toast.success(`Auto-detected headers on row ${headerRow + 1} · ${parsedRows.length} stone rows ready to map`);
+        }
+        ingestParsed({ headers: validHeaders, rows: parsedRows });
+      } catch (err) {
+        toast.error(`Failed to read Excel file: ${(err as Error).message}`);
+      }
+    } else {
+      // CSV path — PapaParse
+      Papa.parse<ParsedRow>(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => ingestParsed({ headers: res.meta.fields ?? [], rows: (res.data as ParsedRow[]).filter(Boolean) }),
+        error: (err) => toast.error(err.message),
+      });
+    }
   }
 
   async function loadFeed(url: string) {
@@ -202,24 +267,27 @@ function ImportPage() {
     }));
     if (toImport.length === 0) { toast.error("Nothing to import"); return; }
     setImporting(true);
+    setImportProgress({ current: 0, total: toImport.length });
     const errorBreakdown: Record<string, number> = {};
     mappedPreview.filter((r) => r.errors.length > 0).forEach((r) => {
       r.errors.forEach((e) => { errorBreakdown[e.field] = (errorBreakdown[e.field] ?? 0) + 1; });
     });
-    // Insert in chunks of 100.
+    // Chunk size: 250 rows per batch — safe for Cloudflare Worker memory/CPU limits.
+    // Progress is updated after each chunk so the UI stays responsive.
+    const BATCH = 250;
     let imported = 0;
     const imageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
-    for (let i = 0; i < toImport.length; i += 100) {
-      const chunk = toImport.slice(i, i + 100);
+    for (let i = 0; i < toImport.length; i += BATCH) {
+      const chunk = toImport.slice(i, i + BATCH);
       const { data: inserted, error } = await supabase
         .from("stones")
         .insert(chunk.map((c) => c.stone) as any)
         .select("id");
       if (error) {
-        toast.error(error.message);
+        toast.error(`Import stopped at row ${i + 1}: ${error.message}`);
         break;
       }
-      // Match inserted stone IDs back to their image URLs.
+      // Match inserted IDs back to image URLs.
       if (inserted) {
         for (let j = 0; j < inserted.length; j++) {
           const imgUrl = chunk[j]?.virtual?.image_url;
@@ -235,8 +303,9 @@ function ImportPage() {
         }
       }
       imported += (inserted?.length ?? 0);
+      setImportProgress({ current: imported, total: toImport.length });
     }
-    // Batch-insert stone_images for any rows that had an image URL.
+    // Batch-insert stone_images for rows with image URLs.
     if (imageRows.length > 0) {
       const { error: imgErr } = await supabase.from("stone_images").insert(imageRows as any);
       if (imgErr) toast.error(`Stones imported but image links failed: ${imgErr.message}`);
@@ -290,10 +359,13 @@ function ImportPage() {
           </TabsList>
           <TabsContent value="csv" className="mt-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Input type="file" accept=".csv,text/csv" onChange={onCsvFile} className="max-w-sm" />
+              <Input type="file" accept=".csv,text/csv,.xlsx,.xls" onChange={onFileUpload} className="max-w-sm" />
               <Button variant="outline" onClick={downloadTemplate}>Download template CSV</Button>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">Template includes every supported field with one example row. Column headers don’t need to match exactly — you’ll map them in the next step.</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Accepts CSV <em>or</em> Excel (.xlsx / .xls). For dealer exports with summary rows at
+              the top, the header row is auto-detected. Column names don't need to match exactly — you'll map them in the next step.
+            </p>
           </TabsContent>
           <TabsContent value="feed" className="mt-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -358,14 +430,47 @@ function ImportPage() {
       )}
 
       {stage === "preview" && (
-        <PreviewTable
-          mappedPreview={mappedPreview}
-          validCount={validCount}
-          errorCount={errorCount}
-          importing={importing}
-          onBack={() => setStage("map")}
-          onImportValid={() => runImport(true)}
-        />
+        <>
+          {importing && importProgress.total > 0 && (
+            <div className="mt-6 rounded-md border border-border bg-card p-5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Importing…</span>
+                <span className="text-muted-foreground">
+                  {importProgress.current} / {importProgress.total} stones
+                </span>
+              </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-[var(--color-gold)] transition-all duration-300 ease-out"
+                  style={{ width: `${Math.round((importProgress.current / importProgress.total) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {Math.round((importProgress.current / importProgress.total) * 100)}% — importing in batches of 250 to stay within server limits
+              </p>
+            </div>
+          )}
+          {!importing && (
+            <PreviewTable
+              mappedPreview={mappedPreview}
+              validCount={validCount}
+              errorCount={errorCount}
+              importing={importing}
+              onBack={() => setStage("map")}
+              onImportValid={() => runImport(true)}
+            />
+          )}
+          {importing && importProgress.total === 0 && (
+            <PreviewTable
+              mappedPreview={mappedPreview}
+              validCount={validCount}
+              errorCount={errorCount}
+              importing={importing}
+              onBack={() => setStage("map")}
+              onImportValid={() => runImport(true)}
+            />
+          )}
+        </>
       )}
 
       {stage === "done" && summary && (
