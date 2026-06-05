@@ -432,7 +432,7 @@ function DealerApiPage() {
           </div>
           <div>
             <Label>Request method</Label>
-            <div className="mt-1 flex gap-2">
+            <div className="mt-1 flex flex-wrap gap-2">
               {(["GET", "POST"] as const).map((m) => (
                 <Button
                   key={m}
@@ -463,7 +463,7 @@ function DealerApiPage() {
             <Switch id="autoSync" checked={autoSync} onCheckedChange={setAutoSync} />
             <Label htmlFor="autoSync" className="text-sm">Auto-sync every 24 hours</Label>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={saveSettings}>Save settings</Button>
             <Button size="sm" variant="outline" onClick={testFeed} disabled={testing || !feedUrl.trim()}>
               {testing ? "Testing…" : "Test feed URL"}
@@ -477,7 +477,7 @@ function DealerApiPage() {
               <div>
                 <div className="text-sm font-medium">Imported feed inventory</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  Clears listings created by this feed so the next sync can rebuild from a clean slate.
+                  Clears all listings in your dealer inventory so the next sync can rebuild from a clean slate.
                 </div>
               </div>
               <AlertDialog>
@@ -491,7 +491,7 @@ function DealerApiPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Clear imported feed inventory?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This removes listings imported from this feed for your dealer account and clears the sync log. It will not delete other dealers' inventory.
+                      This removes all listings for your dealer account and clears the sync log. It will not delete other dealers' inventory.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -558,8 +558,8 @@ function DealerApiPage() {
 
       <section>
         <h2 className="font-serif text-xl">Recent sync log</h2>
-        <div className="mt-3 overflow-hidden rounded-md border border-border">
-          <table className="w-full text-sm">
+        <div className="mt-3 overflow-x-auto rounded-md border border-border">
+          <table className="min-w-[720px] w-full text-sm">
             <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-left">When</th>

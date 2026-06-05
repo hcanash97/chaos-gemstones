@@ -12,6 +12,55 @@ export type SearchInput = {
   page: number;
 };
 
+function uniqueValues(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter((v): v is string => !!v && v.trim().length > 0)));
+}
+
+function titleCase(value: string): string {
+  return value
+    .split(/[\s_-]+/)
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part))
+    .join(" ");
+}
+
+function filterValueVariants(value: string): string[] {
+  return uniqueValues([value, titleCase(value), value.toUpperCase(), value.toLowerCase()]);
+}
+
+function shapeValuesForFilter(shape: string): string[] {
+  const map: Record<string, string[]> = {
+    round: ["Round", "Round Brilliant", "Brilliant Round", "RD"],
+    oval: ["Oval", "Oval Brilliant", "Oval Portuguese"],
+    cushion: ["Cushion", "Cushion Brilliant", "Cushion Modified", "Cushion Modified Brilliant"],
+    princess: ["Princess", "Princess Cut"],
+    emerald: ["Emerald", "Emerald Cut"],
+    pear: ["Pear", "Pear Shape", "Pear Brilliant"],
+    radiant: ["Radiant", "Radiant Cut"],
+    asscher: ["Asscher", "Asscher Cut"],
+    marquise: ["Marquise", "Marquise Brilliant"],
+    heart: ["Heart", "Heart Shape"],
+    "rose-cut": ["Rose Cut", "Rosecut"],
+    "old-mine": ["Old Mine", "Old Mine Cut"],
+    "old-european": ["Old European", "Old European Cut"],
+    briolette: ["Briolette"],
+    cabochon: ["Cabochon", "Cab"],
+    trillion: ["Trillion", "Trilliant", "Triangular"],
+    hexagonal: ["Hexagonal", "Hexagon"],
+    portrait: ["Portrait", "Portrait Cut", "Slice"],
+    freeform: ["Freeform", "Free Form", "Fancy Shape"],
+    baguette: ["Baguette", "Tapered Baguette", "Straight Baguette"],
+    kite: ["Kite"],
+    shield: ["Shield"],
+    bullet: ["Bullet"],
+    lozenge: ["Lozenge"],
+    halfmoon: ["Half Moon", "Halfmoon"],
+    trapezoid: ["Trapezoid", "Trapeze"],
+    calf: ["Calf", "Calf Head"],
+    "oval-portuguese": ["Oval Portuguese"],
+  };
+  return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])]);
+}
+
 export const searchMarketplace = createServerFn({ method: "POST" })
   .inputValidator((input: SearchInput) => input)
   .handler(async ({ data }) => {
@@ -45,7 +94,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       if (wantsDiamondLab && !wantsDiamondNat) q = q.eq("origin", "lab-grown");
     }
 
-    if (f.shapes && f.shapes.length) q = q.in("shape", f.shapes);
+    if (f.shapes && f.shapes.length) q = q.in("shape", uniqueValues(f.shapes.flatMap(shapeValuesForFilter)));
     if (f.labs && f.labs.length) q = q.in("cert_lab", f.labs);
     if (f.certNumber && f.certNumber.trim()) q = q.ilike("cert_number", `%${f.certNumber.trim()}%`);
     if (f.countries && f.countries.length) q = q.in("country_of_origin", f.countries);
@@ -77,7 +126,9 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     }
 
     // Diamond-specific
-    if (f.colourGrades && f.colourGrades.length) q = q.in("colour_grade", f.colourGrades);
+    if (f.colourGrades && f.colourGrades.length) q = q.in("colour_grade", uniqueValues(f.colourGrades.flatMap(filterValueVariants)));
+    if (f.fancyHues && f.fancyHues.length) q = q.in("colour_hue", uniqueValues(f.fancyHues.flatMap(filterValueVariants)));
+    if (f.fancyIntensities && f.fancyIntensities.length) q = q.in("colour_saturation", uniqueValues(f.fancyIntensities.flatMap(filterValueVariants)));
     if (f.clarities && f.clarities.length) q = q.in("clarity_grade", f.clarities);
     if (f.cutGrades && f.cutGrades.length) q = q.in("cut_grade", f.cutGrades);
     if (f.polish && f.polish.length) q = q.in("polish", f.polish);
@@ -119,7 +170,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     if (f.hasCertScan) q = q.not("cert_url", "is", null);
 
     // Coloured
-    if (f.primaryColours && f.primaryColours.length) q = q.in("colour_hue", f.primaryColours);
+    if (f.primaryColours && f.primaryColours.length) q = q.in("colour_hue", uniqueValues(f.primaryColours.flatMap(filterValueVariants)));
     if (f.tones && f.tones.length) q = q.in("colour_tone", f.tones);
     if (f.saturations && f.saturations.length) q = q.in("colour_saturation", f.saturations);
     if (f.treatments && f.treatments.length) q = q.in("treatment", f.treatments);

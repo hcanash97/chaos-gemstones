@@ -132,14 +132,30 @@ export const clearDealerImportedInventory = createServerFn({ method: "POST" })
     const { userId } = context;
     await ensureApprovedDealer(supabaseAdmin, userId);
 
-    const importedFilter = "cert_number.like.stock:*,notes_for_buyers.ilike.*Stock ref:*";
-    const { count, error } = await supabaseAdmin
-      .from("stones")
-      .delete({ count: "exact" })
-      .eq("dealer_id", userId)
-      .or(importedFilter);
+    let deleted = 0;
+    const batchSize = 200;
 
-    if (error) throw new Error(error.message);
+    for (;;) {
+      const { data: rows, error: selectError } = await supabaseAdmin
+        .from("stones")
+        .select("id")
+        .eq("dealer_id", userId)
+        .limit(batchSize);
+
+      if (selectError) throw new Error(selectError.message);
+      const ids = (rows ?? []).map((row: any) => row.id).filter(Boolean);
+      if (!ids.length) break;
+
+      const { error: deleteError } = await supabaseAdmin
+        .from("stones")
+        .delete()
+        .eq("dealer_id", userId)
+        .in("id", ids);
+
+      if (deleteError) throw new Error(deleteError.message);
+      deleted += ids.length;
+      if (ids.length < batchSize) break;
+    }
 
     await supabaseAdmin
       .from("sync_logs")
@@ -152,5 +168,5 @@ export const clearDealerImportedInventory = createServerFn({ method: "POST" })
       .update({ last_synced_at: null } as never)
       .eq("id", userId);
 
-    return { ok: true, deleted: count ?? 0 };
+    return { ok: true, deleted };
   });

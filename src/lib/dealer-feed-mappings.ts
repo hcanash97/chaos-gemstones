@@ -130,9 +130,6 @@ const KODLLIN: FeedPreset = {
       ["culetSize", "culet_size"],
       ["culetCondition", "culet_condition"],
       ["blackInclusion", "black_inclusion"],
-      ["fancyColor", "colour_hue"],
-      ["fancyColorIntensity", "colour_saturation"],
-      ["fancyColorOvertone", "colour_tone"],
       ["country", "country_of_origin"],
     ];
     for (const [src, dst] of map) {
@@ -148,6 +145,13 @@ const KODLLIN: FeedPreset = {
       normaliseLab(row.grading_lab);
     if (lab) stone.cert_lab = lab;
     else if (s(stone.cert_number).toUpperCase().startsWith("LG")) stone.cert_lab = "IGI";
+
+    const fancyColor = s(row.fancyColor);
+    if (fancyColor) stone.colour_hue = titleCase(fancyColor);
+    const fancyIntensity = s(row.fancyColorIntensity);
+    if (fancyIntensity) stone.colour_saturation = titleCase(fancyIntensity);
+    const fancyOvertone = s(row.fancyColorOvertone);
+    if (fancyOvertone) stone.colour_tone = titleCase(fancyOvertone);
 
     const eye = s(row.eyeClean);
     if (eye) stone.eye_clean = eye.toUpperCase() === "EC" ? "Yes" : eye;

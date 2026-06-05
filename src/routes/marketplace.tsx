@@ -120,6 +120,7 @@ function Marketplace() {
   const [debouncedF, setDebouncedF] = useState<FilterState>(initialFromUrl);
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
+  const clearFilters = () => dispatch({ type: "reset" });
 
   // Debounce filter changes (300ms) so rapid interactions trigger a single query.
   useEffect(() => {
@@ -804,7 +805,12 @@ function Marketplace() {
                 : `Showing ${visible.length} of ${total.toLocaleString()} results${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {filterCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" size="sm" className="lg:hidden">
@@ -853,37 +859,48 @@ function Marketplace() {
 
         {filterCount > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Active:</span>
-            {f.search && <Chip label={`"${f.search}"`} onClear={() => set({ search: "" })} />}
-            {f.types.map((t) => (
-              <Chip key={t} label={STONE_TYPE_LABELS[t] ?? t} onClear={() => toggle("types", t)} />
-            ))}
-            {f.shapes.map((t) => (
-              <Chip key={t} label={SHAPE_LABELS[t] ?? t} onClear={() => toggle("shapes", t)} />
-            ))}
-            {f.countries.map((t) => (
-              <Chip key={t} label={t} onClear={() => toggle("countries", t)} />
-            ))}
-            {f.labs.map((t) => (
-              <Chip key={t} label={t} onClear={() => toggle("labs", t)} />
-            ))}
-            {f.colourGrades.map((t) => (
-              <Chip key={t} label={`Colour ${t}`} onClear={() => toggle("colourGrades", t)} />
-            ))}
-            {f.clarities.map((t) => (
-              <Chip key={t} label={t} onClear={() => toggle("clarities", t)} />
-            ))}
-            {f.primaryColours.map((t) => (
-              <Chip key={t} label={t} onClear={() => toggle("primaryColours", t)} />
-            ))}
-            {f.treatments.map((t) => (
-              <Chip key={t} label={t} onClear={() => toggle("treatments", t)} />
-            ))}
-            {f.origin !== "all" && <Chip label={f.origin} onClear={() => set({ origin: "all" })} />}
-            {f.premiumOriginsOnly && (
-              <Chip label="Premium origins" onClear={() => set({ premiumOriginsOnly: false })} />
-            )}
-            {f.matchingPairOnly && <Chip label="Matching pairs" onClear={() => set({ matchingPairOnly: false })} />}
+            <div className="mr-auto flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground">Active:</span>
+              {f.search && <Chip label={`"${f.search}"`} onClear={() => set({ search: "" })} />}
+              {f.types.map((t) => (
+                <Chip key={t} label={STONE_TYPE_LABELS[t] ?? t} onClear={() => toggle("types", t)} />
+              ))}
+              {f.shapes.map((t) => (
+                <Chip key={t} label={SHAPE_LABELS[t] ?? t} onClear={() => toggle("shapes", t)} />
+              ))}
+              {f.countries.map((t) => (
+                <Chip key={t} label={t} onClear={() => toggle("countries", t)} />
+              ))}
+              {f.labs.map((t) => (
+                <Chip key={t} label={t} onClear={() => toggle("labs", t)} />
+              ))}
+              {f.colourGrades.map((t) => (
+                <Chip key={t} label={`Colour ${t}`} onClear={() => toggle("colourGrades", t)} />
+              ))}
+              {f.fancyHues.map((t) => (
+                <Chip key={t} label={`Fancy ${t}`} onClear={() => toggle("fancyHues", t)} />
+              ))}
+              {f.fancyIntensities.map((t) => (
+                <Chip key={t} label={t} onClear={() => toggle("fancyIntensities", t)} />
+              ))}
+              {f.clarities.map((t) => (
+                <Chip key={t} label={t} onClear={() => toggle("clarities", t)} />
+              ))}
+              {f.primaryColours.map((t) => (
+                <Chip key={t} label={t} onClear={() => toggle("primaryColours", t)} />
+              ))}
+              {f.treatments.map((t) => (
+                <Chip key={t} label={t} onClear={() => toggle("treatments", t)} />
+              ))}
+              {f.origin !== "all" && <Chip label={f.origin} onClear={() => set({ origin: "all" })} />}
+              {f.premiumOriginsOnly && (
+                <Chip label="Premium origins" onClear={() => set({ premiumOriginsOnly: false })} />
+              )}
+              {f.matchingPairOnly && <Chip label="Matching pairs" onClear={() => set({ matchingPairOnly: false })} />}
+            </div>
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              Clear filters
+            </Button>
           </div>
         )}
 

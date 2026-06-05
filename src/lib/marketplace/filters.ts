@@ -172,7 +172,9 @@ export const STONE_TYPE_LABELS: Record<string, string> = {
 export const SHAPES = [
   "round", "oval", "cushion", "princess", "emerald", "pear", "radiant",
   "asscher", "marquise", "heart", "rose-cut", "old-mine", "old-european",
-  "briolette", "cabochon", "trillion", "hexagonal", "portrait", "freeform", "other",
+  "briolette", "cabochon", "trillion", "hexagonal", "portrait", "freeform",
+  "baguette", "kite", "shield", "bullet", "lozenge", "halfmoon", "trapezoid",
+  "calf", "oval-portuguese", "other",
 ];
 
 export const SHAPE_LABELS: Record<string, string> = {
@@ -182,6 +184,12 @@ export const SHAPE_LABELS: Record<string, string> = {
   "old-mine": "Old Mine Cut",
   "old-european": "Old European Cut",
   portrait: "Portrait / Slice",
+  baguette: "Baguette",
+  kite: "Kite",
+  halfmoon: "Half Moon",
+  trapezoid: "Trapezoid",
+  calf: "Calf Head",
+  "oval-portuguese": "Oval Portuguese",
 };
 
 export const CARAT_BANDS: { label: string; min: number; max: number }[] = [
@@ -343,6 +351,55 @@ export function activeFilterCount(f: FilterState): number {
   return n;
 }
 
+function uniqueValues(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter((v): v is string => !!v && v.trim().length > 0)));
+}
+
+function titleCase(value: string): string {
+  return value
+    .split(/[\s_-]+/)
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1).toLowerCase() : part))
+    .join(" ");
+}
+
+function filterValueVariants(value: string): string[] {
+  return uniqueValues([value, titleCase(value), value.toUpperCase(), value.toLowerCase()]);
+}
+
+function shapeValuesForFilter(shape: string): string[] {
+  const map: Record<string, string[]> = {
+    round: ["Round", "Round Brilliant", "Brilliant Round", "RD"],
+    oval: ["Oval", "Oval Brilliant", "Oval Portuguese"],
+    cushion: ["Cushion", "Cushion Brilliant", "Cushion Modified", "Cushion Modified Brilliant"],
+    princess: ["Princess", "Princess Cut"],
+    emerald: ["Emerald", "Emerald Cut"],
+    pear: ["Pear", "Pear Shape", "Pear Brilliant"],
+    radiant: ["Radiant", "Radiant Cut"],
+    asscher: ["Asscher", "Asscher Cut"],
+    marquise: ["Marquise", "Marquise Brilliant"],
+    heart: ["Heart", "Heart Shape"],
+    "rose-cut": ["Rose Cut", "Rosecut"],
+    "old-mine": ["Old Mine", "Old Mine Cut"],
+    "old-european": ["Old European", "Old European Cut"],
+    briolette: ["Briolette"],
+    cabochon: ["Cabochon", "Cab"],
+    trillion: ["Trillion", "Trilliant", "Triangular"],
+    hexagonal: ["Hexagonal", "Hexagon"],
+    portrait: ["Portrait", "Portrait Cut", "Slice"],
+    freeform: ["Freeform", "Free Form", "Fancy Shape"],
+    baguette: ["Baguette", "Tapered Baguette", "Straight Baguette"],
+    kite: ["Kite"],
+    shield: ["Shield"],
+    bullet: ["Bullet"],
+    lozenge: ["Lozenge"],
+    halfmoon: ["Half Moon", "Halfmoon"],
+    trapezoid: ["Trapezoid", "Trapeze"],
+    calf: ["Calf", "Calf Head"],
+    "oval-portuguese": ["Oval Portuguese"],
+  };
+  return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])]);
+}
+
 // Apply filter state to a raw stone row (client-side filtering).
 export function applyFilters(stones: any[], f: FilterState): any[] {
   let list = stones;
@@ -356,7 +413,10 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
       return f.types.includes(t);
     });
   }
-  if (f.shapes.length) list = list.filter((s) => s.shape && f.shapes.includes(s.shape));
+  if (f.shapes.length) {
+    const shapes = new Set(f.shapes.flatMap(shapeValuesForFilter));
+    list = list.filter((s) => s.shape && shapes.has(s.shape));
+  }
   if (f.labs.length) list = list.filter((s) => s.cert_lab && f.labs.includes(s.cert_lab));
   if (f.certNumber.trim()) {
     const q = f.certNumber.trim().toLowerCase();
@@ -397,7 +457,18 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
   }
 
   // Diamond-only
-  if (f.colourGrades.length) list = list.filter((s) => s.colour_grade && f.colourGrades.includes(s.colour_grade));
+  if (f.colourGrades.length) {
+    const values = new Set(f.colourGrades.flatMap(filterValueVariants));
+    list = list.filter((s) => s.colour_grade && values.has(s.colour_grade));
+  }
+  if (f.fancyHues.length) {
+    const values = new Set(f.fancyHues.flatMap(filterValueVariants));
+    list = list.filter((s) => s.colour_hue && values.has(s.colour_hue));
+  }
+  if (f.fancyIntensities.length) {
+    const values = new Set(f.fancyIntensities.flatMap(filterValueVariants));
+    list = list.filter((s) => s.colour_saturation && values.has(s.colour_saturation));
+  }
   if (f.clarities.length) list = list.filter((s) => s.clarity_grade && f.clarities.includes(s.clarity_grade));
   if (f.cutGrades.length) list = list.filter((s) => s.cut_grade && f.cutGrades.includes(s.cut_grade));
   if (f.polish.length) list = list.filter((s) => s.polish && f.polish.includes(s.polish));
@@ -433,7 +504,10 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
   if (f.provenance.length) list = list.filter((s) => s.provenance_report && f.provenance.includes(s.provenance_report));
 
   // Coloured
-  if (f.primaryColours.length) list = list.filter((s) => s.colour_hue && f.primaryColours.includes(s.colour_hue));
+  if (f.primaryColours.length) {
+    const values = new Set(f.primaryColours.flatMap(filterValueVariants));
+    list = list.filter((s) => s.colour_hue && values.has(s.colour_hue));
+  }
   if (f.tones.length) list = list.filter((s) => s.colour_tone && f.tones.includes(s.colour_tone));
   if (f.saturations.length) list = list.filter((s) => s.colour_saturation && f.saturations.includes(s.colour_saturation));
   if (f.treatments.length) list = list.filter((s) => s.treatment && f.treatments.includes(s.treatment));
