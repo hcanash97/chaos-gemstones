@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
-import { Copy, Eye, EyeOff, RefreshCw, BookOpen } from "lucide-react";
+import { Copy, Eye, EyeOff, RefreshCw, BookOpen, Terminal } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { isDealer as checkD } from "@/lib/auth.utils";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -21,6 +22,86 @@ import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
 import { detectPreset } from "@/lib/dealer-feed-mappings";
 
 export const Route = createFileRoute("/dashboard/dealer/api")({ component: DealerApiPage });
+
+type SyncDiagnostic = {
+  level?: "info" | "success" | "warning" | "error";
+  row?: number | null;
+  batch?: number | null;
+  stockNo?: string | null;
+  certNumber?: string | null;
+  field?: string;
+  message?: string;
+  rawValue?: string | null;
+  pgCode?: string | null;
+  details?: string | null;
+  hint?: string | null;
+};
+
+function diagnosticPrefix(log: SyncDiagnostic) {
+  if (log.level === "error") return "❌";
+  if (log.level === "warning") return "⚠";
+  if (log.level === "success") return "✓";
+  return "ℹ";
+}
+
+function diagnosticText(log: SyncDiagnostic) {
+  const context = [
+    log.batch ? `Batch ${log.batch}` : null,
+    log.row ? `Row ${log.row}` : null,
+    log.stockNo ? `StockNo: ${log.stockNo}` : null,
+    log.certNumber ? `Key: ${log.certNumber}` : null,
+    log.field && !log.field.startsWith("_") ? `Field: ${log.field}` : null,
+  ].filter(Boolean);
+  const suffix = [log.pgCode ? `Postgres ${log.pgCode}` : null, log.details, log.hint].filter(Boolean).join(" | ");
+  return `${diagnosticPrefix(log)} ${context.length ? `${context.join(" · ")} — ` : ""}${log.message ?? "Unknown sync event"}${suffix ? ` (${suffix})` : ""}`;
+}
+
+function errorDiagnosticCount(logs: SyncDiagnostic[]) {
+  return logs.filter((log) => log.level === "error" || !log.level).length;
+}
+
+function ErrorDiagnosticsLog({
+  logs,
+  syncing,
+}: {
+  logs: SyncDiagnostic[];
+  syncing: boolean;
+}) {
+  const hasLogs = logs.length > 0;
+  return (
+    <details open={syncing || hasLogs} className="rounded-md border border-border bg-background">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm">
+        <span className="inline-flex items-center gap-2 font-medium">
+          <Terminal className="h-4 w-4" />
+          Error Diagnostics Log
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {syncing ? "sync running" : hasLogs ? `${logs.length} event${logs.length === 1 ? "" : "s"}` : "no events yet"}
+        </span>
+      </summary>
+      <div className="max-h-72 overflow-auto border-t border-border bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-100">
+        {syncing && <div className="text-zinc-300">ℹ Sync request sent. Waiting for the server to finish chunked upserts...</div>}
+        {!syncing && !hasLogs && <div className="text-zinc-400">Run a sync to see batch-by-batch diagnostics here.</div>}
+        {logs.map((log, idx) => (
+          <div
+            key={`${log.batch ?? "x"}-${log.row ?? "x"}-${idx}`}
+            className={
+              log.level === "error"
+                ? "text-red-300"
+                : log.level === "warning"
+                  ? "text-amber-200"
+                  : log.level === "success"
+                    ? "text-emerald-300"
+                    : "text-zinc-300"
+            }
+          >
+            {diagnosticText(log)}
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
 
 function DealerApiPage() {
   const { user, profile } = useAuth();
@@ -39,6 +120,8 @@ function DealerApiPage() {
   const [method, setMethod] = useState<"GET" | "POST">("GET");
   const [body, setBody] = useState("");
   const [lastPreset, setLastPreset] = useState<string | null>(null);
+  const [syncDiagnostics, setSyncDiagnostics] = useState<SyncDiagnostic[]>([]);
+  const [syncProgress, setSyncProgress] = useState(0);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<
     | { ok: true; rowCount: number; preset: string; sample: string }
@@ -102,10 +185,25 @@ function DealerApiPage() {
 
   async function sync() {
     setSyncing(true);
+    setSyncProgress(15);
+    setSyncDiagnostics([
+      {
+        level: "info",
+        field: "_start",
+        message: "Starting sync. Chaos will fetch the feed, clean rows, deduplicate sync keys, then upsert in batches of 200.",
+      },
+    ]);
     try {
       const result = await triggerSync();
+      setSyncProgress(100);
       setLastPreset(result.preset?.label ?? "Custom mapping");
       const errCount = Array.isArray(result.errors) ? result.errors.length : 0;
+      const diagnostics = Array.isArray((result as any).diagnostics)
+        ? (result as any).diagnostics
+        : Array.isArray(result.errors)
+          ? result.errors
+          : [];
+      setSyncDiagnostics(diagnostics);
       if (errCount > 0) {
         toast.warning(
           `Sync completed with issues: ${result.created} added, ${result.updated} updated, ${errCount} error${errCount === 1 ? "" : "s"}`,
@@ -116,6 +214,15 @@ function DealerApiPage() {
       refetch();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
+      setSyncProgress(100);
+      setSyncDiagnostics((prev) => [
+        ...prev,
+        {
+          level: "error",
+          field: "_sync",
+          message: msg,
+        },
+      ]);
       toast.error(`Sync failed: ${msg}`);
       console.error("Sync error:", e);
     } finally {
@@ -173,6 +280,7 @@ function DealerApiPage() {
 
   const lastLog: any = (status?.syncLogs ?? [])[0] ?? null;
   const lastLogErrors: any[] = Array.isArray(lastLog?.errors) ? lastLog.errors : [];
+  const lastLogErrorCount = errorDiagnosticCount(lastLogErrors);
 
   return (
     <div className="space-y-8">
@@ -303,6 +411,12 @@ function DealerApiPage() {
               {syncing ? "Syncing…" : "Sync now"}
             </Button>
           </div>
+          {(syncing || syncDiagnostics.length > 0) && (
+            <div className="space-y-2">
+              <Progress value={syncing ? Math.max(syncProgress, 35) : syncProgress} />
+              <ErrorDiagnosticsLog logs={syncDiagnostics} syncing={syncing} />
+            </div>
+          )}
           {testResult && testResult.ok && (
             <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs space-y-1">
               <div>✓ Feed reachable — <strong>{testResult.rowCount}</strong> row{testResult.rowCount === 1 ? "" : "s"} found.</div>
@@ -331,12 +445,17 @@ function DealerApiPage() {
               </div>
               <div>
                 Result: {lastLog.stones_added} added · {lastLog.stones_updated} updated ·{" "}
-                {lastLog.stones_marked_inactive} marked inactive · {lastLogErrors.length} error
-                {lastLogErrors.length === 1 ? "" : "s"}
+                {lastLog.stones_marked_inactive} marked inactive · {lastLogErrorCount} error
+                {lastLogErrorCount === 1 ? "" : "s"}
               </div>
               {lastLog.status === "failed" && lastLogErrors[0]?.message && (
                 <div className="mt-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-destructive">
                   {lastLogErrors[0].message}
+                </div>
+              )}
+              {lastLogErrors.length > 0 && (
+                <div className="pt-2">
+                  <ErrorDiagnosticsLog logs={lastLogErrors} syncing={false} />
                 </div>
               )}
             </div>
@@ -366,7 +485,7 @@ function DealerApiPage() {
                   <td className="px-3 py-2 text-right">{log.stones_added}</td>
                   <td className="px-3 py-2 text-right">{log.stones_updated}</td>
                   <td className="px-3 py-2 text-right">{log.stones_marked_inactive}</td>
-                  <td className="px-3 py-2 text-right">{Array.isArray(log.errors) ? log.errors.length : 0}</td>
+                  <td className="px-3 py-2 text-right">{Array.isArray(log.errors) ? errorDiagnosticCount(log.errors) : 0}</td>
                 </tr>
               ))}
               {!status?.syncLogs?.length && (

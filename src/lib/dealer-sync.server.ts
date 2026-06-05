@@ -8,6 +8,34 @@ import { validateStonePayload } from "@/lib/dealer-api-validate";
 import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
 import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
 
+const SYNC_BATCH_SIZE = 200;
+const MAX_STORED_DIAGNOSTICS = 250;
+
+type SyncDiagnosticLevel = "info" | "success" | "warning" | "error";
+
+export type SyncDiagnostic = {
+  level: SyncDiagnosticLevel;
+  row: number | null;
+  batch: number | null;
+  stockNo: string | null;
+  certNumber: string | null;
+  field: string;
+  message: string;
+  rawValue?: string | null;
+  pgCode?: string | null;
+  details?: string | null;
+  hint?: string | null;
+};
+
+type SyncCandidate = {
+  sourceIndex: number;
+  stockNo: string | null;
+  certNumber: string;
+  data: Record<string, unknown>;
+  image_url?: string;
+  existedBefore: boolean;
+};
+
 function assertSafeFeedUrl(urlStr: string): void {
   const target = new URL(urlStr);
   if (target.protocol !== "https:" && target.protocol !== "http:") {
@@ -64,6 +92,67 @@ function splitCsvLine(line: string): string[] {
   }
   out.push(cur);
   return out;
+}
+
+function cleanString(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  const cleaned = String(value).trim();
+  return cleaned ? cleaned : null;
+}
+
+function stockRef(raw: Record<string, unknown>): string | null {
+  return (
+    cleanString(raw.stockNo) ??
+    cleanString(raw.stock_no) ??
+    cleanString(raw.stockNumber) ??
+    cleanString(raw.sku) ??
+    cleanString(raw.ref) ??
+    cleanString(raw.id)
+  );
+}
+
+function diagnostic(
+  level: SyncDiagnosticLevel,
+  message: string,
+  opts: Partial<SyncDiagnostic> = {},
+): SyncDiagnostic {
+  return {
+    level,
+    row: opts.row ?? null,
+    batch: opts.batch ?? null,
+    stockNo: opts.stockNo ?? null,
+    certNumber: opts.certNumber ?? null,
+    field: opts.field ?? "_sync",
+    message,
+    rawValue: opts.rawValue,
+    pgCode: opts.pgCode,
+    details: opts.details,
+    hint: opts.hint,
+  };
+}
+
+function postgresDiagnostic(
+  message: string,
+  error: unknown,
+  opts: Partial<SyncDiagnostic> = {},
+): SyncDiagnostic {
+  const err = error as { message?: string; code?: string; details?: string; hint?: string };
+  return diagnostic("error", `${message}: ${err?.message ?? "Unknown database error"}`, {
+    ...opts,
+    pgCode: err?.code ?? null,
+    details: err?.details ?? null,
+    hint: err?.hint ?? null,
+  });
+}
+
+function publicErrorText(d: SyncDiagnostic): string {
+  const parts = [
+    d.batch ? `Batch ${d.batch}` : null,
+    d.row ? `Row ${d.row}` : null,
+    d.stockNo ? `StockNo: ${d.stockNo}` : null,
+    d.certNumber ? `Key: ${d.certNumber}` : null,
+  ].filter(Boolean);
+  return `${parts.length ? `${parts.join(" / ")} - ` : ""}${d.message}`;
 }
 
 export async function runDealerSyncForUser(dealerId: string, source: "manual" | "admin" | "cron" = "manual") {
@@ -174,6 +263,8 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     const preset = detectPreset(rows);
 
+    const diagnostics: SyncDiagnostic[] = [];
+
     // Fetch all existing stones for this dealer so we can diff create vs update.
     const { data: existing } = await supabaseAdmin
       .from("stones")
@@ -191,88 +282,188 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       "measurements_height", "lw_ratio",
     ]);
 
-    const errors: Array<{ row: number; field: string; message: string }> = [];
-    const toCreate: Array<{ data: Record<string, unknown>; image_url?: string }> = [];
-    const toUpdate: Array<{ id: string; data: Record<string, unknown>; image_url?: string }> = [];
+    const errors: SyncDiagnostic[] = [];
+    const candidatesByCert = new Map<string, SyncCandidate>();
     const seenCerts = new Set<string>();
     let cityFromFeed: string | undefined;
 
     rows.forEach((raw, idx) => {
-      const mapped = mapRow(raw as Record<string, unknown>, preset);
+      const sourceRow = raw as Record<string, unknown>;
+      const rowNumber = idx + 1;
+      const stockNo = stockRef(sourceRow);
+      const mapped = mapRow(sourceRow, preset);
       if (!cityFromFeed && mapped.city) cityFromFeed = mapped.city;
       const rawPayload = mapped.stone;
       const payload: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(rawPayload)) {
         const fieldDef = FIELD_MAP[k];
         let coerced = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
-        // Many JSON feeds send numeric values as strings (e.g. "61.00"). Coerce them.
         if (NUMERIC_FIELDS.has(k) && coerced !== null && coerced !== undefined && coerced !== "") {
-          const n = parseFloat(String(coerced));
-          coerced = isNaN(n) ? null : n;
+          const numericText = String(coerced).replace(/,/g, "").trim();
+          const n = parseFloat(numericText);
+          if (!Number.isFinite(n)) {
+            errors.push(diagnostic("error", `Invalid numeric value "${String(coerced)}" for ${k}. This row was skipped before reaching the database.`, {
+              row: rowNumber,
+              stockNo,
+              field: k,
+              rawValue: String(coerced),
+            }));
+            return;
+          }
+          coerced = n;
         }
         payload[k] = coerced;
       }
 
-      // If cert_number is missing, try the stockNo from the raw row as a fallback
-      // identifier. This prevents rows without certs from endlessly duplicating.
-      if (!payload.cert_number && (raw as any).stockNo) {
-        payload.cert_number = String((raw as any).stockNo).trim();
+      const originalCert = cleanString(payload.cert_number);
+      if (!originalCert) {
+        const fallback = stockNo ? `stock:${stockNo}` : `feed-row:${rowNumber}`;
+        payload.cert_number = fallback;
+        diagnostics.push(diagnostic("warning", `Missing report/cert number. Using "${fallback}" as the sync key so the row can still be safely upserted.`, {
+          row: rowNumber,
+          stockNo,
+          certNumber: fallback,
+          field: "cert_number",
+        }));
+      } else {
+        payload.cert_number = originalCert;
       }
 
-      const cert = payload.cert_number ? String(payload.cert_number).trim() : "";
+      const cert = String(payload.cert_number).trim();
       if (cert) seenCerts.add(cert);
 
       const existingId = cert ? certToId.get(cert) : undefined;
       const mode = existingId ? "update" : "create";
       const result = validateStonePayload(payload, mode);
       if (!result.ok) {
-        result.errors.forEach((e) => errors.push({ row: idx, field: e.field, message: e.message }));
+        result.errors.forEach((e) => errors.push(diagnostic("error", e.message, {
+          row: rowNumber,
+          stockNo,
+          certNumber: cert,
+          field: e.field,
+        })));
         return;
       }
-      if (existingId) toUpdate.push({ id: existingId, data: result.data, image_url: mapped.image_url });
-      else toCreate.push({ data: { ...result.data, dealer_id: dealerId }, image_url: mapped.image_url });
+
+      const previous = candidatesByCert.get(cert);
+      if (previous) {
+        diagnostics.push(diagnostic("warning", `Duplicate sync key also appeared at row ${previous.sourceIndex + 1}. Using the later row and skipping the earlier duplicate to avoid an ON CONFLICT failure.`, {
+          row: rowNumber,
+          stockNo,
+          certNumber: cert,
+          field: "cert_number",
+        }));
+      }
+
+      candidatesByCert.set(cert, {
+        sourceIndex: idx,
+        stockNo,
+        certNumber: cert,
+        data: {
+          ...result.data,
+          dealer_id: dealerId,
+          cert_number: cert,
+          feed_inactive: false,
+        },
+        image_url: mapped.image_url,
+        existedBefore: !!existingId,
+      });
     });
 
-    // Chunk size: 250 rows — safely within Cloudflare Worker memory limits.
-    const CHUNK = 250;
+    const candidates = Array.from(candidatesByCert.values());
     let created = 0;
     let updated = 0;
     const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
 
-    // Chunked inserts
-    for (let i = 0; i < toCreate.length; i += CHUNK) {
-      const chunk = toCreate.slice(i, i + CHUNK);
+    diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Running database upserts in batches of ${SYNC_BATCH_SIZE}.`, {
+      field: "_prepare",
+    }));
+
+    for (let i = 0; i < candidates.length; i += SYNC_BATCH_SIZE) {
+      const chunk = candidates.slice(i, i + SYNC_BATCH_SIZE);
+      const batchNumber = Math.floor(i / SYNC_BATCH_SIZE) + 1;
+      const batchStartRow = chunk[0]?.sourceIndex + 1;
+      const batchEndRow = chunk[chunk.length - 1]?.sourceIndex + 1;
+
       const { data, error } = await supabaseAdmin
         .from("stones")
-        .insert(chunk.map((c) => c.data) as never)
-        .select("id");
-      if (error) throw new Error(`Insert failed at row ${i}: ${error.message}`);
-      created += data?.length ?? 0;
-      (data ?? []).forEach((row: any, j: number) => {
-        const img = chunk[j]?.image_url;
-        if (img) createdImageRows.push({ stone_id: row.id, storage_url: img, external_image_url: img, is_primary: true, sort_order: 0 });
-      });
+        .upsert(chunk.map((c) => c.data) as never, { onConflict: "dealer_id,cert_number" })
+        .select("id, cert_number");
+
+      if (error) {
+        errors.push(postgresDiagnostic(`Batch ${batchNumber} failed while upserting feed rows ${batchStartRow}-${batchEndRow}. Retrying this batch row-by-row to find the exact failing stone`, error, {
+          batch: batchNumber,
+          field: "_upsert",
+        }));
+
+        for (const candidate of chunk) {
+          const { data: singleData, error: singleError } = await supabaseAdmin
+            .from("stones")
+            .upsert(candidate.data as never, { onConflict: "dealer_id,cert_number" })
+            .select("id, cert_number")
+            .single();
+
+          if (singleError) {
+            errors.push(postgresDiagnostic("Row failed during isolated retry", singleError, {
+              row: candidate.sourceIndex + 1,
+              batch: batchNumber,
+              stockNo: candidate.stockNo,
+              certNumber: candidate.certNumber,
+              field: "_upsert",
+            }));
+            continue;
+          }
+
+          if (candidate.existedBefore) updated += 1;
+          else created += 1;
+
+          if (!candidate.existedBefore && candidate.image_url && singleData?.id) {
+            createdImageRows.push({
+              stone_id: singleData.id,
+              storage_url: candidate.image_url,
+              external_image_url: candidate.image_url,
+              is_primary: true,
+              sort_order: 0,
+            });
+          }
+        }
+      } else {
+        for (const candidate of chunk) {
+          if (candidate.existedBefore) updated += 1;
+          else created += 1;
+        }
+
+        const idByCert = new Map<string, string>();
+        for (const row of data ?? []) {
+          if ((row as any).cert_number && (row as any).id) idByCert.set((row as any).cert_number, (row as any).id);
+        }
+        for (const candidate of chunk) {
+          const id = idByCert.get(candidate.certNumber);
+          if (!candidate.existedBefore && candidate.image_url && id) {
+            createdImageRows.push({
+              stone_id: id,
+              storage_url: candidate.image_url,
+              external_image_url: candidate.image_url,
+              is_primary: true,
+              sort_order: 0,
+            });
+          }
+        }
+
+        diagnostics.push(diagnostic("success", `Batch ${batchNumber} upserted ${chunk.length} rows successfully.`, {
+          batch: batchNumber,
+          field: "_upsert",
+        }));
+      }
     }
 
     if (createdImageRows.length) {
-      await supabaseAdmin.from("stone_images").insert(createdImageRows as never);
-    }
-
-    // Chunked updates — batch concurrently within each chunk instead of one-at-a-time.
-    for (let i = 0; i < toUpdate.length; i += CHUNK) {
-      const chunk = toUpdate.slice(i, i + CHUNK);
-      const results = await Promise.allSettled(
-        chunk.map((u) =>
-          supabaseAdmin.from("stones").update(u.data as never).eq("id", u.id).eq("dealer_id", dealerId)
-        )
-      );
-      results.forEach((r, j) => {
-        if (r.status === "fulfilled" && (r.value as any).error) {
-          errors.push({ row: i + j, field: "_update", message: (r.value as any).error.message });
-        } else if (r.status === "fulfilled") {
-          updated += 1;
-        }
-      });
+      const { error } = await supabaseAdmin.from("stone_images").insert(createdImageRows as never);
+      if (error) {
+        errors.push(postgresDiagnostic("Stone image insert failed after stone upsert. Stones were still synced, but some external images may not appear", error, {
+          field: "_images",
+        }));
+      }
     }
 
     let markedInactive = 0;
@@ -280,17 +471,24 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       const inactiveIds = (existing ?? []).filter((s) => s.cert_number && !seenCerts.has(s.cert_number)).map((s) => s.id);
       if (inactiveIds.length) {
         const { error } = await supabaseAdmin.from("stones").update({ feed_inactive: true }).in("id", inactiveIds).eq("dealer_id", dealerId);
-        if (!error) markedInactive = inactiveIds.length;
+        if (error) {
+          errors.push(postgresDiagnostic("Could not mark missing feed rows inactive", error, {
+            field: "_inactive",
+          }));
+        } else {
+          markedInactive = inactiveIds.length;
+        }
       }
     }
 
+    const allDiagnostics = [...diagnostics, ...errors];
     await supabaseAdmin.from("sync_logs").update({
       status: errors.length ? "partial" : "success",
       finished_at: new Date().toISOString(),
       stones_added: created,
       stones_updated: updated,
       stones_marked_inactive: markedInactive,
-      errors: errors.slice(0, 50),
+      errors: allDiagnostics.slice(0, MAX_STORED_DIAGNOSTICS),
     }).eq("id", logId);
 
     await supabaseAdmin.from("dealer_profiles").update({ last_synced_at: new Date().toISOString() }).eq("id", dealerId);
@@ -305,15 +503,17 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       updated,
       markedInactive,
       errors,
+      diagnostics: allDiagnostics,
       preset: preset ? { id: preset.id, label: preset.label } : null,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    const failure = diagnostic("error", message, { field: "_fetch" });
     await supabaseAdmin.from("sync_logs").update({
       status: "failed",
       finished_at: new Date().toISOString(),
-      errors: [{ row: -1, field: "_fetch", message }],
+      errors: [failure],
     }).eq("id", logId);
-    throw new Error(message);
+    throw new Error(publicErrorText(failure));
   }
 }
