@@ -201,6 +201,36 @@ function publicErrorText(d: SyncDiagnostic): string {
   return `${parts.length ? `${parts.join(" / ")} - ` : ""}${d.message}`;
 }
 
+function boolDefault(value: unknown, fallback = false): boolean {
+  if (value === true || value === false) return value;
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["1", "true", "yes", "y"].includes(String(value).trim().toLowerCase());
+}
+
+function numberDefault(value: unknown, fallback: number): number {
+  if (value === undefined || value === null || value === "") return fallback;
+  const n = Number(String(value).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function withStoneDefaults(data: Record<string, unknown>): Record<string, unknown> {
+  const videoUrl = cleanString(data.video_url);
+  return {
+    ...data,
+    available_qty: numberDefault(data.available_qty, 1),
+    minimum_order_qty: numberDefault(data.minimum_order_qty, 1),
+    featured: boolDefault(data.featured),
+    feed_inactive: boolDefault(data.feed_inactive),
+    matching_pair: boolDefault(data.matching_pair),
+    has_video: boolDefault(data.has_video, !!videoUrl),
+    has_360: boolDefault(data.has_360),
+    bulk_pricing_available: boolDefault(data.bulk_pricing_available),
+    is_test: boolDefault(data.is_test),
+    listing_type: cleanString(data.listing_type) ?? "single",
+    price_currency: cleanString(data.price_currency) ?? "USD",
+  };
+}
+
 export async function runDealerSyncForUser(dealerId: string, source: "manual" | "admin" | "cron" = "manual") {
   const { data: dealer } = await (supabaseAdmin as any)
     .from("dealer_profiles")
@@ -414,12 +444,12 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         sourceIndex: idx,
         stockNo,
         certNumber: cert,
-        data: {
+        data: withStoneDefaults({
           ...result.data,
           dealer_id: dealerId,
           cert_number: cert,
           feed_inactive: false,
-        },
+        }),
         image_url: mapped.image_url,
         existedBefore: !!existingId,
         existingId,
