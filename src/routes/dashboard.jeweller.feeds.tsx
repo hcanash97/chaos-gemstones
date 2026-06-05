@@ -50,10 +50,11 @@ function FeedsPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, wholesale_price_usd, dealer_id, profiles:dealer_id(company_name)")
-        .ilike("stone_type", `%${search}%`)
-        .eq("status", "available")
-        .limit(20);
+	        .select("id, stone_type, shape, carat_weight, wholesale_price_usd, dealer_id, profiles:dealer_id(company_name)")
+	        .ilike("stone_type", `%${search}%`)
+	        .eq("status", "available")
+	        .eq("feed_inactive", false)
+	        .limit(20);
       return data ?? [];
     },
   });
@@ -95,8 +96,8 @@ function FeedsPage() {
 
       <section className="mt-8">
         <h2 className="font-serif text-xl">Approved dealers</h2>
-        <div className="mt-3 overflow-hidden rounded-md border border-border">
-          <table className="w-full text-sm">
+	        <div className="mt-3 overflow-x-auto rounded-md border border-border">
+	          <table className="min-w-[760px] w-full text-sm">
             <thead className="bg-muted">
               <tr>
                 <th className="px-4 py-2 text-left">Vendor</th>

@@ -28,6 +28,15 @@ type Row = {
   share_count: number;
 };
 
+const INVENTORY_PAGE_SIZE = 100;
+const BULK_BATCH_SIZE = 200;
+
+function chunkIds(ids: string[], size = BULK_BATCH_SIZE): string[][] {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
+  return chunks;
+}
+
 export const Route = createFileRoute("/dashboard/stones/")({
   component: StonesList,
 });
@@ -40,6 +49,8 @@ function StonesList() {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalRows, setTotalRows] = useState(0);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -60,14 +71,19 @@ function StonesList() {
   const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    const from = (page - 1) * INVENTORY_PAGE_SIZE;
+    const to = from + INVENTORY_PAGE_SIZE - 1;
+    const { data, count } = await supabase
       .from("stones")
-      .select("id, stone_type, shape, carat_weight, origin, wholesale_price_usd, status, featured, created_at, view_count, share_count")
+      .select("id, stone_type, shape, carat_weight, origin, wholesale_price_usd, status, featured, created_at, view_count, share_count", { count: "planned" })
       .eq("dealer_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
     setRows((data as Row[]) ?? []);
+    setTotalRows(count ?? 0);
+    setSelected(new Set());
     setLoading(false);
-  }, [user]);
+  }, [user, page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -94,9 +110,12 @@ function StonesList() {
     if (!confirm(`Permanently delete ${selected.size} stone${selected.size === 1 ? "" : "s"}? This cannot be undone.`)) return;
     setBulkBusy(true);
     const ids = Array.from(selected);
-    const { error } = await supabase.from("stones").delete().in("id", ids);
-    if (error) { toast.error(error.message); setBulkBusy(false); return; }
+    for (const chunk of chunkIds(ids)) {
+      const { error } = await supabase.from("stones").delete().in("id", chunk);
+      if (error) { toast.error(error.message); setBulkBusy(false); return; }
+    }
     setRows((r) => r.filter((x) => !selected.has(x.id)));
+    setTotalRows((n) => Math.max(0, n - ids.length));
     setSelected(new Set());
     toast.success(`Deleted ${ids.length} stone${ids.length === 1 ? "" : "s"}`);
     setBulkBusy(false);
@@ -105,8 +124,10 @@ function StonesList() {
   async function bulkSetStatus(status: "available" | "reserved" | "sold") {
     setBulkBusy(true);
     const ids = Array.from(selected);
-    const { error } = await supabase.from("stones").update({ status }).in("id", ids);
-    if (error) { toast.error(error.message); setBulkBusy(false); return; }
+    for (const chunk of chunkIds(ids)) {
+      const { error } = await supabase.from("stones").update({ status }).in("id", chunk);
+      if (error) { toast.error(error.message); setBulkBusy(false); return; }
+    }
     setRows((r) => r.map((x) => (selected.has(x.id) ? { ...x, status } : x)));
     setSelected(new Set());
     toast.success(`Marked ${ids.length} stone${ids.length === 1 ? "" : "s"} as ${status}`);
@@ -130,6 +151,8 @@ function StonesList() {
         : "Marked sold — removed from public feeds",
     );
   }
+
+  const totalPages = Math.max(1, Math.ceil(totalRows / INVENTORY_PAGE_SIZE));
 
   return (
     <div>
@@ -176,7 +199,9 @@ function StonesList() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif text-3xl text-foreground">My Inventory</h1>
-          <p className="text-sm text-muted-foreground">{rows.length} listing{rows.length === 1 ? "" : "s"}</p>
+          <p className="text-sm text-muted-foreground">
+            {totalRows} listing{totalRows === 1 ? "" : "s"} · Page {page} of {totalPages}
+          </p>
         </div>
         <Link to="/dashboard/stones/new">
           <Button className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
@@ -188,10 +213,10 @@ function StonesList() {
       <div className="mt-6">
         {/* Bulk action bar — slides in when rows are selected */}
         {selected.size > 0 && (
-          <div className="mb-3 flex items-center gap-3 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 px-4 py-2.5">
-            <CheckSquare className="h-4 w-4 text-[var(--color-gold)]" />
-            <span className="text-sm font-medium">{selected.size} selected</span>
-            <div className="ml-auto flex items-center gap-2">
+	          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 px-4 py-2.5">
+	            <CheckSquare className="h-4 w-4 text-[var(--color-gold)]" />
+	            <span className="text-sm font-medium">{selected.size} selected</span>
+	            <div className="ml-auto flex flex-wrap items-center gap-2">
               <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => bulkSetStatus("available")}>
                 Mark available
               </Button>
@@ -210,9 +235,9 @@ function StonesList() {
           </div>
         )}
 
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
         {loading ? (
-          <table className="w-full text-sm">
+          <table className="min-w-[860px] w-full text-sm">
             <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-3 py-3 w-8"></th>
@@ -244,7 +269,7 @@ function StonesList() {
             </Link>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="min-w-[860px] w-full text-sm">
             <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-3 py-3 w-8">
@@ -328,6 +353,31 @@ function StonesList() {
           </table>
         )}
         </div>
+        {totalPages > 1 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">
+              Showing {rows.length} of {totalRows} listings
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

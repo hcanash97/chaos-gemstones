@@ -644,13 +644,21 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     if (seenCerts.size && existing && existing.length) {
       const inactiveIds = (existing ?? []).filter((s) => s.cert_number && !seenCerts.has(s.cert_number)).map((s) => s.id);
       if (inactiveIds.length) {
-        const { error } = await supabaseAdmin.from("stones").update({ feed_inactive: true }).in("id", inactiveIds).eq("dealer_id", dealerId);
-        if (error) {
-          errors.push(postgresDiagnostic("Could not mark missing feed rows inactive", error, {
-            field: "_inactive",
-          }));
-        } else {
-          markedInactive = inactiveIds.length;
+        for (let i = 0; i < inactiveIds.length; i += SYNC_BATCH_SIZE) {
+          const ids = inactiveIds.slice(i, i + SYNC_BATCH_SIZE);
+          const { error } = await supabaseAdmin
+            .from("stones")
+            .update({ feed_inactive: true })
+            .in("id", ids)
+            .eq("dealer_id", dealerId);
+          if (error) {
+            errors.push(postgresDiagnostic("Could not mark missing feed rows inactive", error, {
+              batch: Math.floor(i / SYNC_BATCH_SIZE) + 1,
+              field: "_inactive",
+            }));
+            break;
+          }
+          markedInactive += ids.length;
         }
       }
     }

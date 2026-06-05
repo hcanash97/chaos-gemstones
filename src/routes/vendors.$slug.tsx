@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
 
+const VENDOR_CATALOGUE_PAGE_SIZE = 48;
+
 export const Route = createFileRoute("/vendors/$slug")({
   component: VendorProfile,
   loader: async ({ params }) => {
@@ -93,20 +95,26 @@ function VendorProfile() {
   const { slug } = Route.useParams();
   const { user, profile } = useAuth();
   const qc = useQueryClient();
+  const [cataloguePage, setCataloguePage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ["vendor", slug],
+    queryKey: ["vendor", slug, cataloguePage],
     queryFn: async () => {
+      const from = (cataloguePage - 1) * VENDOR_CATALOGUE_PAGE_SIZE;
+      const to = from + VENDOR_CATALOGUE_PAGE_SIZE - 1;
       const { data: vendor } = await supabase
         .from("dealer_profiles")
         .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
-      if (!vendor) return { vendor: null, stones: [] };
-      const { data: stones } = await supabase
+      if (!vendor) return { vendor: null, stones: [], totalStones: 0 };
+      const { data: stones, count: totalStones } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)")
+        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)", { count: "planned" })
         .eq("dealer_id", vendor.id)
-        .eq("status", "available");
+        .eq("status", "available")
+        .eq("feed_inactive", false)
+        .order("created_at", { ascending: false })
+        .range(from, to);
       const { count: soldCount } = await supabase
         .from("orders")
         .select("id", { count: "exact", head: true })
@@ -154,6 +162,7 @@ function VendorProfile() {
             dealer_verified: !!vendor.profiles?.is_verified,
           };
         }),
+        totalStones: totalStones ?? 0,
         responseRate,
         enquiryCount: total,
         soldCount: soldCount ?? 0,
@@ -228,6 +237,8 @@ function VendorProfile() {
   const memberSince = v.profiles?.created_at
     ? new Date(v.profiles.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })
     : null;
+  const totalStones = data.totalStones ?? data.stones.length;
+  const totalCataloguePages = Math.max(1, Math.ceil(totalStones / VENDOR_CATALOGUE_PAGE_SIZE));
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -269,7 +280,7 @@ function VendorProfile() {
             {v.years_trading ? ` · ${v.years_trading} years trading` : ""}
             {v.response_time_hours ? ` · ~${v.response_time_hours}h response` : ""}
             <span className="ml-3 inline-flex items-center rounded-full bg-[var(--color-gold)] px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--color-gold-foreground)]">
-              {data.stones.length} stones
+              {totalStones} stones
             </span>
           </div>
           {v.instagram_url && (
@@ -359,7 +370,7 @@ function VendorProfile() {
                 }
               />
             )}
-            <VerifyItem label="Stones listed" value={`${data.stones.length}`} />
+            <VerifyItem label="Stones listed" value={`${totalStones}`} />
             {(data.soldCount ?? 0) > 0 && (
               <VerifyItem label="Stones sold" value={`${data.soldCount}`} />
             )}
@@ -378,7 +389,31 @@ function VendorProfile() {
       </section>
       <section className="mx-auto max-w-7xl px-6 py-16">
         <h2 className="font-serif text-3xl">Catalogue</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{data.stones.length} stones available</p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {totalStones} stones available · Showing page {cataloguePage} of {totalCataloguePages}
+          </p>
+          {totalCataloguePages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={cataloguePage <= 1}
+                onClick={() => setCataloguePage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={cataloguePage >= totalCataloguePages}
+                onClick={() => setCataloguePage((p) => Math.min(totalCataloguePages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {data.stones.map((s: any) => (
             <StoneCard key={s.id} stone={{ ...s, isWishlisted: wishlistIds?.has(s.id) ?? false }} />

@@ -17,6 +17,12 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
   });
 }
 
+function boundedInt(value: string | null, fallback: number, min: number, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(Math.floor(parsed), min), max);
+}
+
 // Per-worker in-memory rate limiter (approximate — resets on CF Worker cold start).
 const RATE_LIMIT = 60; // requests per minute per key
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -58,6 +64,8 @@ export const Route = createFileRoute("/api/public/feed")({
           const url = new URL(request.url);
           const key = url.searchParams.get("key");
           const includeTest = url.searchParams.get("include_test") === "true";
+          const limit = boundedInt(url.searchParams.get("limit"), 500, 1, 500);
+          const offset = boundedInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
           if (!key) return json({ error: "Missing 'key' query parameter" }, 401);
 
           const keyHash = createHash("sha256").update(key).digest("hex");
@@ -174,7 +182,10 @@ export const Route = createFileRoute("/api/public/feed")({
               .from("stones")
               .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("dealer_id", dealerIds)
-              .eq("status", "available");
+              .eq("status", "available")
+              .eq("feed_inactive", false)
+              .order("created_at", { ascending: false })
+              .range(offset, offset + limit - 1);
             if (!showTest) {
               query = query.eq("is_test", false);
             }
@@ -192,7 +203,8 @@ export const Route = createFileRoute("/api/public/feed")({
               .from("stones")
               .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
               .in("id", stoneIds)
-              .eq("status", "available");
+              .eq("status", "available")
+              .eq("feed_inactive", false);
             if (!showTest) {
               query = query.eq("is_test", false);
             }
@@ -253,7 +265,16 @@ export const Route = createFileRoute("/api/public/feed")({
             }
           }
 
-          return json({ stones: finalStones, excluded, count: finalStones.length });
+          return json({
+            stones: finalStones,
+            excluded,
+            count: finalStones.length,
+            pagination: {
+              limit,
+              offset,
+              next_offset: finalStones.length >= limit ? offset + limit : null,
+            },
+          });
         } catch (e) {
           console.error("[feed] internal error", e);
           return json({ error: "Internal server error" }, 500);

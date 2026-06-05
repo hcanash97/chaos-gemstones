@@ -60,6 +60,7 @@ function Vendors() {
         .from("stones")
         .select("dealer_id")
         .eq("status", "available")
+        .eq("feed_inactive", false)
         .limit(1000);
       const counts: Record<string, number> = {};
       (data ?? []).forEach((s: any) => {

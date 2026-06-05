@@ -393,7 +393,8 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .from("stones")
         .select(stoneFields)
         .in("dealer_id", follows.map((f: any) => f.dealer_id as string))
-        .eq("status", "available");
+        .eq("status", "available")
+        .eq("feed_inactive", false);
       for (const s of data ?? []) {
         const ovr = follows.find((f: any) => f.dealer_id === (s as any).dealer_id)?.markup_override;
         stoneMap.set((s as any).id, { ...(s as any), markup: ovr != null ? Number(ovr) : globalMarkup });
@@ -404,7 +405,8 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .from("stones")
         .select(stoneFields)
         .in("id", pins.map((p: any) => p.stone_id as string))
-        .eq("status", "available");
+        .eq("status", "available")
+        .eq("feed_inactive", false);
       for (const s of data ?? []) {
         const ovr = pins.find((p: any) => p.stone_id === (s as any).id)?.markup_override;
         if (!stoneMap.has((s as any).id)) {
@@ -654,7 +656,8 @@ export async function dryRunShopifySync(jewellerId: string): Promise<DryRunResul
       .from("stones")
       .select("id")
       .in("dealer_id", follows.map((f: any) => f.dealer_id as string))
-      .eq("status", "available");
+      .eq("status", "available")
+      .eq("feed_inactive", false);
     (data ?? []).forEach((s: any) => stoneIds.add(s.id));
   }
   if (pins.length) {
@@ -662,7 +665,8 @@ export async function dryRunShopifySync(jewellerId: string): Promise<DryRunResul
       .from("stones")
       .select("id")
       .in("id", pins.map((p: any) => p.stone_id as string))
-      .eq("status", "available");
+      .eq("status", "available")
+      .eq("feed_inactive", false);
     (data ?? []).forEach((s: any) => stoneIds.add(s.id));
   }
 
