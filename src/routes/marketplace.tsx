@@ -164,6 +164,7 @@ function Marketplace() {
 
   const rawStones = result?.stones ?? [];
   const total = result?.total ?? 0;
+  const marketTotal = result?.marketTotal ?? total;
   const isLoading = isFetching && !result;
 
   const isJewellerUser = checkJ(profile);
@@ -236,6 +237,10 @@ function Marketplace() {
 
   const filterCount = activeFilterCount(f);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const resultSummary =
+    filterCount > 0
+      ? `Showing ${visible.length} of ${total.toLocaleString()} matching results · ${marketTotal.toLocaleString()} total stones`
+      : `Showing ${visible.length} of ${marketTotal.toLocaleString()} total stones`;
   const showDiamond = hasDiamondSelection(f.types);
   const showColoured = hasColouredSelection(f.types);
   const isJeweller = isJewellerUser;
@@ -802,7 +807,7 @@ function Marketplace() {
             <p className="mt-1 text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
               {isLoading
                 ? "Loading…"
-                : `Showing ${visible.length} of ${total.toLocaleString()} results${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}
+                : `${resultSummary}${totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}`}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">

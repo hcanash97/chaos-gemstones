@@ -481,13 +481,17 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
 
   list = list.filter((s) => {
     const c = Number(s.carat_weight ?? 0);
-    return c >= f.caratMin && c <= f.caratMax;
+    if (f.caratMin !== CARAT_MIN && c < f.caratMin) return false;
+    if (f.caratMax !== CARAT_MAX && c > f.caratMax) return false;
+    return true;
   });
   list = list.filter((s) => {
     const price = Number(s.wholesale_price_usd ?? 0);
     const c = Number(s.carat_weight ?? 1) || 1;
     const value = f.priceMode === "per_carat" ? price / c : price;
-    return value >= f.priceMin && value <= f.priceMax;
+    if (f.priceMin !== PRICE_MIN && value < f.priceMin) return false;
+    if (f.priceMax !== PRICE_MAX && value > f.priceMax) return false;
+    return true;
   });
 
   if (f.search.trim()) {

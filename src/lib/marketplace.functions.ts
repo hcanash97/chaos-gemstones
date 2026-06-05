@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { PREMIUM_ORIGINS, type FilterState } from "@/lib/marketplace/filters";
+import { CARAT_MAX, CARAT_MIN, PREMIUM_ORIGINS, PRICE_MAX, PRICE_MIN, type FilterState } from "@/lib/marketplace/filters";
 
 export const PAGE_SIZE = 48;
 
@@ -66,8 +66,18 @@ function originValuesForFilter(origin: "natural" | "lab-grown"): string[] {
   return ["natural", "Natural", "NATURAL"];
 }
 
-function postgresInList(values: string[]): string {
-  return `(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",")})`;
+async function getMarketplaceTotal(): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from("stones")
+    .select("id", { count: "planned", head: true })
+    .eq("is_test", false)
+    .eq("feed_inactive", false)
+    .eq("status", "available");
+  if (error) {
+    console.error("[marketplace total]", error);
+    return 0;
+  }
+  return count ?? 0;
 }
 
 function shapeValuesForFilter(shape: string): string[] {
@@ -111,6 +121,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const page = Math.max(1, Number(data.page ?? 1));
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
+    const marketTotalPromise = getMarketplaceTotal();
 
     let q = supabaseAdmin
       .from("stones")
@@ -134,7 +145,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       if (wantsDiamondNat || wantsDiamondLab) expanded.push("diamond");
       q = q.in("stone_type", uniqueValues(expanded.flatMap(stoneTypeValuesForFilter)));
       if (wantsDiamondNat && !wantsDiamondLab) {
-        q = q.not("origin", "in", postgresInList(originValuesForFilter("lab-grown")));
+        q = q.or("origin.is.null,origin.in.(natural,Natural,NATURAL)");
       }
       if (wantsDiamondLab && !wantsDiamondNat) {
         q = q.in("origin", originValuesForFilter("lab-grown"));
@@ -154,14 +165,21 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       q = q.gte("created_at", cutoff);
     }
 
-    // Carat
-    if (typeof f.caratMin === "number") q = q.gte("carat_weight", f.caratMin);
-    if (typeof f.caratMax === "number") q = q.lte("carat_weight", f.caratMax);
+    // Carat: default slider values are display defaults, not restrictive filters.
+    if (typeof f.caratMin === "number" && f.caratMin !== CARAT_MIN) q = q.gte("carat_weight", f.caratMin);
+    if (typeof f.caratMax === "number" && f.caratMax !== CARAT_MAX) q = q.lte("carat_weight", f.caratMax);
 
-    // Price (per_stone only server-side; per_carat applied client-side)
+    // Price: default slider values are display defaults, not restrictive filters.
+    const priceMinActive = typeof f.priceMin === "number" && f.priceMin !== PRICE_MIN;
+    const priceMaxActive = typeof f.priceMax === "number" && f.priceMax !== PRICE_MAX;
     if ((f.priceMode ?? "per_stone") === "per_stone") {
-      if (typeof f.priceMin === "number") q = q.gte("wholesale_price_usd", f.priceMin);
-      if (typeof f.priceMax === "number") q = q.lte("wholesale_price_usd", f.priceMax);
+      if (priceMinActive) q = q.gte("wholesale_price_usd", f.priceMin);
+      if (priceMaxActive) q = q.lte("wholesale_price_usd", f.priceMax);
+    } else if (priceMinActive || priceMaxActive) {
+      // PostgREST cannot easily filter calculated price-per-carat here without
+      // an RPC, so fetch candidates server-side without pretending the current
+      // page is the complete matching set.
+      if (priceMinActive) q = q.gte("wholesale_price_usd", 0);
     }
 
     // Search (or across fields)
@@ -253,7 +271,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const { data: rows, count, error } = await q;
     if (error) {
       console.error("[marketplace search]", error);
-      return { stones: [], total: 0, page, pageSize: PAGE_SIZE, error: error.message };
+      return { stones: [], total: 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: error.message };
     }
 
     const stones = (rows ?? []).map((s: any) => {
@@ -269,5 +287,5 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       };
     });
 
-    return { stones, total: count ?? 0, page, pageSize: PAGE_SIZE, error: null };
+    return { stones, total: count ?? 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: null };
   });

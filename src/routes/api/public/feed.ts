@@ -138,6 +138,7 @@ export const Route = createFileRoute("/api/public/feed")({
           const stones: unknown[] = [];
           const excluded: { id: string; reason: string }[] = [];
           const seen = new Set<string>();
+          let approximateTotal = 0;
           // Track original wholesale (in USD-normalised form) per stone id for rule checks.
           const wholesaleMap = new Map<string, { wholesale: number; sourceCurrency: string }>();
 
@@ -180,7 +181,7 @@ export const Route = createFileRoute("/api/public/feed")({
             const dealerIds = dealerFollows.map((d) => d.dealer_id as string);
             let query = supabaseAdmin
               .from("stones")
-              .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)")
+              .select("*, stone_images(storage_url, external_image_url, is_primary, sort_order)", { count: "planned" })
               .in("dealer_id", dealerIds)
               .eq("status", "available")
               .eq("feed_inactive", false)
@@ -189,7 +190,8 @@ export const Route = createFileRoute("/api/public/feed")({
             if (!showTest) {
               query = query.eq("is_test", false);
             }
-            const { data } = await query;
+            const { data, count } = await query;
+            approximateTotal += count ?? data?.length ?? 0;
             (data ?? []).forEach((s) => {
               const override = dealerFollows.find((d) => d.dealer_id === (s as StoneRow).dealer_id)?.markup_override;
               const m = override != null ? Number(override) : globalMarkup;
@@ -209,6 +211,7 @@ export const Route = createFileRoute("/api/public/feed")({
               query = query.eq("is_test", false);
             }
             const { data } = await query;
+            approximateTotal += data?.length ?? 0;
             (data ?? []).forEach((s) => {
               const pin = stonePins.find((p) => p.stone_id === (s as StoneRow).id);
               const m = pin?.markup_override != null ? Number(pin.markup_override) : globalMarkup;
@@ -269,6 +272,7 @@ export const Route = createFileRoute("/api/public/feed")({
             stones: finalStones,
             excluded,
             count: finalStones.length,
+            approximate_total: Math.max(approximateTotal, finalStones.length),
             pagination: {
               limit,
               offset,
