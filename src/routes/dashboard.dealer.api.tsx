@@ -44,13 +44,29 @@ function diagnosticPrefix(log: SyncDiagnostic) {
   return "ℹ";
 }
 
+function fieldLabel(field?: string) {
+  const labels: Record<string, string> = {
+    cert_number: "Certificate/report number",
+    carat_weight: "Carat weight",
+    wholesale_price_usd: "Wholesale price",
+    stone_type: "Stone type",
+    shape: "Shape",
+    _upsert: "Database upsert",
+    _prepare: "Preparation",
+    _sync: "Sync",
+    _fetch: "Feed fetch",
+  };
+  return field ? labels[field] ?? field : null;
+}
+
 function diagnosticText(log: SyncDiagnostic) {
+  const label = fieldLabel(log.field);
   const context = [
     log.batch ? `Batch ${log.batch}` : null,
     log.row ? `Row ${log.row}` : null,
     log.stockNo ? `StockNo: ${log.stockNo}` : null,
-    log.certNumber ? `Key: ${log.certNumber}` : null,
-    log.field && !log.field.startsWith("_") ? `Field: ${log.field}` : null,
+    log.certNumber ? `Sync key: ${log.certNumber}` : null,
+    label && !log.field?.startsWith("_") ? `Field: ${label}` : null,
   ].filter(Boolean);
   const suffix = [log.pgCode ? `Postgres ${log.pgCode}` : null, log.details, log.hint].filter(Boolean).join(" | ");
   return `${diagnosticPrefix(log)} ${context.length ? `${context.join(" · ")} — ` : ""}${log.message ?? "Unknown sync event"}${suffix ? ` (${suffix})` : ""}`;

@@ -111,6 +111,19 @@ function stockRef(raw: Record<string, unknown>): string | null {
   );
 }
 
+function certRef(raw: Record<string, unknown>, payload: Record<string, unknown>): string | null {
+  return (
+    cleanString(payload.cert_number) ??
+    cleanString(raw.reportNo) ??
+    cleanString(raw.report_no) ??
+    cleanString(raw.reportNumber) ??
+    cleanString(raw.certNo) ??
+    cleanString(raw.certNumber) ??
+    cleanString(raw.certificateNo) ??
+    cleanString(raw.certificateNumber)
+  );
+}
+
 function diagnostic(
   level: SyncDiagnosticLevel,
   message: string,
@@ -290,6 +303,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     const candidatesByCert = new Map<string, SyncCandidate>();
     const seenCerts = new Set<string>();
     let cityFromFeed: string | undefined;
+    let missingCertFallbackCount = 0;
 
     rows.forEach((raw, idx) => {
       const sourceRow = raw as Record<string, unknown>;
@@ -319,16 +333,19 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         payload[k] = coerced;
       }
 
-      const originalCert = cleanString(payload.cert_number);
+      const originalCert = certRef(sourceRow, payload);
       if (!originalCert) {
         const fallback = stockNo ? `stock:${stockNo}` : `feed-row:${rowNumber}`;
         payload.cert_number = fallback;
-        diagnostics.push(diagnostic("warning", `Missing report/cert number. Using "${fallback}" as the sync key so the row can still be safely upserted.`, {
-          row: rowNumber,
-          stockNo,
-          certNumber: fallback,
-          field: "cert_number",
-        }));
+        missingCertFallbackCount += 1;
+        if (missingCertFallbackCount <= 20) {
+          diagnostics.push(diagnostic("warning", `Nancy/Kodllin did not provide a value in its report number fields for this stone. Chaos used "${fallback}" as the private sync key. The stone can still import, but the public certificate/report number will be blank unless Nancy provides one.`, {
+            row: rowNumber,
+            stockNo,
+            certNumber: fallback,
+            field: "cert_number",
+          }));
+        }
       } else {
         payload.cert_number = originalCert;
       }
@@ -375,6 +392,11 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     });
 
     const candidates = Array.from(candidatesByCert.values());
+    if (missingCertFallbackCount > 20) {
+      diagnostics.push(diagnostic("warning", `${missingCertFallbackCount} stones had no Nancy/Kodllin report number, so Chaos used stock numbers as private sync keys. Showing the first 20 examples only to keep this log readable.`, {
+        field: "cert_number",
+      }));
+    }
     let created = 0;
     let updated = 0;
     const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
