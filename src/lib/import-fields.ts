@@ -135,6 +135,7 @@ export const STONE_FIELDS: StoneField[] = [
       "stone_report",
     ],
   },
+  { key: "cert_url", label: "Certificate URL", type: "string", aliases: ["certificate_url", "report_url", "cert_link", "certificate_link"] },
   { key: "origin", label: "Origin (region)", type: "string", aliases: ["region", "mine", "source"] },
   { key: "country_of_origin", label: "Country of origin", type: "string", aliases: ["country", "country_origin"] },
   { key: "treatment", label: "Treatment", type: "string", aliases: ["treatments", "enhancement_type"] },
