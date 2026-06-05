@@ -45,10 +45,17 @@ export function useAuth() {
   async function loadProfile(uid: string) {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, full_name, account_type, account_types, company_name, is_approved, is_verified")
+      .select("id, full_name, account_type, account_types, company_name, is_approved, is_verified")
       .eq("id", uid)
       .maybeSingle();
-    setProfile(data as AppProfile | null);
+    if (!data) {
+      setProfile(null);
+      return;
+    }
+    // email comes from the auth session (auth.users), not the profiles table,
+    // because the email column on profiles is no longer readable client-side.
+    const { data: authData } = await supabase.auth.getUser();
+    setProfile({ ...(data as Omit<AppProfile, "email">), email: authData.user?.email ?? null });
   }
 
   async function loadRole(uid: string) {
