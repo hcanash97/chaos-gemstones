@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState, type FormEvent } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMarketplaceFilterDiagnostics, searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
@@ -236,14 +236,22 @@ function Marketplace() {
   });
 
   const filterCount = activeFilterCount(f);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const displayTotal = filterCount > 0 ? total : marketTotal;
+  const totalPages = Math.max(1, Math.ceil(displayTotal / PAGE_SIZE));
+  const pageStart = displayTotal > 0 ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const pageEnd = Math.min((page - 1) * PAGE_SIZE + visible.length, displayTotal);
   const resultSummary =
     filterCount > 0
-      ? `Showing ${visible.length} of ${total.toLocaleString()} matching results · ${marketTotal.toLocaleString()} total stones`
-      : `Showing ${visible.length} of ${marketTotal.toLocaleString()} total stones`;
+      ? `Showing ${pageStart.toLocaleString()}-${pageEnd.toLocaleString()} of ${displayTotal.toLocaleString()} matching listings · ${marketTotal.toLocaleString()} total stones`
+      : `Showing ${pageStart.toLocaleString()}-${pageEnd.toLocaleString()} of ${displayTotal.toLocaleString()} total listings`;
   const showDiamond = hasDiamondSelection(f.types);
   const showColoured = hasColouredSelection(f.types);
   const isJeweller = isJewellerUser;
+
+  const goToPage = (nextPage: number) => {
+    setPage(Math.min(Math.max(1, nextPage), totalPages));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Derive primary-colour swatches from the first matching coloured stone type
   const colouredType = f.types.find((t) => PRIMARY_COLOURS[t]) ?? "sapphire";
@@ -915,6 +923,15 @@ function Marketplace() {
           </aside>
 
           <div>
+            {!isLoading && totalPages > 1 && (
+              <MarketplacePagination
+                className="mb-5"
+                page={page}
+                totalPages={totalPages}
+                disabled={isFetching}
+                onPageChange={goToPage}
+              />
+            )}
             {isLoading ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 12 }).map((_, i) => (
@@ -941,31 +958,13 @@ function Marketplace() {
               </div>
             )}
             {!isLoading && totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-3">
-                <Button
-                  variant="outline"
-                  disabled={page <= 1 || isFetching}
-                  onClick={() => {
-                    setPage((p) => Math.max(1, p - 1));
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  disabled={page >= totalPages || isFetching}
-                  onClick={() => {
-                    setPage((p) => Math.min(totalPages, p + 1));
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                >
-                  Next
-                </Button>
-              </div>
+              <MarketplacePagination
+                className="mt-8"
+                page={page}
+                totalPages={totalPages}
+                disabled={isFetching}
+                onPageChange={goToPage}
+              />
             )}
             {!isLoading && total === 0 && (
               <EmptyMarketplace
@@ -1168,6 +1167,106 @@ function Chip({ label, onClear }: { label: string; onClear: () => void }) {
       {label}
       <X className="h-3 w-3" />
     </button>
+  );
+}
+
+function paginationItems(page: number, totalPages: number): Array<number | "..."> {
+  const pages = new Set<number>([1, totalPages, page, page - 1, page + 1, page - 2, page + 2]);
+  if (page <= 4) [2, 3, 4, 5].forEach((p) => pages.add(p));
+  if (page >= totalPages - 3) [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1].forEach((p) => pages.add(p));
+  const sorted = Array.from(pages)
+    .filter((p) => p >= 1 && p <= totalPages)
+    .sort((a, b) => a - b);
+  const items: Array<number | "..."> = [];
+  for (const p of sorted) {
+    const previous = items[items.length - 1];
+    if (typeof previous === "number" && p - previous > 1) items.push("...");
+    items.push(p);
+  }
+  return items;
+}
+
+function MarketplacePagination({
+  page,
+  totalPages,
+  disabled,
+  onPageChange,
+  className = "",
+}: {
+  page: number;
+  totalPages: number;
+  disabled?: boolean;
+  onPageChange: (page: number) => void;
+  className?: string;
+}) {
+  const [jumpPage, setJumpPage] = useState("");
+  const items = paginationItems(page, totalPages);
+
+  const submitJump = (event: FormEvent) => {
+    event.preventDefault();
+    const next = Number(jumpPage);
+    if (!Number.isFinite(next)) return;
+    onPageChange(next);
+    setJumpPage("");
+  };
+
+  return (
+    <nav
+      className={`flex flex-col gap-3 rounded-md border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between ${className}`}
+      aria-label="Marketplace pages"
+    >
+      <div className="text-xs text-muted-foreground">
+        Page <span className="font-medium text-foreground">{page.toLocaleString()}</span> of{" "}
+        <span className="font-medium text-foreground">{totalPages.toLocaleString()}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button variant="outline" size="sm" disabled={disabled || page <= 1} onClick={() => onPageChange(1)}>
+          First
+        </Button>
+        <Button variant="outline" size="sm" disabled={disabled || page <= 1} onClick={() => onPageChange(page - 1)}>
+          Previous
+        </Button>
+        {items.map((item, index) =>
+          item === "..." ? (
+            <span key={`ellipsis-${index}`} className="px-1 text-xs text-muted-foreground">
+              ...
+            </span>
+          ) : (
+            <Button
+              key={item}
+              variant={item === page ? "default" : "outline"}
+              size="sm"
+              disabled={disabled || item === page}
+              className="min-w-9 px-2"
+              onClick={() => onPageChange(item)}
+            >
+              {item}
+            </Button>
+          ),
+        )}
+        <Button variant="outline" size="sm" disabled={disabled || page >= totalPages} onClick={() => onPageChange(page + 1)}>
+          Next
+        </Button>
+        <Button variant="outline" size="sm" disabled={disabled || page >= totalPages} onClick={() => onPageChange(totalPages)}>
+          Last
+        </Button>
+      </div>
+      <form onSubmit={submitJump} className="flex items-center gap-2">
+        <Input
+          type="number"
+          min={1}
+          max={totalPages}
+          aria-label="Go to page"
+          value={jumpPage}
+          onChange={(e) => setJumpPage(e.target.value)}
+          placeholder="Page"
+          className="h-9 w-24"
+        />
+        <Button type="submit" variant="outline" size="sm" disabled={disabled || !jumpPage.trim()}>
+          Go
+        </Button>
+      </form>
+    </nav>
   );
 }
 
