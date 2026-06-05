@@ -164,17 +164,26 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       }
     }
 
-    if (rows.length > 2000) throw new Error(`Feed contains ${rows.length} rows; maximum supported is 2000`);
+    if (rows.length === 0) throw new Error("Feed returned 0 rows.");
 
     const preset = detectPreset(rows);
 
+    // Fetch all existing stones for this dealer so we can diff create vs update.
     const { data: existing } = await supabaseAdmin
       .from("stones")
       .select("id, cert_number")
-      .eq("dealer_id", dealerId)
-      .not("cert_number", "is", null);
+      .eq("dealer_id", dealerId);
     const certToId = new Map<string, string>();
-    for (const s of existing ?? []) if (s.cert_number) certToId.set(s.cert_number, s.id);
+    for (const s of existing ?? []) {
+      if (s.cert_number) certToId.set(s.cert_number, s.id);
+    }
+
+    // Numeric fields that often arrive as strings from JSON feeds.
+    const NUMERIC_FIELDS = new Set([
+      "carat_weight", "wholesale_price_usd", "depth_pct", "table_pct",
+      "crown_angle", "pavilion_angle", "measurements_length", "measurements_width",
+      "measurements_height", "lw_ratio",
+    ]);
 
     const errors: Array<{ row: number; field: string; message: string }> = [];
     const toCreate: Array<{ data: Record<string, unknown>; image_url?: string }> = [];
@@ -189,10 +198,24 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       const payload: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(rawPayload)) {
         const fieldDef = FIELD_MAP[k];
-        payload[k] = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
+        let coerced = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
+        // Many JSON feeds send numeric values as strings (e.g. "61.00"). Coerce them.
+        if (NUMERIC_FIELDS.has(k) && coerced !== null && coerced !== undefined && coerced !== "") {
+          const n = parseFloat(String(coerced));
+          coerced = isNaN(n) ? null : n;
+        }
+        payload[k] = coerced;
       }
+
+      // If cert_number is missing, try the stockNo from the raw row as a fallback
+      // identifier. This prevents rows without certs from endlessly duplicating.
+      if (!payload.cert_number && (raw as any).stockNo) {
+        payload.cert_number = String((raw as any).stockNo).trim();
+      }
+
       const cert = payload.cert_number ? String(payload.cert_number).trim() : "";
       if (cert) seenCerts.add(cert);
+
       const existingId = cert ? certToId.get(cert) : undefined;
       const mode = existingId ? "update" : "create";
       const result = validateStonePayload(payload, mode);
@@ -204,37 +227,51 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       else toCreate.push({ data: { ...result.data, dealer_id: dealerId }, image_url: mapped.image_url });
     });
 
+    // Chunk size: 250 rows — safely within Cloudflare Worker memory limits.
+    const CHUNK = 250;
     let created = 0;
     let updated = 0;
     const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
-    if (toCreate.length) {
-      const insertData = toCreate.map((c) => c.data);
-      const { data, error } = await supabaseAdmin.from("stones").insert(insertData as never).select("id");
-      if (error) throw new Error(error.message);
-      created = data?.length ?? 0;
-      (data ?? []).forEach((row: any, i: number) => {
-        const img = toCreate[i]?.image_url;
+
+    // Chunked inserts
+    for (let i = 0; i < toCreate.length; i += CHUNK) {
+      const chunk = toCreate.slice(i, i + CHUNK);
+      const { data, error } = await supabaseAdmin
+        .from("stones")
+        .insert(chunk.map((c) => c.data) as never)
+        .select("id");
+      if (error) throw new Error(`Insert failed at row ${i}: ${error.message}`);
+      created += data?.length ?? 0;
+      (data ?? []).forEach((row: any, j: number) => {
+        const img = chunk[j]?.image_url;
         if (img) createdImageRows.push({ stone_id: row.id, storage_url: img, external_image_url: img, is_primary: true, sort_order: 0 });
       });
     }
+
     if (createdImageRows.length) {
       await supabaseAdmin.from("stone_images").insert(createdImageRows as never);
     }
-    for (const u of toUpdate) {
-      const { error } = await supabaseAdmin.from("stones").update(u.data as never).eq("id", u.id).eq("dealer_id", dealerId);
-      if (error) errors.push({ row: -1, field: "_update", message: error.message });
-      else updated += 1;
-      if (u.image_url) {
-        const { data: existingImg } = await supabaseAdmin.from("stone_images").select("id").eq("stone_id", u.id).limit(1).maybeSingle();
-        if (!existingImg) {
-          await supabaseAdmin.from("stone_images").insert({ stone_id: u.id, storage_url: u.image_url, external_image_url: u.image_url, is_primary: true, sort_order: 0 } as never);
+
+    // Chunked updates — batch concurrently within each chunk instead of one-at-a-time.
+    for (let i = 0; i < toUpdate.length; i += CHUNK) {
+      const chunk = toUpdate.slice(i, i + CHUNK);
+      const results = await Promise.allSettled(
+        chunk.map((u) =>
+          supabaseAdmin.from("stones").update(u.data as never).eq("id", u.id).eq("dealer_id", dealerId)
+        )
+      );
+      results.forEach((r, j) => {
+        if (r.status === "fulfilled" && (r.value as any).error) {
+          errors.push({ row: i + j, field: "_update", message: (r.value as any).error.message });
+        } else if (r.status === "fulfilled") {
+          updated += 1;
         }
-      }
+      });
     }
 
     let markedInactive = 0;
     if (seenCerts.size && existing && existing.length) {
-      const inactiveIds = existing.filter((s) => s.cert_number && !seenCerts.has(s.cert_number)).map((s) => s.id);
+      const inactiveIds = (existing ?? []).filter((s) => s.cert_number && !seenCerts.has(s.cert_number)).map((s) => s.id);
       if (inactiveIds.length) {
         const { error } = await supabaseAdmin.from("stones").update({ feed_inactive: true }).in("id", inactiveIds).eq("dealer_id", dealerId);
         if (!error) markedInactive = inactiveIds.length;
