@@ -21,6 +21,7 @@ import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
 import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type HomepageSectionCopy, type SiteThemeSettings } from "@/lib/site-theme";
+import { confidenceLabelClass, parseWhatsappStoneMessage, type WhatsappConfidenceTier } from "@/lib/whatsapp-intake";
 
 type ProfileRow = {
   id: string;
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals" | "theme">("stats");
+  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals" | "theme" | "whatsapp">("stats");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +69,7 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats" || tab === "theme") return;
+    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats" || tab === "theme" || tab === "whatsapp") return;
     setError(null);
     let query = supabase
       .from("profiles")
@@ -323,11 +324,17 @@ function AdminPage() {
             >
               Theme
             </button>
+            <button
+              onClick={() => setTab("whatsapp")}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "whatsapp" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              WhatsApp Intake
+            </button>
             </div>
           </div>
         </div>
 
-        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && tab !== "theme" && (
+        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && tab !== "theme" && tab !== "whatsapp" && (
         <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -365,6 +372,8 @@ function AdminPage() {
           <ReferralsPanel />
         ) : tab === "theme" ? (
           <ThemeSettingsPanel userId={user.id} />
+        ) : tab === "whatsapp" ? (
+          <WhatsAppIntakePanel userId={user.id} />
         ) : tab === "stats" ? (
           <>
             <StatsPanel />
@@ -586,6 +595,626 @@ type ReferralCreditRow = {
   created_at: string;
   beneficiary?: { full_name: string | null; company_name: string | null; email: string | null } | null;
 };
+
+type WhatsAppIntakeMessage = {
+  id: string;
+  sender_phone: string | null;
+  dealer_id: string | null;
+  raw_message_text: string;
+  received_at: string;
+  processing_status: "pending_review" | "converted_to_draft" | "low_confidence_review" | "archived";
+  created_at: string;
+};
+
+type WhatsAppIntakeDraft = {
+  id: string;
+  intake_message_id: string;
+  stone_type: string | null;
+  shape: string | null;
+  carat: number | null;
+  color: string | null;
+  clarity: string | null;
+  cert_lab: string | null;
+  cert_number: string | null;
+  stock_number: string | null;
+  price: number | null;
+  currency: string;
+  treatment: string | null;
+  origin: string | null;
+  dimensions: string | null;
+  uploaded_media_urls: string[];
+  confidence_score: WhatsappConfidenceTier;
+  missing_fields: string[];
+  parsing_diagnostics: Record<string, unknown>;
+  is_approved: boolean;
+  created_at: string;
+  message?: WhatsAppIntakeMessage | null;
+};
+
+type WhatsAppDraftForm = Pick<
+  WhatsAppIntakeDraft,
+  | "stone_type"
+  | "shape"
+  | "carat"
+  | "color"
+  | "clarity"
+  | "cert_lab"
+  | "cert_number"
+  | "stock_number"
+  | "price"
+  | "currency"
+  | "treatment"
+  | "origin"
+  | "dimensions"
+>;
+
+type DealerOption = {
+  id: string;
+  company_name: string | null;
+  full_name: string | null;
+  email: string | null;
+};
+
+function WhatsAppIntakePanel({ userId }: { userId: string }) {
+  const [senderPhone, setSenderPhone] = useState("");
+  const [dealerId, setDealerId] = useState("");
+  const [rawText, setRawText] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [dealers, setDealers] = useState<DealerOption[]>([]);
+  const [drafts, setDrafts] = useState<WhatsAppIntakeDraft[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draftForm, setDraftForm] = useState<WhatsAppDraftForm | null>(null);
+  const [reviewDealerId, setReviewDealerId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [filter, setFilter] = useState<"active" | "all" | "high" | "medium" | "low">("active");
+  const selectedDraft = drafts.find((draft) => draft.id === selectedId) ?? drafts[0] ?? null;
+
+  const loadDealers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, company_name, full_name, email")
+      .or("account_type.eq.dealer,account_types.cs.{dealer}")
+      .order("company_name", { ascending: true });
+    if (error) {
+      toast.error("Could not load dealers", { description: error.message });
+      return;
+    }
+    setDealers((data as DealerOption[]) ?? []);
+  }, []);
+
+  const loadDrafts = useCallback(async () => {
+    setLoading(true);
+    let query = (supabase as any)
+      .from("whatsapp_intake_drafts")
+      .select(
+        "*, message:intake_message_id(id, sender_phone, dealer_id, raw_message_text, received_at, processing_status, created_at)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(80);
+    if (filter === "high" || filter === "medium" || filter === "low") query = query.eq("confidence_score", filter).eq("is_approved", false);
+    const { data, error } = await query;
+    setLoading(false);
+    if (error) {
+      toast.error("WhatsApp intake load failed", {
+        description: error.message.includes("whatsapp_intake")
+          ? "Apply migration 20260606210000_whatsapp_intake_phase1.sql, then reload this tab."
+          : error.message,
+      });
+      return;
+    }
+    let rows = ((data ?? []) as WhatsAppIntakeDraft[]).map((draft) => ({
+      ...draft,
+      uploaded_media_urls: draft.uploaded_media_urls ?? [],
+      missing_fields: draft.missing_fields ?? [],
+      parsing_diagnostics: draft.parsing_diagnostics ?? {},
+    }));
+    if (filter === "active") {
+      rows = rows.filter((draft) => !draft.is_approved && draft.message?.processing_status !== "archived");
+    } else if (filter === "high" || filter === "medium" || filter === "low") {
+      rows = rows.filter((draft) => draft.message?.processing_status !== "archived");
+    }
+    setDrafts(rows);
+    setSelectedId((current) => (current && rows.some((draft) => draft.id === current) ? current : rows[0]?.id ?? null));
+  }, [filter]);
+
+  useEffect(() => {
+    loadDealers();
+  }, [loadDealers]);
+
+  useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
+
+  useEffect(() => {
+    if (!selectedDraft) {
+      setDraftForm(null);
+      return;
+    }
+    setDraftForm({
+      stone_type: selectedDraft.stone_type,
+      shape: selectedDraft.shape,
+      carat: selectedDraft.carat,
+      color: selectedDraft.color,
+      clarity: selectedDraft.clarity,
+      cert_lab: selectedDraft.cert_lab,
+      cert_number: selectedDraft.cert_number,
+      stock_number: selectedDraft.stock_number,
+      price: selectedDraft.price,
+      currency: selectedDraft.currency || "USD",
+      treatment: selectedDraft.treatment,
+      origin: selectedDraft.origin,
+      dimensions: selectedDraft.dimensions,
+    });
+    setReviewDealerId(selectedDraft.message?.dealer_id ?? "");
+  }, [selectedDraft?.id]);
+
+  async function uploadIntakeMedia(targetFiles: File[]) {
+    const urls: string[] = [];
+    for (const file of targetFiles) {
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        toast.error(`${file.name} skipped`, { description: "Only image and video files can be attached." });
+        continue;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error(`${file.name} skipped`, { description: "WhatsApp intake media must be under 15MB." });
+        continue;
+      }
+      const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+      const path = `${userId}/whatsapp-intake/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("stone-images").upload(path, file, {
+        upsert: false,
+        contentType: file.type,
+        cacheControl: "31536000",
+      });
+      if (error) throw new Error(`Media upload failed for ${file.name}: ${error.message}`);
+      const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
+      if (data.publicUrl) urls.push(data.publicUrl);
+    }
+    return urls;
+  }
+
+  async function runIngestParser() {
+    if (!rawText.trim()) {
+      toast.error("Paste the WhatsApp message first.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const mediaUrls = await uploadIntakeMedia(files);
+      const parsed = parseWhatsappStoneMessage(rawText);
+      const status = parsed.confidence_score === "low" ? "low_confidence_review" : "pending_review";
+      const { data: message, error: messageError } = await (supabase as any)
+        .from("whatsapp_intake_messages")
+        .insert({
+          sender_phone: senderPhone.trim() || null,
+          dealer_id: dealerId || null,
+          raw_message_text: rawText.trim(),
+          processing_status: status,
+        })
+        .select("id")
+        .single();
+      if (messageError) throw messageError;
+      const { data: draft, error: draftError } = await (supabase as any)
+        .from("whatsapp_intake_drafts")
+        .insert({
+          intake_message_id: message.id,
+          ...parsed,
+          uploaded_media_urls: mediaUrls,
+        })
+        .select("id")
+        .single();
+      if (draftError) throw draftError;
+      toast.success("WhatsApp draft created", {
+        description: `${parsed.confidence_score.toUpperCase()} confidence · ${parsed.missing_fields.length} missing field(s).`,
+      });
+      setRawText("");
+      setSenderPhone("");
+      setFiles([]);
+      await loadDrafts();
+      setSelectedId(draft.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown intake error";
+      toast.error("WhatsApp ingest failed", { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function approveSelectedDraft() {
+    if (!selectedDraft || !draftForm) return;
+    const selectedDealerId = reviewDealerId || selectedDraft.message?.dealer_id;
+    if (!selectedDealerId) {
+      toast.error("Choose a dealer before approving", {
+        description: "The live stone must belong to a Chaos dealer account.",
+      });
+      return;
+    }
+    const stoneType = cleanText(draftForm.stone_type);
+    if (!stoneType) {
+      toast.error("Stone type is required before approval.");
+      return;
+    }
+    setApproving(true);
+    try {
+      const mediaUrls = selectedDraft.uploaded_media_urls ?? [];
+      const imageUrls = mediaUrls.filter((url) => !isVideoUrl(url));
+      const videoUrl = mediaUrls.find((url) => isVideoUrl(url)) ?? null;
+      const { data: stone, error: stoneError } = await supabase
+        .from("stones")
+        .insert({
+          dealer_id: selectedDealerId,
+          stone_type: stoneType,
+          shape: cleanText(draftForm.shape),
+          carat_weight: toNullableNumber(draftForm.carat),
+          colour_grade: cleanText(draftForm.color),
+          clarity_grade: cleanText(draftForm.clarity),
+          cert_lab: cleanText(draftForm.cert_lab),
+          cert_number: cleanText(draftForm.cert_number),
+          wholesale_price_usd: toNullableNumber(draftForm.price),
+          price_currency: cleanText(draftForm.currency) || "USD",
+          treatment: cleanText(draftForm.treatment),
+          origin: cleanText(draftForm.origin),
+          status: "available",
+          available_qty: 1,
+          has_video: !!videoUrl,
+          has_360: false,
+          video_url: videoUrl,
+          notes_for_buyers: `Created from WhatsApp intake${draftForm.stock_number ? ` · Stock ${draftForm.stock_number}` : ""}. Admin-reviewed before publication.`,
+        })
+        .select("id")
+        .single();
+      if (stoneError) throw stoneError;
+      if (imageUrls.length > 0) {
+        const { error: imageError } = await supabase.from("stone_images").insert(
+          imageUrls.map((url, index) => ({
+            stone_id: stone.id,
+            storage_url: url,
+            external_image_url: url,
+            sort_order: index,
+            is_primary: index === 0,
+          })) as any,
+        );
+        if (imageError) throw imageError;
+      }
+      const missingFields = buildMissingFields(draftForm);
+      await (supabase as any)
+        .from("whatsapp_intake_drafts")
+        .update({
+          ...draftForm,
+          missing_fields: missingFields,
+          confidence_score: missingFields.includes("stone_type") || missingFields.includes("carat") || missingFields.includes("price") || missingFields.includes("shape") ? "medium" : selectedDraft.confidence_score,
+          is_approved: true,
+        })
+        .eq("id", selectedDraft.id);
+      await (supabase as any)
+        .from("whatsapp_intake_messages")
+        .update({ processing_status: "converted_to_draft", dealer_id: selectedDealerId })
+        .eq("id", selectedDraft.intake_message_id);
+      toast.success("Live stone created from WhatsApp draft");
+      await loadDrafts();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown approval error";
+      toast.error("Could not approve WhatsApp draft", { description: message });
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  async function archiveSelectedDraft() {
+    if (!selectedDraft) return;
+    const { error } = await (supabase as any)
+      .from("whatsapp_intake_messages")
+      .update({ processing_status: "archived" })
+      .eq("id", selectedDraft.intake_message_id);
+    if (error) {
+      toast.error("Archive failed", { description: error.message });
+      return;
+    }
+    toast.success("WhatsApp intake item archived");
+    loadDrafts();
+  }
+
+  const activeCount = drafts.filter((draft) => !draft.is_approved && draft.message?.processing_status !== "archived").length;
+  const lowCount = drafts.filter((draft) => draft.confidence_score === "low" && !draft.is_approved).length;
+
+  return (
+    <div className="mt-6 grid gap-6">
+      <section className="rounded-lg border border-border bg-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Phase 1 MVP</div>
+            <h2 className="mt-2 font-serif text-2xl">WhatsApp Intake</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Paste messy dealer WhatsApp messages, attach their photos/videos, and turn them into reviewable Chaos stone drafts. This does not connect Meta webhooks yet.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-right text-xs">
+            <div className="rounded-md border border-border px-3 py-2">
+              <div className="font-serif text-xl">{activeCount}</div>
+              <div className="uppercase tracking-wider text-muted-foreground">Active</div>
+            </div>
+            <div className="rounded-md border border-border px-3 py-2">
+              <div className="font-serif text-xl">{lowCount}</div>
+              <div className="uppercase tracking-wider text-muted-foreground">Low confidence</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[260px_1fr]">
+          <div>
+            <Label htmlFor="whatsapp-dealer">Dealer</Label>
+            <select
+              id="whatsapp-dealer"
+              value={dealerId}
+              onChange={(e) => setDealerId(e.target.value)}
+              className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Unassigned dealer</option>
+              {dealers.map((dealer) => (
+                <option key={dealer.id} value={dealer.id}>
+                  {dealer.company_name || dealer.full_name || dealer.email || dealer.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="whatsapp-phone">Sender phone</Label>
+            <Input
+              id="whatsapp-phone"
+              value={senderPhone}
+              onChange={(e) => setSenderPhone(e.target.value)}
+              placeholder="+44..."
+              className="mt-1.5"
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <Label htmlFor="whatsapp-raw">Raw WhatsApp message</Label>
+            <Textarea
+              id="whatsapp-raw"
+              rows={5}
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Paste dealer message, e.g. 1.52ct Oval Lab Diamond IGI LG123456789 D VS1 price 950 USD..."
+              className="mt-1.5"
+            />
+          </div>
+          <div className="lg:col-span-2">
+            <Label htmlFor="whatsapp-media">Attach WhatsApp media</Label>
+            <input
+              id="whatsapp-media"
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+              className="mt-1.5 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            {files.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {files.map((file) => (
+                  <span key={`${file.name}-${file.size}`} className="rounded-full bg-muted px-2 py-1">
+                    {file.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button onClick={runIngestParser} disabled={submitting}>
+            {submitting ? "Parsing..." : "Run Ingest Parser"}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Creates a draft first. Nothing goes live until you approve it.
+          </span>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
+        <div className="rounded-lg border border-border bg-card">
+          <div className="border-b border-border p-4">
+            <div className="font-medium">Processing queue</div>
+            <div className="mt-3 flex max-w-full gap-1 overflow-x-auto rounded-md border border-border p-1 text-xs [-webkit-overflow-scrolling:touch]">
+              {(["active", "all", "high", "medium", "low"] as const).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setFilter(item)}
+                  className={`shrink-0 rounded px-2.5 py-1 capitalize ${filter === item ? "bg-foreground text-background" : "text-muted-foreground"}`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+          {loading ? (
+            <div className="p-6 text-sm text-muted-foreground">Loading intake queue...</div>
+          ) : drafts.length === 0 ? (
+            <div className="p-6 text-sm text-muted-foreground">No WhatsApp intake drafts yet.</div>
+          ) : (
+            <div className="max-h-[680px] overflow-y-auto">
+              {drafts.map((draft) => (
+                <button
+                  key={draft.id}
+                  type="button"
+                  onClick={() => setSelectedId(draft.id)}
+                  className={`block w-full border-b border-border p-4 text-left transition-colors hover:bg-muted/30 ${
+                    selectedDraft?.id === draft.id ? "bg-[var(--color-gold)]/10" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">
+                      {draft.carat ? `${Number(draft.carat).toFixed(2)}ct ` : ""}
+                      {draft.shape ?? ""} {draft.stone_type ?? "Unknown stone"}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${confidenceLabelClass(draft.confidence_score)}`}>
+                      {draft.confidence_score}
+                    </span>
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {draft.message?.raw_message_text}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <span>{draft.message?.processing_status?.replaceAll("_", " ")}</span>
+                    <span>·</span>
+                    <span>{draft.missing_fields.length} missing</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-5">
+          {!selectedDraft || !draftForm ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Select an intake draft to review.</div>
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs uppercase ${confidenceLabelClass(selectedDraft.confidence_score)}`}>
+                    {selectedDraft.confidence_score} confidence
+                  </span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {selectedDraft.message?.processing_status?.replaceAll("_", " ")}
+                  </span>
+                </div>
+                <h3 className="mt-3 font-serif text-xl">Raw dealer message</h3>
+                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-4 text-xs leading-5">
+                  {selectedDraft.message?.raw_message_text}
+                </pre>
+                {selectedDraft.uploaded_media_urls.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Attached media</div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {selectedDraft.uploaded_media_urls.map((url) =>
+                        isVideoUrl(url) ? (
+                          <video key={url} src={url} controls className="aspect-square w-full rounded-md border border-border object-cover" />
+                        ) : (
+                          <img key={url} src={url} alt="WhatsApp intake media" className="aspect-square w-full rounded-md border border-border object-cover" />
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="mt-4 rounded-md border border-border bg-background p-3">
+                  <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Diagnostics</div>
+                  <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
+                    {JSON.stringify(selectedDraft.parsing_diagnostics, null, 2)}
+                  </pre>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-serif text-xl">Review parsed fields</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Amber fields were missing or uncertain in the message. Edit before approving.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={archiveSelectedDraft}>
+                      Archive
+                    </Button>
+                    <Button size="sm" onClick={approveSelectedDraft} disabled={approving || selectedDraft.is_approved}>
+                      {selectedDraft.is_approved ? "Approved" : approving ? "Creating..." : "Approve & Create Live Listing"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="whatsapp-review-dealer">Listing dealer</Label>
+                    <select
+                      id="whatsapp-review-dealer"
+                      value={reviewDealerId}
+                      onChange={(e) => setReviewDealerId(e.target.value)}
+                      className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Choose dealer before approving</option>
+                      {dealers.map((dealer) => (
+                        <option key={dealer.id} value={dealer.id}>
+                          {dealer.company_name || dealer.full_name || dealer.email || dealer.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <WhatsAppField label="Stone type" field="stone_type" draft={selectedDraft} value={draftForm.stone_type} onChange={(value) => setDraftForm({ ...draftForm, stone_type: value })} />
+                  <WhatsAppField label="Shape" field="shape" draft={selectedDraft} value={draftForm.shape} onChange={(value) => setDraftForm({ ...draftForm, shape: value })} />
+                  <WhatsAppField label="Carat" field="carat" draft={selectedDraft} value={draftForm.carat} type="number" onChange={(value) => setDraftForm({ ...draftForm, carat: value })} />
+                  <WhatsAppField label="Price" field="price" draft={selectedDraft} value={draftForm.price} type="number" onChange={(value) => setDraftForm({ ...draftForm, price: value })} />
+                  <WhatsAppField label="Currency" field="currency" draft={selectedDraft} value={draftForm.currency} onChange={(value) => setDraftForm({ ...draftForm, currency: value })} />
+                  <WhatsAppField label="Colour" field="color" draft={selectedDraft} value={draftForm.color} onChange={(value) => setDraftForm({ ...draftForm, color: value })} />
+                  <WhatsAppField label="Clarity" field="clarity" draft={selectedDraft} value={draftForm.clarity} onChange={(value) => setDraftForm({ ...draftForm, clarity: value })} />
+                  <WhatsAppField label="Cert lab" field="cert_lab" draft={selectedDraft} value={draftForm.cert_lab} onChange={(value) => setDraftForm({ ...draftForm, cert_lab: value })} />
+                  <WhatsAppField label="Cert number" field="cert_number" draft={selectedDraft} value={draftForm.cert_number} onChange={(value) => setDraftForm({ ...draftForm, cert_number: value })} />
+                  <WhatsAppField label="Stock number" field="stock_number" draft={selectedDraft} value={draftForm.stock_number} onChange={(value) => setDraftForm({ ...draftForm, stock_number: value })} />
+                  <WhatsAppField label="Treatment" field="treatment" draft={selectedDraft} value={draftForm.treatment} onChange={(value) => setDraftForm({ ...draftForm, treatment: value })} />
+                  <WhatsAppField label="Origin" field="origin" draft={selectedDraft} value={draftForm.origin} onChange={(value) => setDraftForm({ ...draftForm, origin: value })} />
+                  <div className="sm:col-span-2">
+                    <WhatsAppField label="Dimensions" field="dimensions" draft={selectedDraft} value={draftForm.dimensions} onChange={(value) => setDraftForm({ ...draftForm, dimensions: value })} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function WhatsAppField({
+  label,
+  field,
+  draft,
+  value,
+  type = "text",
+  onChange,
+}: {
+  label: string;
+  field: string;
+  draft: WhatsAppIntakeDraft;
+  value: string | number | null;
+  type?: "text" | "number";
+  onChange: (value: any) => void;
+}) {
+  const needsReview = draft.missing_fields.includes(field);
+  return (
+    <div className={needsReview ? "rounded-md border border-amber-300 bg-amber-50/70 p-2" : ""}>
+      <Label>{label}</Label>
+      <Input
+        type={type}
+        value={value ?? ""}
+        onChange={(e) => onChange(type === "number" ? toNullableNumber(e.target.value) : e.target.value)}
+        className="mt-1.5"
+      />
+    </div>
+  );
+}
+
+function cleanText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function toNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function isVideoUrl(url: string) {
+  return /\.(mp4|mov|webm|m4v)(?:\?|$)/i.test(url);
+}
+
+function buildMissingFields(form: WhatsAppDraftForm) {
+  const required: Array<keyof WhatsAppDraftForm> = ["stone_type", "carat", "price", "shape"];
+  return required.filter((field) => {
+    const value = form[field];
+    return value === null || value === undefined || value === "";
+  });
+}
 
 const THEME_EDITOR_TABS: Array<{
   id: "presets" | "brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview";
