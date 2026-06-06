@@ -17,6 +17,7 @@ import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { CompareBar } from "@/components/site/CompareBar";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SiteThemeBridge } from "@/components/site/SiteThemeBridge";
 
 function NotFoundComponent() {
   return (
@@ -154,6 +155,7 @@ function RootComponent() {
       <CurrencyProvider>
         <CompareProvider>
           <TooltipProvider delayDuration={200}>
+          <SiteThemeBridge />
           <ImpersonationBanner />
           <a
             href="#main-content"

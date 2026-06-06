@@ -15,9 +15,11 @@ import {
   Instagram,
 } from "lucide-react";
 import { defaultDashboardPath, isDealer, isJeweller } from "@/lib/auth.utils";
+import { useSiteTheme } from "@/hooks/useSiteTheme";
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
+  const { theme } = useSiteTheme();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -79,7 +81,7 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <span className="logo-glow"><Logo /></span>
+        <span className="logo-glow"><Logo imageUrl={theme.logo_url} /></span>
         <nav aria-label="Main navigation" className="hidden items-center gap-7 text-sm md:flex">
           {navLinks.map((l) => {
             const active = isActive(l.to);
@@ -227,12 +229,25 @@ function MobileBottomNav() {
 }
 
 export function SiteFooter() {
+  const { theme } = useSiteTheme();
   return (
     <footer className="border-t border-border bg-primary text-primary-foreground">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 md:grid-cols-3">
         <div>
           <div className="flex items-center gap-2.5">
-            <GemMark size={26} className="invert brightness-0 contrast-100" style={{ filter: "brightness(0) invert(1)" }} />
+            {theme.logo_url ? (
+              <img
+                src={theme.logo_url}
+                width={26}
+                height={26}
+                alt=""
+                aria-hidden="true"
+                className="rounded-sm object-cover"
+                style={{ width: 26, height: 26 }}
+              />
+            ) : (
+              <GemMark size={26} className="invert brightness-0 contrast-100" style={{ filter: "brightness(0) invert(1)" }} />
+            )}
             <span className="font-serif text-2xl italic font-medium tracking-tight">CHAOS</span>
           </div>
           <p className="mt-3 max-w-xs text-sm opacity-75">

@@ -23,11 +23,13 @@ export function Logo({
   withTagline = false,
   to = "/",
   tone = "default",
+  imageUrl = "",
 }: {
   size?: "sm" | "md" | "lg";
   withTagline?: boolean;
   to?: string;
   tone?: "default" | "inverted";
+  imageUrl?: string;
 }) {
   const text =
     size === "lg"
@@ -41,7 +43,19 @@ export function Logo({
   return (
     <Link to={to} className="group inline-flex items-center gap-2.5">
       <span className="inline-block transition-transform duration-[600ms] ease-out group-hover:rotate-[360deg]">
-        <GemMark size={markPx} />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            width={markPx}
+            height={markPx}
+            alt=""
+            aria-hidden="true"
+            className="rounded-sm object-cover"
+            style={{ width: markPx, height: markPx }}
+          />
+        ) : (
+          <GemMark size={markPx} />
+        )}
       </span>
       <span className={`font-serif italic font-medium tracking-tight ${text} ${color}`}>
         CHAOS

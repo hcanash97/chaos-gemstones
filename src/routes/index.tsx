@@ -17,7 +17,8 @@ import { CertLabBar } from "@/components/site/CertLabBar";
 import { FounderQuote } from "@/components/site/FounderQuote";
 import { TrustStrip } from "@/components/site/TrustStrip";
 import { BetaTopBanner } from "@/components/site/BetaTopBanner";
-import { DEFAULT_SITE_THEME, normalizeSiteTheme, type HomepageBlockType } from "@/lib/site-theme";
+import { DEFAULT_SITE_THEME, type HomepageBlockType } from "@/lib/site-theme";
+import { useSiteTheme } from "@/hooks/useSiteTheme";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -113,19 +114,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   const { user, profile } = useAuth();
   const isApprovedJeweller = checkJ(profile) && !!profile?.is_approved;
-  const { data: siteTheme = DEFAULT_SITE_THEME } = useQuery({
-    queryKey: ["site-theme"],
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("site_configurations")
-        .select("theme_data")
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-      return normalizeSiteTheme(data?.theme_data);
-    },
-  });
+  const { theme: siteTheme } = useSiteTheme();
   const { data: stats } = useQuery({
     queryKey: ["home-stats"],
     queryFn: async () => {
