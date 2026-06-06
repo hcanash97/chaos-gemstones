@@ -516,7 +516,10 @@ export function applyFilters(stones: any[], f: FilterState): any[] {
     list = list.filter((s) => s.cert_number?.toLowerCase().includes(q));
   }
   if (f.countries.length) list = list.filter((s) => s.country_of_origin && f.countries.includes(s.country_of_origin));
-  if (f.origin !== "all") list = list.filter((s) => originMatches(s.origin, f.origin));
+  if (f.origin !== "all") {
+    const originSel = f.origin;
+    list = list.filter((s) => originMatches(s.origin, originSel));
+  }
   if (f.availability.length) list = list.filter((s) => f.availability.includes(s.status));
   if (f.listingType !== "all") list = list.filter((s) => (s.listing_type ?? "single") === f.listingType);
   if (f.bulkPricingOnly) list = list.filter((s) => s.bulk_pricing_available);
