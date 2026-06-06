@@ -943,7 +943,7 @@ function Marketplace() {
               />
             )}
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-md border border-border bg-card">
                     <Skeleton className="aspect-square w-full rounded-none" />
@@ -955,7 +955,7 @@ function Marketplace() {
                 ))}
               </div>
             ) : f.view === "grid" ? (
-              <StaggerGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" delay={0.06}>
+              <StaggerGroup className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3" delay={0.06}>
                 {visible.map((s) => (
                   <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} retailMode={retailMode} />
                 ))}

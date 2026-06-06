@@ -19,7 +19,7 @@ import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/ad
 import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
-import { DEFAULT_SITE_THEME, normalizeSiteTheme, type SiteThemeSettings } from "@/lib/site-theme";
+import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type SiteThemeSettings } from "@/lib/site-theme";
 
 type ProfileRow = {
   id: string;
@@ -616,6 +616,26 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function toggleBlock(index: number) {
+    setForm((current) => ({
+      ...current,
+      homepage_layout: current.homepage_layout.map((block, i) =>
+        i === index ? { ...block, enabled: !block.enabled } : block,
+      ),
+    }));
+  }
+
+  function moveBlock(index: number, direction: -1 | 1) {
+    setForm((current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.homepage_layout.length) return current;
+      const next = [...current.homepage_layout];
+      const [item] = next.splice(index, 1);
+      next.splice(nextIndex, 0, item);
+      return { ...current, homepage_layout: next };
+    });
+  }
+
   async function uploadLogo(file: File) {
     if (!file.type.startsWith("image/")) {
       toast.error("Please choose an image file.");
@@ -757,6 +777,57 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
             </div>
           </div>
 
+          <div>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <Label>Homepage layout blocks</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Toggle sections on or off and reorder the homepage without editing code.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setField("homepage_layout", DEFAULT_SITE_THEME.homepage_layout)}
+                disabled={saving || uploading}
+              >
+                Reset layout
+              </Button>
+            </div>
+            <div className="mt-3 divide-y divide-border rounded-md border border-border">
+              {form.homepage_layout.map((block, index) => (
+                <div key={block.id} className="flex flex-wrap items-center gap-3 p-3">
+                  <Checkbox checked={block.enabled} onCheckedChange={() => toggleBlock(index)} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{HOMEPAGE_BLOCK_LABELS[block.type]}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{block.type}</div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => moveBlock(index, -1)}
+                      disabled={index === 0 || saving || uploading}
+                    >
+                      Up
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => moveBlock(index, 1)}
+                      disabled={index === form.homepage_layout.length - 1 || saving || uploading}
+                    >
+                      Down
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2 pt-2">
             <Button onClick={save} disabled={saving || uploading} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
               {saving ? "Saving..." : "Save changes"}
@@ -795,7 +866,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
           </div>
         </div>
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
-          This is the first layer of the Shopify-style customiser: editable content and brand controls. Layout blocks can come next once this loop is stable.
+          This is now a lightweight Shopify-style customiser: editable brand controls plus a modular homepage section order.
         </p>
       </aside>
     </div>

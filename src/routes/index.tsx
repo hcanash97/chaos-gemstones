@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Fragment } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
@@ -16,7 +17,7 @@ import { CertLabBar } from "@/components/site/CertLabBar";
 import { FounderQuote } from "@/components/site/FounderQuote";
 import { TrustStrip } from "@/components/site/TrustStrip";
 import { BetaTopBanner } from "@/components/site/BetaTopBanner";
-import { DEFAULT_SITE_THEME, normalizeSiteTheme } from "@/lib/site-theme";
+import { DEFAULT_SITE_THEME, normalizeSiteTheme, type HomepageBlockType } from "@/lib/site-theme";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -197,259 +198,304 @@ function Home() {
     },
   });
 
+  const homepageBlocks = siteTheme.homepage_layout.filter((block) => block.enabled);
+  const renderHomepageBlock = (type: HomepageBlockType) => {
+    switch (type) {
+      case "hero":
+        return <HomeHeroSection siteTheme={siteTheme} />;
+      case "cert_labs":
+        return <CertLabBar />;
+      case "trust_strip":
+        return <TrustStrip />;
+      case "audience_cards":
+        return <AudienceCardsSection />;
+      case "featured_stones":
+        return <FeaturedStonesSection featuredStones={featuredStones ?? []} wishlistIds={wishlistIds} />;
+      case "matched_pairs":
+        return <MatchedPairsSection />;
+      case "featured_vendors":
+        return <FeaturedVendorsSection featuredVendors={featuredVendors ?? []} />;
+      case "founder_quote":
+        return <FounderQuote />;
+      case "stats":
+        return <StatsTrustSection stats={stats} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <BetaTopBanner />
       <SiteHeader />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden text-primary-foreground hero-aurora">
-        <div className="hero-light" aria-hidden />
-        <GemParticles count={14} />
-        <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            {siteTheme.logo_url && (
-              <img
-                src={siteTheme.logo_url}
-                alt="Chaos logo"
-                className="mb-5 h-14 w-14 rounded-md object-cover shadow-lg ring-1 ring-white/20"
-                loading="eager"
-              />
-            )}
-            <Badge
-              className="border-0"
-              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
-            >
-              B2B · For the trade
-            </Badge>
-          </motion.div>
-          <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">
-            <WordReveal text={siteTheme.hero_title} />
-          </h1>
-          <motion.p
-            className="mt-6 max-w-xl text-lg opacity-80"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 0.8, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.6 }}
-          >
-            {siteTheme.hero_subtitle}
-          </motion.p>
-          <motion.div
-            className="mt-8 flex flex-wrap gap-3"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.9 }}
-          >
-            <Link to="/marketplace">
-              <Button
-                size="lg"
-                className="group relative overflow-hidden border-0 gold-glow transition-shadow hover:opacity-95"
-                style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
-              >
-                Browse marketplace <ArrowRight className="ml-2 h-4 w-4" />
-                <span className="shimmer-overlay" aria-hidden />
-              </Button>
-            </Link>
-            <Link to="/sign-up">
-              <Button
-                size="lg"
-                variant="outline"
-                className="bg-transparent transition-colors hover:bg-white/10"
-                style={{ borderColor: siteTheme.accent_color, color: siteTheme.accent_color }}
-              >
-                Sign up
-              </Button>
-            </Link>
-            {siteTheme.contact_whatsapp && (
-              <a
-                href={`https://wa.me/${siteTheme.contact_whatsapp.replace(/[^0-9]/g, "")}`}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <Button size="lg" variant="ghost" className="text-primary-foreground hover:bg-white/10">
-                  WhatsApp
-                </Button>
-              </a>
-            )}
-          </motion.div>
-          <motion.p
-            className="mt-4 text-sm opacity-70"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            transition={{ duration: 0.55, delay: 1.05 }}
-          >
-            Not sure what this is?{" "}
-            <Link to="/about" className="font-medium text-[var(--color-gold)] underline-offset-4 hover:underline">
-              Read how it works →
-            </Link>
-          </motion.p>
-        </div>
-        <span className="gold-line-draw absolute bottom-0 left-0 right-0" aria-hidden />
-      </section>
-
-      {/* Cert lab trust bar */}
-      <CertLabBar />
-
-      {/* Sourcing countries strip */}
-      <TrustStrip />
-
-      {/* Two-sided explainer */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
-        <FadeUp className="mb-10">
-          <LaunchBanner />
-        </FadeUp>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #162347 100%)" }}>
-            <GemMarkWatermark />
-            <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
-            <h2 className="relative mt-3 font-serif text-3xl">Source verified stones. Sell as your own.</h2>
-            <p className="relative mt-4 opacity-80">
-              Browse thousands of certified stones from trusted dealers. Follow vendors you trust, set your markup, embed a live API feed into your own website. Sold stones drop out of your inventory automatically.
-            </p>
-            <Link to="/sign-up/jeweller" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
-              Create a jeweller account <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
-          <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }}>
-            <GemMarkWatermark />
-            <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Dealers</div>
-            <h2 className="relative mt-3 font-serif text-3xl">List once. Reach jewellers worldwide.</h2>
-            <p className="relative mt-4 opacity-80">
-              Upload your inventory manually or via CSV. Get discovered by jewellers across the UK, US, Europe and Australia. Your stones appear in their stores automatically; mark sold and they disappear instantly.
-            </p>
-            <Link to="/sign-up/dealer" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
-              Become a verified dealer <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured stones */}
-      <section className="bg-secondary/30 py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <FadeUp className="flex items-end justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Featured Inventory</div>
-              <h2 className="mt-2 font-serif text-4xl">Hand-picked stones</h2>
-            </div>
-            <Link to="/marketplace" className="text-sm text-foreground hover:text-[var(--color-gold)]">
-              View all →
-            </Link>
-          </FadeUp>
-          <StaggerGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" delay={0.08}>
-            {(featuredStones ?? []).map((s) => (
-              <StoneCard key={s.id} stone={{ ...s, isWishlisted: wishlistIds?.has(s.id) ?? false }} />
-            ))}
-          </StaggerGroup>
-        </div>
-      </section>
-
-      {/* Matched pairs teaser */}
-      <section className="border-t border-border bg-background py-16">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="grid items-center gap-8 rounded-lg border border-[var(--gold-border)] bg-card p-8 md:grid-cols-[1.4fr_1fr]">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
-                Matched Pairs
-              </div>
-              <h2 className="mt-2 font-serif text-3xl md:text-4xl">
-                Matched pairs &mdash; ideal for earrings and symmetric settings
-              </h2>
-              <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-                Browse colour-, cut- and weight-matched pairs from verified dealers.
-                Save hours of back-and-forth sourcing for symmetrical commissions.
-              </p>
-              <Link
-                to="/marketplace"
-                className="mt-5 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90"
-              >
-                Browse matched pairs <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </div>
-            <div
-              aria-hidden
-              className="relative hidden h-40 overflow-hidden rounded-md md:block"
-              style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #1B3A2D 100%)" }}
-            >
-              <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-90">
-                <span className="h-20 w-20 rotate-12 rounded-full bg-[var(--color-gold)]/30 ring-2 ring-[var(--color-gold)]/60" />
-                <span className="h-20 w-20 -rotate-12 rounded-full bg-[var(--color-gold)]/30 ring-2 ring-[var(--color-gold)]/60" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured vendors */}
-      <section className="mx-auto max-w-7xl px-6 py-20">
-        <FadeUp className="flex items-end justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trusted Suppliers</div>
-            <h2 className="mt-2 font-serif text-4xl">Featured vendors</h2>
-          </div>
-          <Link to="/vendors" className="text-sm text-foreground hover:text-[var(--color-gold)]">
-            View all →
-          </Link>
-        </FadeUp>
-        <StaggerGroup className="mt-8 grid gap-5 md:grid-cols-3">
-          {(featuredVendors ?? []).map((v: any) => (
-            <motion.div
-              key={v.id}
-              variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
-              whileHover={{ y: -4 }}
-              className="group"
-            >
-              <Link
-                to="/vendors/$slug"
-                params={{ slug: v.slug }}
-                className="block rounded-md border border-border bg-card p-6 transition-all hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
-              >
-                <div className="flex items-center gap-2">
-                  <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
-                  {v.profiles?.is_verified && (
-                    <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
-                  )}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
-                </div>
-                <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {(v.specialities ?? []).slice(0, 3).map((s: string, i: number) => (
-                    <span
-                      key={s}
-                      className="inline-block -translate-x-2 opacity-80 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
-                      style={{ transitionDelay: `${i * 60}ms` }}
-                    >
-                      <Badge variant="secondary" className="text-[10px]">{s}</Badge>
-                    </span>
-                  ))}
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </StaggerGroup>
-      </section>
-
-      {/* Founder quote */}
-      <FounderQuote />
-
-      {/* Trust strip */}
-      <section className="border-t border-border bg-secondary/30 py-16">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 md:grid-cols-3 md:divide-x md:divide-border">
-          <StatBig label="Approved dealers" value={stats?.dealers ?? 0} />
-          <StatBig label="Stones available" value={stats?.stones ?? 0} />
-          <StatBig label="Sourcing countries" value={stats?.countries ?? 0} />
-        </div>
-        <div className="mx-auto mt-10 grid max-w-7xl gap-8 px-6 md:grid-cols-3">
-          <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Verified dealers" desc="Every supplier reviewed and approved before listing." />
-          <Feature icon={<Globe2 className="h-5 w-5" />} title="Global sourcing" desc="Direct access to Jaipur, Surat, Bangkok, Colombo and beyond." />
-          <Feature icon={<Boxes className="h-5 w-5" />} title="Live inventory sync" desc="Sold stones drop out of every jeweller's feed within 60 seconds." />
-        </div>
-      </section>
+      {homepageBlocks.map((block) => (
+        <Fragment key={block.id}>{renderHomepageBlock(block.type)}</Fragment>
+      ))}
 
       <SiteFooter />
     </div>
+  );
+}
+
+function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
+  return (
+    <section className="relative overflow-hidden text-primary-foreground hero-aurora">
+      <div className="hero-light" aria-hidden />
+      <GemParticles count={14} />
+      <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          {siteTheme.logo_url && (
+            <img
+              src={siteTheme.logo_url}
+              alt="Chaos logo"
+              className="mb-5 h-14 w-14 rounded-md object-cover shadow-lg ring-1 ring-white/20"
+              loading="eager"
+            />
+          )}
+          <Badge
+            className="border-0"
+            style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+          >
+            B2B · For the trade
+          </Badge>
+        </motion.div>
+        <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">
+          <WordReveal text={siteTheme.hero_title} />
+        </h1>
+        <motion.p
+          className="mt-6 max-w-xl text-lg opacity-80"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 0.8, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.6 }}
+        >
+          {siteTheme.hero_subtitle}
+        </motion.p>
+        <motion.div
+          className="mt-8 flex flex-wrap gap-3"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.9 }}
+        >
+          <Link to="/marketplace">
+            <Button
+              size="lg"
+              className="group relative overflow-hidden border-0 gold-glow transition-shadow hover:opacity-95"
+              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+            >
+              Browse marketplace <ArrowRight className="ml-2 h-4 w-4" />
+              <span className="shimmer-overlay" aria-hidden />
+            </Button>
+          </Link>
+          <Link to="/sign-up">
+            <Button
+              size="lg"
+              variant="outline"
+              className="bg-transparent transition-colors hover:bg-white/10"
+              style={{ borderColor: siteTheme.accent_color, color: siteTheme.accent_color }}
+            >
+              Sign up
+            </Button>
+          </Link>
+          {siteTheme.contact_whatsapp && (
+            <a
+              href={`https://wa.me/${siteTheme.contact_whatsapp.replace(/[^0-9]/g, "")}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <Button size="lg" variant="ghost" className="text-primary-foreground hover:bg-white/10">
+                WhatsApp
+              </Button>
+            </a>
+          )}
+        </motion.div>
+        <motion.p
+          className="mt-4 text-sm opacity-70"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.7 }}
+          transition={{ duration: 0.55, delay: 1.05 }}
+        >
+          Not sure what this is?{" "}
+          <Link to="/about" className="font-medium text-[var(--color-gold)] underline-offset-4 hover:underline">
+            Read how it works →
+          </Link>
+        </motion.p>
+      </div>
+      <span className="gold-line-draw absolute bottom-0 left-0 right-0" aria-hidden />
+    </section>
+  );
+}
+
+function AudienceCardsSection() {
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-20">
+      <FadeUp className="mb-10">
+        <LaunchBanner />
+      </FadeUp>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #162347 100%)" }}>
+          <GemMarkWatermark />
+          <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
+          <h2 className="relative mt-3 font-serif text-3xl">Source verified stones. Sell as your own.</h2>
+          <p className="relative mt-4 opacity-80">
+            Browse thousands of certified stones from trusted dealers. Follow vendors you trust, set your markup, embed a live API feed into your own website. Sold stones drop out of your inventory automatically.
+          </p>
+          <Link to="/sign-up/jeweller" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
+            Create a jeweller account <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </div>
+        <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }}>
+          <GemMarkWatermark />
+          <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Dealers</div>
+          <h2 className="relative mt-3 font-serif text-3xl">List once. Reach jewellers worldwide.</h2>
+          <p className="relative mt-4 opacity-80">
+            Upload your inventory manually or via CSV. Get discovered by jewellers across the UK, US, Europe and Australia. Your stones appear in their stores automatically; mark sold and they disappear instantly.
+          </p>
+          <Link to="/sign-up/dealer" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
+            Become a verified dealer <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FeaturedStonesSection({
+  featuredStones,
+  wishlistIds,
+}: {
+  featuredStones: any[];
+  wishlistIds: Set<string> | undefined;
+}) {
+  return (
+    <section className="bg-secondary/30 py-20">
+      <div className="mx-auto max-w-7xl px-6">
+        <FadeUp className="flex items-end justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Featured Inventory</div>
+            <h2 className="mt-2 font-serif text-4xl">Hand-picked stones</h2>
+          </div>
+          <Link to="/marketplace" className="text-sm text-foreground hover:text-[var(--color-gold)]">
+            View all →
+          </Link>
+        </FadeUp>
+        <StaggerGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" delay={0.08}>
+          {featuredStones.map((s) => (
+            <StoneCard key={s.id} stone={{ ...s, isWishlisted: wishlistIds?.has(s.id) ?? false }} />
+          ))}
+        </StaggerGroup>
+      </div>
+    </section>
+  );
+}
+
+function MatchedPairsSection() {
+  return (
+    <section className="border-t border-border bg-background py-16">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid items-center gap-8 rounded-lg border border-[var(--gold-border)] bg-card p-8 md:grid-cols-[1.4fr_1fr]">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
+              Matched Pairs
+            </div>
+            <h2 className="mt-2 font-serif text-3xl md:text-4xl">
+              Matched pairs &mdash; ideal for earrings and symmetric settings
+            </h2>
+            <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+              Browse colour-, cut- and weight-matched pairs from verified dealers.
+              Save hours of back-and-forth sourcing for symmetrical commissions.
+            </p>
+            <Link
+              to="/marketplace"
+              className="mt-5 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90"
+            >
+              Browse matched pairs <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          </div>
+          <div
+            aria-hidden
+            className="relative hidden h-40 overflow-hidden rounded-md md:block"
+            style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #1B3A2D 100%)" }}
+          >
+            <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-90">
+              <span className="h-20 w-20 rotate-12 rounded-full bg-[var(--color-gold)]/30 ring-2 ring-[var(--color-gold)]/60" />
+              <span className="h-20 w-20 -rotate-12 rounded-full bg-[var(--color-gold)]/30 ring-2 ring-[var(--color-gold)]/60" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FeaturedVendorsSection({ featuredVendors }: { featuredVendors: any[] }) {
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-20">
+      <FadeUp className="flex items-end justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trusted Suppliers</div>
+          <h2 className="mt-2 font-serif text-4xl">Featured vendors</h2>
+        </div>
+        <Link to="/vendors" className="text-sm text-foreground hover:text-[var(--color-gold)]">
+          View all →
+        </Link>
+      </FadeUp>
+      <StaggerGroup className="mt-8 grid gap-5 md:grid-cols-3">
+        {featuredVendors.map((v: any) => (
+          <motion.div
+            key={v.id}
+            variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } }}
+            whileHover={{ y: -4 }}
+            className="group"
+          >
+            <Link
+              to="/vendors/$slug"
+              params={{ slug: v.slug }}
+              className="block rounded-md border border-border bg-card p-6 transition-all hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
+            >
+              <div className="flex items-center gap-2">
+                <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
+                {v.profiles?.is_verified && (
+                  <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
+                )}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
+              </div>
+              <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {(v.specialities ?? []).slice(0, 3).map((s: string, i: number) => (
+                  <span
+                    key={s}
+                    className="inline-block -translate-x-2 opacity-80 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
+                    style={{ transitionDelay: `${i * 60}ms` }}
+                  >
+                    <Badge variant="secondary" className="text-[10px]">{s}</Badge>
+                  </span>
+                ))}
+              </div>
+            </Link>
+          </motion.div>
+        ))}
+      </StaggerGroup>
+    </section>
+  );
+}
+
+function StatsTrustSection({ stats }: { stats: { dealers: number; stones: number; countries: number } | undefined }) {
+  return (
+    <section className="border-t border-border bg-secondary/30 py-16">
+      <div className="mx-auto grid max-w-7xl gap-8 px-6 md:grid-cols-3 md:divide-x md:divide-border">
+        <StatBig label="Approved dealers" value={stats?.dealers ?? 0} />
+        <StatBig label="Stones available" value={stats?.stones ?? 0} />
+        <StatBig label="Sourcing countries" value={stats?.countries ?? 0} />
+      </div>
+      <div className="mx-auto mt-10 grid max-w-7xl gap-8 px-6 md:grid-cols-3">
+        <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Verified dealers" desc="Every supplier reviewed and approved before listing." />
+        <Feature icon={<Globe2 className="h-5 w-5" />} title="Global sourcing" desc="Direct access to Jaipur, Surat, Bangkok, Colombo and beyond." />
+        <Feature icon={<Boxes className="h-5 w-5" />} title="Live inventory sync" desc="Sold stones drop out of every jeweller's feed within 60 seconds." />
+      </div>
+    </section>
   );
 }
 

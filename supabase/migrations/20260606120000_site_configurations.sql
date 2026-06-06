@@ -6,7 +6,18 @@ CREATE TABLE IF NOT EXISTS public.site_configurations (
     'accent_color', '#E8C97A',
     'hero_title', 'Verified diamonds & coloured stones, sourced direct from the world''s dealers.',
     'hero_subtitle', 'The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.',
-    'contact_whatsapp', ''
+    'contact_whatsapp', '',
+    'homepage_layout', jsonb_build_array(
+      jsonb_build_object('id', 'hero', 'type', 'hero', 'enabled', true),
+      jsonb_build_object('id', 'cert_labs', 'type', 'cert_labs', 'enabled', true),
+      jsonb_build_object('id', 'trust_strip', 'type', 'trust_strip', 'enabled', true),
+      jsonb_build_object('id', 'audience_cards', 'type', 'audience_cards', 'enabled', true),
+      jsonb_build_object('id', 'featured_stones', 'type', 'featured_stones', 'enabled', true),
+      jsonb_build_object('id', 'matched_pairs', 'type', 'matched_pairs', 'enabled', true),
+      jsonb_build_object('id', 'featured_vendors', 'type', 'featured_vendors', 'enabled', true),
+      jsonb_build_object('id', 'founder_quote', 'type', 'founder_quote', 'enabled', true),
+      jsonb_build_object('id', 'stats', 'type', 'stats', 'enabled', true)
+    )
   )
 );
 

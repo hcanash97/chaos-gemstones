@@ -36,6 +36,19 @@ export type StoneCardData = {
   isWishlisted?: boolean;
 };
 
+function stoneAltText(stone: StoneCardData): string {
+  const parts = [
+    stone.carat_weight ? `${Number(stone.carat_weight).toFixed(2)} carat` : null,
+    stone.shape || null,
+    stone.origin === "lab-grown" ? "lab-grown" : stone.origin === "natural" ? "natural" : null,
+    stone.stone_type || "gemstone",
+    stone.colour_grade ? `${stone.colour_grade} colour` : null,
+    stone.clarity_grade ? `${stone.clarity_grade} clarity` : null,
+    stone.cert_lab ? `certified by ${stone.cert_lab}` : null,
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
 function StoneCardImpl({
   stone,
   followedDealerIds,
@@ -107,19 +120,26 @@ function StoneCardImpl({
   }
 
   return (
-    <motion.div role="article" variants={fadeUp} whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 280, damping: 22 }}>
-    <Link
-      to="/stone/$id"
-      params={{ id: stone.id }}
-      className="group block overflow-hidden rounded-md border border-border bg-card transition-shadow duration-300 hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
+    <motion.div
+      role="article"
+      variants={fadeUp}
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 280, damping: 22 }}
+      className="group relative overflow-hidden rounded-md border border-border bg-card transition-shadow duration-300 hover:border-[var(--color-gold)] hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]"
     >
+      <Link
+        to="/stone/$id"
+        params={{ id: stone.id }}
+        className="block"
+      >
       <div className="relative aspect-square overflow-hidden bg-muted">
         {stone.image ? (
           <img
             src={stone.image}
-            alt={`${stone.carat_weight ?? ""}ct ${stone.stone_type}`}
+            alt={stoneAltText(stone)}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -153,77 +173,35 @@ function StoneCardImpl({
             </span>
           )}
         </div>
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={onCompare}
-                aria-label={inCompare ? "Remove from comparison" : "Add to comparison"}
-                className={`flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background ${compareDisabled ? "opacity-50" : ""}`}
-              >
-                <Scale
-                  className={`h-4 w-4 transition ${inCompare ? "fill-[var(--color-gold)]/30 text-[var(--color-gold)]" : "text-foreground"}`}
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="text-xs">
-              {compareDisabled
-                ? `Max ${compare.max} stones at once`
-                : inCompare
-                  ? "Remove from comparison"
-                  : "Compare side-by-side"}
-            </TooltipContent>
-          </Tooltip>
-          {isJeweller && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={toggleWishlist}
-                  aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background"
-                >
-                  <Heart
-                    className={`h-4 w-4 transition ${saved ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "text-foreground"}`}
-                  />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="left" className="text-xs">
-                {saved ? "Remove from wishlist" : "Save to wishlist"}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
       </div>
-      <div className="p-4">
-        <div className="flex items-center justify-between text-xs">
-          <span className="flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+      <div className="p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2 text-[10px] sm:text-xs">
+          <span className="flex min-w-0 items-center gap-1.5 truncate uppercase tracking-wider text-muted-foreground">
             {stone.origin === "lab-grown" ? "Lab Grown" : "Natural"} · {stone.cert_lab || "—"}
             {stone.dealer_verified && (
               <ShieldCheck className="h-3.5 w-3.5 text-[var(--color-gold)]" aria-label="Verified dealer" />
             )}
           </span>
           {!retailMode && stone.dealer_country ? (
-            <span className="text-muted-foreground">
+            <span className="hidden shrink-0 text-muted-foreground sm:inline">
               {countryFlag(stone.dealer_country)} {stone.dealer_country}
             </span>
           ) : !retailMode && stone.country_of_origin ? (
-            <span className="text-muted-foreground">
+            <span className="hidden shrink-0 text-muted-foreground sm:inline">
               {countryFlag(stone.country_of_origin)} {stone.country_of_origin}
             </span>
           ) : null}
         </div>
-        <h3 className="mt-1 font-serif text-lg leading-tight">
+        <h3 className="mt-1 line-clamp-2 min-h-[2.35rem] font-serif text-base leading-tight sm:min-h-0 sm:text-lg">
           {stone.carat_weight ? `${Number(stone.carat_weight).toFixed(2)}ct ` : ""}
           <span className="capitalize">{stone.shape || ""} {stone.stone_type}</span>
         </h3>
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex gap-1.5">
-            {stone.colour_grade && <Badge variant="outline" className="font-mono">{stone.colour_grade}</Badge>}
-            {stone.clarity_grade && <Badge variant="outline" className="font-mono">{stone.clarity_grade}</Badge>}
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-h-6 flex-wrap gap-1.5">
+            {stone.colour_grade && <Badge variant="outline" className="px-1.5 font-mono text-[10px] sm:px-2.5 sm:text-xs">{stone.colour_grade}</Badge>}
+            {stone.clarity_grade && <Badge variant="outline" className="px-1.5 font-mono text-[10px] sm:px-2.5 sm:text-xs">{stone.clarity_grade}</Badge>}
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             {showWholesale ? (
               <>
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Wholesale</div>
@@ -244,7 +222,49 @@ function StoneCardImpl({
           </div>
         </div>
       </div>
-    </Link>
+      </Link>
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onCompare}
+              aria-label={inCompare ? "Remove from comparison" : "Add to comparison"}
+              className={`flex h-8 w-8 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background sm:h-9 sm:w-9 ${compareDisabled ? "opacity-50" : ""}`}
+            >
+              <Scale
+                className={`h-4 w-4 transition ${inCompare ? "fill-[var(--color-gold)]/30 text-[var(--color-gold)]" : "text-foreground"}`}
+              />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="text-xs">
+            {compareDisabled
+              ? `Max ${compare.max} stones at once`
+              : inCompare
+                ? "Remove from comparison"
+                : "Compare side-by-side"}
+          </TooltipContent>
+        </Tooltip>
+        {isJeweller && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={toggleWishlist}
+                aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-background/85 backdrop-blur transition hover:bg-background sm:h-9 sm:w-9"
+              >
+                <Heart
+                  className={`h-4 w-4 transition ${saved ? "fill-[var(--color-gold)] text-[var(--color-gold)]" : "text-foreground"}`}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="text-xs">
+              {saved ? "Remove from wishlist" : "Save to wishlist"}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </motion.div>
   );
 }
