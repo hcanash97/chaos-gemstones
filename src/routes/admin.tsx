@@ -588,10 +588,15 @@ type ReferralCreditRow = {
 };
 
 const THEME_EDITOR_TABS: Array<{
-  id: "brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview";
+  id: "presets" | "brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview";
   label: string;
   description: string;
 }> = [
+  {
+    id: "presets",
+    label: "Presets",
+    description: "Apply a curated visual direction, then fine tune it before saving.",
+  },
   {
     id: "brand",
     label: "Brand",
@@ -629,12 +634,124 @@ const THEME_EDITOR_TABS: Array<{
   },
 ];
 
+const THEME_PRESETS: Array<{
+  id: string;
+  name: string;
+  strapline: string;
+  description: string;
+  swatches: string[];
+  apply: (current: SiteThemeSettings) => SiteThemeSettings;
+}> = [
+  {
+    id: "trade-classic",
+    name: "Trade Classic",
+    strapline: "Quiet B2B trust",
+    description: "Balanced navy, champagne gold and restrained motion for a credible trade marketplace.",
+    swatches: ["#E8C97A", "#0F1B3D", "#F8F6F0"],
+    apply: (current) =>
+      normalizeSiteTheme({
+        ...current,
+        accent_color: "#E8C97A",
+        primary_glow_color: "#E8C97A",
+        animation_preset: "classic-fade",
+        enable_parallax: true,
+        hero_media_type: "image",
+        hero_overlay_opacity: 0.62,
+        ticker_enabled: true,
+        shape_grid_enabled: true,
+        shape_grid_mode: "grid",
+        hero_badge_label: "B2B · For the trade",
+        hero_primary_cta_label: "Browse marketplace",
+        hero_primary_cta_url: "/marketplace",
+        hero_secondary_cta_label: "Sign up",
+        hero_secondary_cta_url: "/sign-up",
+      }),
+  },
+  {
+    id: "luxury-editorial",
+    name: "Luxury Editorial",
+    strapline: "Magazine-like launch page",
+    description: "Warmer glow, slower reveal and stronger storytelling for a premium jewellery-house feel.",
+    swatches: ["#D6B35A", "#111827", "#F5EFE3"],
+    apply: (current) =>
+      normalizeSiteTheme({
+        ...current,
+        accent_color: "#D6B35A",
+        primary_glow_color: "#F2D184",
+        animation_preset: "luxury-fade",
+        enable_parallax: true,
+        hero_media_type: "image",
+        hero_overlay_opacity: 0.68,
+        ticker_enabled: true,
+        ticker_speed_seconds: 46,
+        shape_grid_enabled: true,
+        shape_grid_mode: "carousel",
+        hero_badge_label: "Curated trade sourcing",
+        hero_primary_cta_label: "Explore stones",
+        hero_primary_cta_url: "/marketplace",
+        hero_secondary_cta_label: "Learn how Chaos works",
+        hero_secondary_cta_url: "/about",
+      }),
+  },
+  {
+    id: "dark-cinema",
+    name: "Dark Cinema",
+    strapline: "Video-first drama",
+    description: "Designed for a cinematic hero video with spring motion, high contrast and a showroom mood.",
+    swatches: ["#C7A74A", "#050814", "#111827"],
+    apply: (current) =>
+      normalizeSiteTheme({
+        ...current,
+        accent_color: "#C7A74A",
+        primary_glow_color: "#C7A74A",
+        animation_preset: "spring-slide",
+        enable_parallax: true,
+        hero_media_type: "video",
+        hero_overlay_opacity: 0.74,
+        ticker_enabled: true,
+        ticker_speed_seconds: 32,
+        shape_grid_enabled: true,
+        shape_grid_mode: "carousel",
+        hero_badge_label: "Live inventory · Global dealers",
+        hero_primary_cta_label: "Enter marketplace",
+        hero_primary_cta_url: "/marketplace",
+        hero_secondary_cta_label: "Retail showroom",
+        hero_secondary_cta_url: "/retail",
+      }),
+  },
+  {
+    id: "clean-retail",
+    name: "Clean Retail",
+    strapline: "Client-friendly clarity",
+    description: "More minimal motion and direct CTAs for retail showroom or client-facing browsing.",
+    swatches: ["#A88F4B", "#FFFFFF", "#1F2937"],
+    apply: (current) =>
+      normalizeSiteTheme({
+        ...current,
+        accent_color: "#A88F4B",
+        primary_glow_color: "#C8B46A",
+        animation_preset: "classic-fade",
+        enable_parallax: false,
+        hero_media_type: "image",
+        hero_overlay_opacity: 0.48,
+        ticker_enabled: false,
+        shape_grid_enabled: true,
+        shape_grid_mode: "grid",
+        hero_badge_label: "Retail-ready sourcing",
+        hero_primary_cta_label: "Browse retail showroom",
+        hero_primary_cta_url: "/retail",
+        hero_secondary_cta_label: "Request a stone",
+        hero_secondary_cta_url: "/requests",
+      }),
+  },
+];
+
 function ThemeSettingsPanel({ userId }: { userId: string }) {
   const queryClient = useQueryClient();
   const [configId, setConfigId] = useState<string | null>(null);
   const [form, setForm] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
   const [lastSavedTheme, setLastSavedTheme] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
-  const [editorTab, setEditorTab] = useState<"brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview">("brand");
+  const [editorTab, setEditorTab] = useState<"presets" | "brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview">("presets");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -672,6 +789,13 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       ...current,
       homepage_copy: { ...current.homepage_copy, [key]: value },
     }));
+  }
+
+  function applyPreset(preset: (typeof THEME_PRESETS)[number]) {
+    setForm((current) => preset.apply(current));
+    toast.message(`${preset.name} preset applied`, {
+      description: "Preview the changes, then press Save changes to publish them.",
+    });
   }
 
   const hasUnsavedChanges = JSON.stringify(normalizeSiteTheme(form)) !== JSON.stringify(normalizeSiteTheme(lastSavedTheme));
@@ -869,6 +993,40 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         </div>
 
         <div className="mt-6 space-y-5">
+          {editorTab === "presets" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {THEME_PRESETS.map((preset) => (
+                <div key={preset.id} className="rounded-md border border-border bg-background p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-serif text-xl">{preset.name}</h3>
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--color-gold)]">
+                        {preset.strapline}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      {preset.swatches.map((swatch) => (
+                        <span
+                          key={swatch}
+                          className="h-5 w-5 rounded-full border border-border"
+                          style={{ backgroundColor: swatch }}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{preset.description}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Button type="button" size="sm" onClick={() => applyPreset(preset)}>
+                      Apply preset
+                    </Button>
+                    <span className="text-xs text-muted-foreground">Does not publish until saved</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {editorTab === "brand" && (
           <>
           <div>
@@ -1521,7 +1679,14 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       </section>
 
       <aside className={`rounded-md border border-border bg-card p-5 ${editorTab === "preview" ? "lg:col-span-2" : ""}`}>
-        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live preview</div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live preview</div>
+          {hasUnsavedChanges && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-800">
+              Draft preview
+            </span>
+          )}
+        </div>
         <div className="relative mt-4 overflow-hidden rounded-md border border-border bg-primary text-primary-foreground">
           {form.hero_media_type === "image" && form.hero_background_image_url && (
             <img
