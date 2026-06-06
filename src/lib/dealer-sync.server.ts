@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
 import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
 import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
+import { safeFetch, assertSafeUrl } from "@/lib/safe-fetch.server";
 
 const SYNC_BATCH_SIZE = 200;
 const MAX_STORED_DIAGNOSTICS = 250;
@@ -37,27 +38,7 @@ type SyncCandidate = {
 };
 
 function assertSafeFeedUrl(urlStr: string): void {
-  const target = new URL(urlStr);
-  if (target.protocol !== "https:" && target.protocol !== "http:") {
-    throw new Error("Only http(s) URLs are supported");
-  }
-  const host = target.hostname.toLowerCase();
-  if (
-    host === "localhost" ||
-    host === "::1" ||
-    host === "127.0.0.1" ||
-    host === "0.0.0.0" ||
-    host.endsWith(".local") ||
-    host.endsWith(".internal") ||
-    host.startsWith("10.") ||
-    host.startsWith("192.168.") ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-    /^fd[0-9a-f]{2}:/i.test(host) ||
-    /^fe80:/i.test(host)
-  ) {
-    throw new Error("Private or local hosts are not allowed");
-  }
+  assertSafeUrl(urlStr);
 }
 
 function parseCsv(text: string): Array<Record<string, string>> {
@@ -189,13 +170,14 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         "User-Agent": "Chaos-Feed-Importer/1.0",
         Accept: "application/json, text/csv, */*;q=0.5",
       },
-      redirect: "follow",
     };
     if (method === "POST" && dealerRow.external_feed_body) {
       (init.headers as Record<string, string>)["Content-Type"] = "application/json";
       init.body = dealerRow.external_feed_body;
     }
-    const res = await fetch(dealerRow.external_feed_url, init);
+    // safeFetch validates each redirect hop to prevent SSRF via attacker
+    // controlled Location headers (e.g. → 169.254.169.254 metadata).
+    const res = await safeFetch(dealerRow.external_feed_url, init);
     if (!res.ok) {
       throw new Error(
         `Source returned HTTP ${res.status} when Chaos tried ${method} ${dealerRow.external_feed_url}. HTTP 405 usually means the feed only accepts a different request method, for example POST instead of GET. Save the sync settings, then try again.`,

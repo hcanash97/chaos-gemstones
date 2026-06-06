@@ -96,14 +96,15 @@ function ImportPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
+      const { getDealerFeedConfig } = await import("@/lib/profile-settings.functions");
       const [certs, dealer] = await Promise.all([
         supabase.from("stones").select("cert_number").eq("dealer_id", user.id).not("cert_number", "is", null),
-        supabase.from("dealer_profiles").select("external_feed_url, external_feed_method, external_feed_body").eq("id", user.id).maybeSingle(),
+        getDealerFeedConfig(),
       ]);
       const set = new Set<string>();
       (certs.data ?? []).forEach((r: any) => r.cert_number && set.add(String(r.cert_number).trim()));
       setExistingCerts(set);
-      const dp: any = dealer.data ?? {};
+      const dp: any = dealer ?? {};
       setSavedFeedUrl(dp.external_feed_url ?? null);
       if (dp.external_feed_url) setFeedUrl(dp.external_feed_url);
       if (dp.external_feed_method === "POST" || dp.external_feed_method === "GET") {
@@ -317,7 +318,8 @@ function ImportPage() {
     // After a feed import succeeds, offer to save URL.
     if (originalSource === "feed" && feedUrl && feedUrl !== savedFeedUrl) {
       if (confirm("Save this feed URL for future syncs?")) {
-        await supabase.from("dealer_profiles").update({ external_feed_url: feedUrl }).eq("id", user.id);
+        const { updateDealerFeedConfig } = await import("@/lib/profile-settings.functions");
+        await updateDealerFeedConfig({ data: { external_feed_url: feedUrl } });
         setSavedFeedUrl(feedUrl);
         toast.success("Feed URL saved");
       }

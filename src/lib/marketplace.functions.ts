@@ -380,7 +380,7 @@ export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" }
     for (const field of DIAGNOSTIC_FIELDS) {
       const counts = new Map<string, number>();
       for (const row of rows ?? []) {
-        const value = String((row as Record<string, unknown>)[field] ?? "").trim();
+        const value = String((row as unknown as Record<string, unknown>)[field] ?? "").trim();
         if (!value) continue;
         counts.set(value, (counts.get(value) ?? 0) + 1);
       }

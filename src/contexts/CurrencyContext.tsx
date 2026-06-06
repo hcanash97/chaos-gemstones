@@ -75,12 +75,14 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       if (stored) return; // user explicitly chose
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
-      const { data } = await supabase
-        .from("jeweller_profiles")
-        .select("display_currency")
-        .eq("id", auth.user.id)
-        .maybeSingle();
-      const code = (data as { display_currency?: string } | null)?.display_currency;
+      let code: string | undefined;
+      try {
+        const { getJewellerSettings } = await import("@/lib/profile-settings.functions");
+        const data = await getJewellerSettings();
+        code = data?.display_currency ?? undefined;
+      } catch {
+        code = undefined;
+      }
       if (!cancelled && isCurrencyCode(code)) setDisplayCurrencyState(code);
     })();
     return () => {

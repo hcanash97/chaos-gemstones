@@ -70,11 +70,10 @@ function ApiPage() {
     enabled: !!user?.id && isJeweller,
     queryFn: async () => {
       const selections = status?.selections ?? [];
-      const [j, sels] = await Promise.all([
-        supabase.from("jeweller_profiles").select("markup_global").eq("id", user!.id).maybeSingle(),
-        Promise.resolve({ data: selections }),
-      ]);
-      const g = Number(j.data?.markup_global ?? 2);
+      const { getJewellerSettings } = await import("@/lib/profile-settings.functions");
+      const j = await getJewellerSettings();
+      const sels = { data: selections };
+      const g = Number(j?.markup_global ?? 2);
       const follows = (sels.data ?? []).filter((s) => s.selection_type === "dealer_follow");
       const pins = (sels.data ?? []).filter((s) => s.selection_type === "stone_pin");
       const stones: any[] = [];

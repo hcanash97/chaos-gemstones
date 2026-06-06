@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { safeFetch, assertSafeUrl } from "@/lib/safe-fetch.server";
 
 const InputSchema = z.object({
   url: z.string().url().max(2048),
@@ -19,29 +20,7 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data }): Promise<FeedFetchResult> => {
-    const target = new URL(data.url);
-    if (target.protocol !== "https:" && target.protocol !== "http:") {
-      throw new Error("Only http(s) URLs are supported");
-    }
-    // Basic SSRF guard: block obviously private hostnames.
-    const host = target.hostname.toLowerCase();
-    if (
-      host === "localhost" ||
-      host === "::1" ||
-      host === "127.0.0.1" ||
-      host === "0.0.0.0" ||
-      host.endsWith(".local") ||
-      host.endsWith(".internal") ||
-      host.startsWith("10.") ||
-      host.startsWith("192.168.") ||
-      /^169\.254\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-      /^fd[0-9a-f]{2}:/i.test(host) ||
-      /^fe80:/i.test(host)
-    ) {
-      throw new Error("Private or local hosts are not allowed");
-    }
-
+    const target = assertSafeUrl(data.url);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20_000);
     let res: Response;
@@ -53,13 +32,14 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
           Accept: "text/csv, application/json;q=0.9, */*;q=0.5",
         },
         signal: controller.signal,
-        redirect: "follow",
       };
       if (data.method === "POST" && data.body) {
         (init.headers as Record<string, string>)["Content-Type"] = "application/json";
         init.body = data.body;
       }
-      res = await fetch(target.toString(), init);
+      // safeFetch enforces redirect: 'manual' and re-validates each hop
+      // against the private-IP blocklist to defeat redirect-based SSRF.
+      res = await safeFetch(target.toString(), init);
     } finally {
       clearTimeout(timer);
     }

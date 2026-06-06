@@ -1,4 +1,4 @@
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform, type Variants } from "framer-motion";
 import type { ReactNode } from "react";
 import type { SiteThemeSettings } from "@/lib/site-theme";
 
@@ -13,11 +13,11 @@ export function LuxuryReveal({ children, preset = "luxury-fade", className, dela
   const reduceMotion = useReducedMotion();
   if (reduceMotion) return <div className={className}>{children}</div>;
 
-  const variants =
+  const variants: Variants =
     preset === "spring-slide"
       ? {
           hidden: { opacity: 0, y: 28, filter: "blur(10px)" },
-          show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", stiffness: 80, damping: 18, delay } },
+          show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring" as const, stiffness: 80, damping: 18, delay } },
         }
       : preset === "classic-fade"
       ? {
@@ -26,7 +26,7 @@ export function LuxuryReveal({ children, preset = "luxury-fade", className, dela
         }
       : {
           hidden: { opacity: 0, y: 18, filter: "blur(14px)" },
-          show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1], delay } },
+          show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as const, delay } },
         };
 
   return (

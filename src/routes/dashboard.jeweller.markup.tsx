@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { SUPPORTED_CURRENCIES, formatPrice, convertPrice } from "@/lib/currency";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { getJewellerSettings, upsertJewellerSettings } from "@/lib/profile-settings.functions";
 
 export const Route = createFileRoute("/dashboard/jeweller/markup")({
   component: MarkupPage,
@@ -28,6 +30,8 @@ function validateMarkup(value: string): { ok: true; value: number } | { ok: fals
 
 function MarkupPage() {
   const { user, profile } = useAuth();
+  const fetchSettings = useServerFn(getJewellerSettings);
+  const saveSettings = useServerFn(upsertJewellerSettings);
   const [global, setGlobal] = useState("2.0");
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -53,19 +57,12 @@ function MarkupPage() {
         .limit(1)
         .maybeSingle();
 
-        // Global markup — upsert default if row missing
-      let { data: jp } = await supabase
-        .from("jeweller_profiles")
-        .select("markup_global, display_currency, feed_currency")
-        .eq("id", user!.id)
-        .maybeSingle();
+      // Global markup — owner-only via server fn (column-level access is locked
+      // down on jeweller_profiles to prevent competitors reading pricing).
+      let jp = await fetchSettings();
       if (!jp) {
-        const { data: created } = await supabase
-          .from("jeweller_profiles")
-          .upsert({ id: user!.id, markup_global: 2.0 }, { onConflict: "id" })
-          .select("markup_global, display_currency, feed_currency")
-          .maybeSingle();
-        jp = created ?? { markup_global: 2.0, display_currency: "USD", feed_currency: "USD" };
+        await saveSettings({ data: { markup_global: 2.0 } });
+        jp = { markup_global: 2, display_currency: "USD", feed_currency: "USD", sourcing_method: null } as any;
       }
 
       // Approved dealers (publicly readable)
@@ -125,19 +122,13 @@ function MarkupPage() {
 
     setSaving(true);
     try {
-      // Upsert so the row is created if it doesn't exist yet
-      const { error: jpError } = await supabase
-        .from("jeweller_profiles")
-        .upsert(
-          {
-            id: user.id,
-            markup_global: v.value,
-            display_currency: displayCurrency,
-            feed_currency: feedCurrency,
-          },
-          { onConflict: "id" },
-        );
-      if (jpError) throw new Error(jpError.message);
+      await saveSettings({
+        data: {
+          markup_global: v.value,
+          display_currency: displayCurrency,
+          feed_currency: feedCurrency,
+        },
+      });
       // Sync the live platform display currency immediately.
       ctxSetDisplay(displayCurrency as any);
 

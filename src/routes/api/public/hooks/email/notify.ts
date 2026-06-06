@@ -11,6 +11,29 @@ export const Route = createFileRoute("/api/public/hooks/email/notify")({
     handlers: {
       POST: async ({ request }) => {
         try {
+          // Authenticate the webhook with the shared secret stored in
+          // public.system_config. The Postgres trigger sends this value as
+          // a Bearer token. Without it, anyone could POST and trigger emails.
+          const auth = request.headers.get("authorization") ?? "";
+          const provided = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+          if (!provided) {
+            return new Response(JSON.stringify({ error: "unauthorized" }), {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          const { data: cfg } = await supabaseAdmin
+            .from("system_config" as never)
+            .select("value")
+            .eq("key" as never, "email_hook_secret")
+            .maybeSingle();
+          const expected = (cfg as { value?: string } | null)?.value ?? "";
+          if (!expected || provided !== expected) {
+            return new Response(JSON.stringify({ error: "unauthorized" }), {
+              status: 401,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
           const body = (await request.json()) as { type?: string; record_id?: string };
           const { type, record_id } = body;
           if (!type || !record_id) {

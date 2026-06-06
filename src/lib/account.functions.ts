@@ -41,6 +41,7 @@ export const exportMyData = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [
       { data: profile },
       { data: jeweller },
@@ -52,8 +53,8 @@ export const exportMyData = createServerFn({ method: "POST" })
       { data: ordersAsDealer },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("jeweller_profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("dealer_profiles").select("*").eq("id", userId).maybeSingle(),
+      supabaseAdmin.from("jeweller_profiles").select("*").eq("id", userId).maybeSingle(),
+      supabaseAdmin.from("dealer_profiles").select("*").eq("id", userId).maybeSingle(),
       supabase
         .from("api_keys")
         .select("id, key_type, key_prefix, label, is_active, last_used_at, created_at, jeweller_id")
