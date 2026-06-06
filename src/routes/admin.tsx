@@ -5,6 +5,8 @@ import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useServerFn } from "@tanstack/react-start";
 import { roleList, isDealer, isJeweller, isDualRole } from "@/lib/auth.utils";
@@ -17,6 +19,7 @@ import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/ad
 import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
+import { DEFAULT_SITE_THEME, normalizeSiteTheme, type SiteThemeSettings } from "@/lib/site-theme";
 
 type ProfileRow = {
   id: string;
@@ -38,7 +41,7 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals">("stats");
+  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals" | "theme">("stats");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +67,7 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats") return;
+    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats" || tab === "theme") return;
     setError(null);
     let query = supabase
       .from("profiles")
@@ -313,11 +316,17 @@ function AdminPage() {
             >
               Referrals
             </button>
+            <button
+              onClick={() => setTab("theme")}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "theme" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+            >
+              Theme
+            </button>
             </div>
           </div>
         </div>
 
-        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && (
+        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && tab !== "theme" && (
         <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -353,6 +362,8 @@ function AdminPage() {
           <FeesPanel />
         ) : tab === "referrals" ? (
           <ReferralsPanel />
+        ) : tab === "theme" ? (
+          <ThemeSettingsPanel userId={user.id} />
         ) : tab === "stats" ? (
           <>
             <StatsPanel />
@@ -574,6 +585,222 @@ type ReferralCreditRow = {
   created_at: string;
   beneficiary?: { full_name: string | null; company_name: string | null; email: string | null } | null;
 };
+
+function ThemeSettingsPanel({ userId }: { userId: string }) {
+  const [configId, setConfigId] = useState<string | null>(null);
+  const [form, setForm] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("site_configurations")
+        .select("id, theme_data, is_active")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        toast.error(error.message);
+      } else if (data) {
+        setConfigId(data.id);
+        setForm(normalizeSiteTheme(data.theme_data));
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  function setField<K extends keyof SiteThemeSettings>(key: K, value: SiteThemeSettings[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function uploadLogo(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Logo images must be under 5MB.");
+      return;
+    }
+    setUploading(true);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `${userId}/site-config/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("stone-images").upload(path, file, {
+      upsert: true,
+      contentType: file.type,
+      cacheControl: "31536000",
+    });
+    setUploading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
+    setField("logo_url", data.publicUrl);
+    toast.success("Logo uploaded");
+  }
+
+  async function save() {
+    setSaving(true);
+    const payload = {
+      ...(configId ? { id: configId } : {}),
+      is_active: true,
+      theme_data: normalizeSiteTheme(form) as any,
+    };
+    const { data, error } = await supabase
+      .from("site_configurations")
+      .upsert(payload)
+      .select("id")
+      .single();
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setConfigId(data.id);
+    toast.success("Theme settings saved");
+  }
+
+  if (loading) {
+    return (
+      <div className="mt-6 rounded-md border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+        Loading theme settings...
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="rounded-md border border-border bg-card p-6">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Site customiser</div>
+          <h2 className="mt-2 font-serif text-2xl">Theme settings</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Edit the homepage hero copy, accent colour and contact details without changing code.
+          </p>
+        </div>
+
+        <div className="mt-6 space-y-5">
+          <div>
+            <Label htmlFor="theme-logo">Logo URL</Label>
+            <Input
+              id="theme-logo"
+              value={form.logo_url}
+              onChange={(e) => setField("logo_url", e.target.value)}
+              placeholder="https://..."
+              className="mt-1.5"
+            />
+            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
+              {uploading ? "Uploading..." : "Upload logo image"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+              />
+            </label>
+          </div>
+
+          <div>
+            <Label htmlFor="theme-title">Homepage headline</Label>
+            <Input
+              id="theme-title"
+              value={form.hero_title}
+              onChange={(e) => setField("hero_title", e.target.value)}
+              className="mt-1.5"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="theme-subtitle">Homepage subtitle</Label>
+            <Textarea
+              id="theme-subtitle"
+              rows={4}
+              value={form.hero_subtitle}
+              onChange={(e) => setField("hero_subtitle", e.target.value)}
+              className="mt-1.5"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="theme-accent">Accent colour</Label>
+              <div className="mt-1.5 flex items-center gap-3">
+                <input
+                  id="theme-accent"
+                  type="color"
+                  value={form.accent_color}
+                  onChange={(e) => setField("accent_color", e.target.value)}
+                  className="h-10 w-14 cursor-pointer rounded-md border border-border bg-background p-1"
+                />
+                <Input
+                  value={form.accent_color}
+                  onChange={(e) => setField("accent_color", e.target.value)}
+                  placeholder="#E8C97A"
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="theme-whatsapp">Contact WhatsApp</Label>
+              <Input
+                id="theme-whatsapp"
+                value={form.contact_whatsapp}
+                onChange={(e) => setField("contact_whatsapp", e.target.value)}
+                placeholder="+44..."
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button onClick={save} disabled={saving || uploading} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setForm(DEFAULT_SITE_THEME)} disabled={saving || uploading}>
+              Reset to defaults
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <aside className="rounded-md border border-border bg-card p-5">
+        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live preview</div>
+        <div className="mt-4 overflow-hidden rounded-md border border-border bg-primary text-primary-foreground">
+          <div className="p-5">
+            {form.logo_url ? (
+              <img src={form.logo_url} alt="Site logo preview" className="mb-4 h-10 w-10 rounded object-cover" />
+            ) : (
+              <div className="mb-4 h-10 w-10 rounded bg-white/10" />
+            )}
+            <span
+              className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
+              style={{ backgroundColor: form.accent_color, color: "#081236" }}
+            >
+              B2B · For the trade
+            </span>
+            <h3 className="mt-4 font-serif text-2xl leading-tight">{form.hero_title}</h3>
+            <p className="mt-3 line-clamp-4 text-sm opacity-80">{form.hero_subtitle}</p>
+            <button
+              type="button"
+              className="mt-5 rounded-md px-4 py-2 text-sm font-medium"
+              style={{ backgroundColor: form.accent_color, color: "#081236" }}
+            >
+              Browse marketplace
+            </button>
+          </div>
+        </div>
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">
+          This is the first layer of the Shopify-style customiser: editable content and brand controls. Layout blocks can come next once this loop is stable.
+        </p>
+      </aside>
+    </div>
+  );
+}
 
 function ReferralsPanel() {
   const [rows, setRows] = useState<ReferralCreditRow[]>([]);

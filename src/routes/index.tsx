@@ -16,6 +16,7 @@ import { CertLabBar } from "@/components/site/CertLabBar";
 import { FounderQuote } from "@/components/site/FounderQuote";
 import { TrustStrip } from "@/components/site/TrustStrip";
 import { BetaTopBanner } from "@/components/site/BetaTopBanner";
+import { DEFAULT_SITE_THEME, normalizeSiteTheme } from "@/lib/site-theme";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -111,6 +112,19 @@ export const Route = createFileRoute("/")({
 function Home() {
   const { user, profile } = useAuth();
   const isApprovedJeweller = checkJ(profile) && !!profile?.is_approved;
+  const { data: siteTheme = DEFAULT_SITE_THEME } = useQuery({
+    queryKey: ["site-theme"],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("site_configurations")
+        .select("theme_data")
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      return normalizeSiteTheme(data?.theme_data);
+    },
+  });
   const { data: stats } = useQuery({
     queryKey: ["home-stats"],
     queryFn: async () => {
@@ -194,10 +208,23 @@ function Home() {
         <GemParticles count={14} />
         <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">B2B · For the trade</Badge>
+            {siteTheme.logo_url && (
+              <img
+                src={siteTheme.logo_url}
+                alt="Chaos logo"
+                className="mb-5 h-14 w-14 rounded-md object-cover shadow-lg ring-1 ring-white/20"
+                loading="eager"
+              />
+            )}
+            <Badge
+              className="border-0"
+              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+            >
+              B2B · For the trade
+            </Badge>
           </motion.div>
           <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">
-            <WordReveal text="Verified diamonds & coloured stones, sourced direct from the world's dealers." />
+            <WordReveal text={siteTheme.hero_title} />
           </h1>
           <motion.p
             className="mt-6 max-w-xl text-lg opacity-80"
@@ -205,7 +232,7 @@ function Home() {
             animate={{ opacity: 0.8, y: 0 }}
             transition={{ duration: 0.55, delay: 0.6 }}
           >
-            The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.
+            {siteTheme.hero_subtitle}
           </motion.p>
           <motion.div
             className="mt-8 flex flex-wrap gap-3"
@@ -214,16 +241,36 @@ function Home() {
             transition={{ duration: 0.55, delay: 0.9 }}
           >
             <Link to="/marketplace">
-              <Button size="lg" className="group relative overflow-hidden bg-[var(--color-gold)] text-[var(--color-gold-foreground)] gold-glow transition-shadow hover:opacity-95">
+              <Button
+                size="lg"
+                className="group relative overflow-hidden border-0 gold-glow transition-shadow hover:opacity-95"
+                style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+              >
                 Browse marketplace <ArrowRight className="ml-2 h-4 w-4" />
                 <span className="shimmer-overlay" aria-hidden />
               </Button>
             </Link>
             <Link to="/sign-up">
-              <Button size="lg" variant="outline" className="border-[var(--color-gold)]/60 bg-transparent text-[var(--color-gold)] transition-colors hover:bg-[var(--color-gold)] hover:text-[var(--color-gold-foreground)]">
+              <Button
+                size="lg"
+                variant="outline"
+                className="bg-transparent transition-colors hover:bg-white/10"
+                style={{ borderColor: siteTheme.accent_color, color: siteTheme.accent_color }}
+              >
                 Sign up
               </Button>
             </Link>
+            {siteTheme.contact_whatsapp && (
+              <a
+                href={`https://wa.me/${siteTheme.contact_whatsapp.replace(/[^0-9]/g, "")}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <Button size="lg" variant="ghost" className="text-primary-foreground hover:bg-white/10">
+                  WhatsApp
+                </Button>
+              </a>
+            )}
           </motion.div>
           <motion.p
             className="mt-4 text-sm opacity-70"
