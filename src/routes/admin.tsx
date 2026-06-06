@@ -1,6 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import { roleList, isDealer, isJeweller, isDualRole } from "@/lib/auth.utils";
 import { setImpersonation } from "@/lib/impersonation";
 import { EditRolesDialog } from "@/components/admin/EditRolesDialog";
 import { SendEmailDialog } from "@/components/admin/SendEmailDialog";
+import { approveWhatsAppStoneFn, rejectWhatsAppStoneFn } from "@/lib/whatsapp-intake.functions";
 import { StatsPanel } from "@/components/admin/StatsPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
@@ -21,7 +21,6 @@ import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
 import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type HomepageSectionCopy, type SiteThemeSettings } from "@/lib/site-theme";
-import { confidenceLabelClass, parseWhatsappStoneMessage, type WhatsappConfidenceTier } from "@/lib/whatsapp-intake";
 
 type ProfileRow = {
   id: string;
@@ -43,7 +42,7 @@ export const Route = createFileRoute("/admin")({
 function AdminPage() {
   const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals" | "theme" | "whatsapp">("stats");
+  const [tab, setTab] = useState<"stats" | "pending" | "all" | "reports" | "fees" | "referrals" | "theme" | "intake">("stats");
   const [rows, setRows] = useState<ProfileRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +68,7 @@ function AdminPage() {
   }, [loading, user, isAdmin, navigate]);
 
   const load = useCallback(async () => {
-    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats" || tab === "theme" || tab === "whatsapp") return;
+    if (!isAdmin || tab === "reports" || tab === "fees" || tab === "referrals" || tab === "stats" || tab === "theme" || tab === "intake") return;
     setError(null);
     let query = supabase
       .from("profiles")
@@ -325,16 +324,16 @@ function AdminPage() {
               Theme
             </button>
             <button
-              onClick={() => setTab("whatsapp")}
-              className={`shrink-0 rounded px-3 py-1 ${tab === "whatsapp" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              onClick={() => setTab("intake")}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "intake" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
-              WhatsApp Intake
+              WA Intake
             </button>
             </div>
           </div>
         </div>
 
-        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && tab !== "theme" && tab !== "whatsapp" && (
+        {tab !== "reports" && tab !== "fees" && tab !== "referrals" && tab !== "theme" && tab !== "intake" && (
         <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/20 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -372,8 +371,8 @@ function AdminPage() {
           <ReferralsPanel />
         ) : tab === "theme" ? (
           <ThemeSettingsPanel userId={user.id} />
-        ) : tab === "whatsapp" ? (
-          <WhatsAppIntakePanel userId={user.id} />
+        ) : tab === "intake" ? (
+          <IntakeQueuePanel />
         ) : tab === "stats" ? (
           <>
             <StatsPanel />
@@ -596,821 +595,17 @@ type ReferralCreditRow = {
   beneficiary?: { full_name: string | null; company_name: string | null; email: string | null } | null;
 };
 
-type WhatsAppIntakeMessage = {
-  id: string;
-  sender_phone: string | null;
-  dealer_id: string | null;
-  raw_message_text: string;
-  received_at: string;
-  processing_status: "pending_review" | "converted_to_draft" | "low_confidence_review" | "archived";
-  created_at: string;
-};
-
-type WhatsAppIntakeDraft = {
-  id: string;
-  intake_message_id: string;
-  stone_type: string | null;
-  shape: string | null;
-  carat: number | null;
-  color: string | null;
-  clarity: string | null;
-  cert_lab: string | null;
-  cert_number: string | null;
-  stock_number: string | null;
-  price: number | null;
-  currency: string;
-  treatment: string | null;
-  origin: string | null;
-  dimensions: string | null;
-  uploaded_media_urls: string[];
-  confidence_score: WhatsappConfidenceTier;
-  missing_fields: string[];
-  parsing_diagnostics: Record<string, unknown>;
-  is_approved: boolean;
-  created_at: string;
-  message?: WhatsAppIntakeMessage | null;
-};
-
-type WhatsAppDraftForm = Pick<
-  WhatsAppIntakeDraft,
-  | "stone_type"
-  | "shape"
-  | "carat"
-  | "color"
-  | "clarity"
-  | "cert_lab"
-  | "cert_number"
-  | "stock_number"
-  | "price"
-  | "currency"
-  | "treatment"
-  | "origin"
-  | "dimensions"
->;
-
-type DealerOption = {
-  id: string;
-  company_name: string | null;
-  full_name: string | null;
-  email: string | null;
-};
-
-function WhatsAppIntakePanel({ userId }: { userId: string }) {
-  const [senderPhone, setSenderPhone] = useState("");
-  const [dealerId, setDealerId] = useState("");
-  const [rawText, setRawText] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [dealers, setDealers] = useState<DealerOption[]>([]);
-  const [drafts, setDrafts] = useState<WhatsAppIntakeDraft[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draftForm, setDraftForm] = useState<WhatsAppDraftForm | null>(null);
-  const [reviewDealerId, setReviewDealerId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [approving, setApproving] = useState(false);
-  const [filter, setFilter] = useState<"active" | "all" | "high" | "medium" | "low">("active");
-  const selectedDraft = drafts.find((draft) => draft.id === selectedId) ?? drafts[0] ?? null;
-
-  const loadDealers = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, company_name, full_name, email")
-      .or("account_type.eq.dealer,account_types.cs.{dealer}")
-      .order("company_name", { ascending: true });
-    if (error) {
-      toast.error("Could not load dealers", { description: error.message });
-      return;
-    }
-    setDealers((data as DealerOption[]) ?? []);
-  }, []);
-
-  const loadDrafts = useCallback(async () => {
-    setLoading(true);
-    let query = (supabase as any)
-      .from("whatsapp_intake_drafts")
-      .select(
-        "*, message:intake_message_id(id, sender_phone, dealer_id, raw_message_text, received_at, processing_status, created_at)",
-      )
-      .order("created_at", { ascending: false })
-      .limit(80);
-    if (filter === "high" || filter === "medium" || filter === "low") query = query.eq("confidence_score", filter).eq("is_approved", false);
-    const { data, error } = await query;
-    setLoading(false);
-    if (error) {
-      toast.error("WhatsApp intake load failed", {
-        description: error.message.includes("whatsapp_intake")
-          ? "Apply migration 20260606210000_whatsapp_intake_phase1.sql, then reload this tab."
-          : error.message,
-      });
-      return;
-    }
-    let rows = ((data ?? []) as WhatsAppIntakeDraft[]).map((draft) => ({
-      ...draft,
-      uploaded_media_urls: draft.uploaded_media_urls ?? [],
-      missing_fields: draft.missing_fields ?? [],
-      parsing_diagnostics: draft.parsing_diagnostics ?? {},
-    }));
-    if (filter === "active") {
-      rows = rows.filter((draft) => !draft.is_approved && draft.message?.processing_status !== "archived");
-    } else if (filter === "high" || filter === "medium" || filter === "low") {
-      rows = rows.filter((draft) => draft.message?.processing_status !== "archived");
-    }
-    setDrafts(rows);
-    setSelectedId((current) => (current && rows.some((draft) => draft.id === current) ? current : rows[0]?.id ?? null));
-  }, [filter]);
-
-  useEffect(() => {
-    loadDealers();
-  }, [loadDealers]);
-
-  useEffect(() => {
-    loadDrafts();
-  }, [loadDrafts]);
-
-  useEffect(() => {
-    if (!selectedDraft) {
-      setDraftForm(null);
-      return;
-    }
-    setDraftForm({
-      stone_type: selectedDraft.stone_type,
-      shape: selectedDraft.shape,
-      carat: selectedDraft.carat,
-      color: selectedDraft.color,
-      clarity: selectedDraft.clarity,
-      cert_lab: selectedDraft.cert_lab,
-      cert_number: selectedDraft.cert_number,
-      stock_number: selectedDraft.stock_number,
-      price: selectedDraft.price,
-      currency: selectedDraft.currency || "USD",
-      treatment: selectedDraft.treatment,
-      origin: selectedDraft.origin,
-      dimensions: selectedDraft.dimensions,
-    });
-    setReviewDealerId(selectedDraft.message?.dealer_id ?? "");
-  }, [selectedDraft?.id]);
-
-  async function uploadIntakeMedia(targetFiles: File[]) {
-    const urls: string[] = [];
-    for (const file of targetFiles) {
-      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-        toast.error(`${file.name} skipped`, { description: "Only image and video files can be attached." });
-        continue;
-      }
-      if (file.size > 15 * 1024 * 1024) {
-        toast.error(`${file.name} skipped`, { description: "WhatsApp intake media must be under 15MB." });
-        continue;
-      }
-      const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
-      const path = `${userId}/whatsapp-intake/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("stone-images").upload(path, file, {
-        upsert: false,
-        contentType: file.type,
-        cacheControl: "31536000",
-      });
-      if (error) throw new Error(`Media upload failed for ${file.name}: ${error.message}`);
-      const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
-      if (data.publicUrl) urls.push(data.publicUrl);
-    }
-    return urls;
-  }
-
-  async function runIngestParser() {
-    if (!rawText.trim()) {
-      toast.error("Paste the WhatsApp message first.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const mediaUrls = await uploadIntakeMedia(files);
-      const parsed = parseWhatsappStoneMessage(rawText);
-      const status = parsed.confidence_score === "low" ? "low_confidence_review" : "pending_review";
-      const { data: message, error: messageError } = await (supabase as any)
-        .from("whatsapp_intake_messages")
-        .insert({
-          sender_phone: senderPhone.trim() || null,
-          dealer_id: dealerId || null,
-          raw_message_text: rawText.trim(),
-          processing_status: status,
-        })
-        .select("id")
-        .single();
-      if (messageError) throw messageError;
-      const { data: draft, error: draftError } = await (supabase as any)
-        .from("whatsapp_intake_drafts")
-        .insert({
-          intake_message_id: message.id,
-          ...parsed,
-          uploaded_media_urls: mediaUrls,
-        })
-        .select("id")
-        .single();
-      if (draftError) throw draftError;
-      toast.success("WhatsApp draft created", {
-        description: `${parsed.confidence_score.toUpperCase()} confidence · ${parsed.missing_fields.length} missing field(s).`,
-      });
-      setRawText("");
-      setSenderPhone("");
-      setFiles([]);
-      await loadDrafts();
-      setSelectedId(draft.id);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown intake error";
-      toast.error("WhatsApp ingest failed", { description: message });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function approveSelectedDraft() {
-    if (!selectedDraft || !draftForm) return;
-    const selectedDealerId = reviewDealerId || selectedDraft.message?.dealer_id;
-    if (!selectedDealerId) {
-      toast.error("Choose a dealer before approving", {
-        description: "The live stone must belong to a Chaos dealer account.",
-      });
-      return;
-    }
-    const stoneType = cleanText(draftForm.stone_type);
-    if (!stoneType) {
-      toast.error("Stone type is required before approval.");
-      return;
-    }
-    setApproving(true);
-    try {
-      const mediaUrls = selectedDraft.uploaded_media_urls ?? [];
-      const imageUrls = mediaUrls.filter((url) => !isVideoUrl(url));
-      const videoUrl = mediaUrls.find((url) => isVideoUrl(url)) ?? null;
-      const { data: stone, error: stoneError } = await supabase
-        .from("stones")
-        .insert({
-          dealer_id: selectedDealerId,
-          stone_type: stoneType,
-          shape: cleanText(draftForm.shape),
-          carat_weight: toNullableNumber(draftForm.carat),
-          colour_grade: cleanText(draftForm.color),
-          clarity_grade: cleanText(draftForm.clarity),
-          cert_lab: cleanText(draftForm.cert_lab),
-          cert_number: cleanText(draftForm.cert_number),
-          wholesale_price_usd: toNullableNumber(draftForm.price),
-          price_currency: cleanText(draftForm.currency) || "USD",
-          treatment: cleanText(draftForm.treatment),
-          origin: cleanText(draftForm.origin),
-          status: "available",
-          available_qty: 1,
-          has_video: !!videoUrl,
-          has_360: false,
-          video_url: videoUrl,
-          notes_for_buyers: `Created from WhatsApp intake${draftForm.stock_number ? ` · Stock ${draftForm.stock_number}` : ""}. Admin-reviewed before publication.`,
-        })
-        .select("id")
-        .single();
-      if (stoneError) throw stoneError;
-      if (imageUrls.length > 0) {
-        const { error: imageError } = await supabase.from("stone_images").insert(
-          imageUrls.map((url, index) => ({
-            stone_id: stone.id,
-            storage_url: url,
-            external_image_url: url,
-            sort_order: index,
-            is_primary: index === 0,
-          })) as any,
-        );
-        if (imageError) throw imageError;
-      }
-      const missingFields = buildMissingFields(draftForm);
-      await (supabase as any)
-        .from("whatsapp_intake_drafts")
-        .update({
-          ...draftForm,
-          missing_fields: missingFields,
-          confidence_score: missingFields.includes("stone_type") || missingFields.includes("carat") || missingFields.includes("price") || missingFields.includes("shape") ? "medium" : selectedDraft.confidence_score,
-          is_approved: true,
-        })
-        .eq("id", selectedDraft.id);
-      await (supabase as any)
-        .from("whatsapp_intake_messages")
-        .update({ processing_status: "converted_to_draft", dealer_id: selectedDealerId })
-        .eq("id", selectedDraft.intake_message_id);
-      toast.success("Live stone created from WhatsApp draft");
-      await loadDrafts();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown approval error";
-      toast.error("Could not approve WhatsApp draft", { description: message });
-    } finally {
-      setApproving(false);
-    }
-  }
-
-  async function archiveSelectedDraft() {
-    if (!selectedDraft) return;
-    const { error } = await (supabase as any)
-      .from("whatsapp_intake_messages")
-      .update({ processing_status: "archived" })
-      .eq("id", selectedDraft.intake_message_id);
-    if (error) {
-      toast.error("Archive failed", { description: error.message });
-      return;
-    }
-    toast.success("WhatsApp intake item archived");
-    loadDrafts();
-  }
-
-  const activeCount = drafts.filter((draft) => !draft.is_approved && draft.message?.processing_status !== "archived").length;
-  const lowCount = drafts.filter((draft) => draft.confidence_score === "low" && !draft.is_approved).length;
-
-  return (
-    <div className="mt-6 grid gap-6">
-      <section className="rounded-lg border border-border bg-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Phase 1 MVP</div>
-            <h2 className="mt-2 font-serif text-2xl">WhatsApp Intake</h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Paste messy dealer WhatsApp messages, attach their photos/videos, and turn them into reviewable Chaos stone drafts. This does not connect Meta webhooks yet.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-right text-xs">
-            <div className="rounded-md border border-border px-3 py-2">
-              <div className="font-serif text-xl">{activeCount}</div>
-              <div className="uppercase tracking-wider text-muted-foreground">Active</div>
-            </div>
-            <div className="rounded-md border border-border px-3 py-2">
-              <div className="font-serif text-xl">{lowCount}</div>
-              <div className="uppercase tracking-wider text-muted-foreground">Low confidence</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-[260px_1fr]">
-          <div>
-            <Label htmlFor="whatsapp-dealer">Dealer</Label>
-            <select
-              id="whatsapp-dealer"
-              value={dealerId}
-              onChange={(e) => setDealerId(e.target.value)}
-              className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Unassigned dealer</option>
-              {dealers.map((dealer) => (
-                <option key={dealer.id} value={dealer.id}>
-                  {dealer.company_name || dealer.full_name || dealer.email || dealer.id}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="whatsapp-phone">Sender phone</Label>
-            <Input
-              id="whatsapp-phone"
-              value={senderPhone}
-              onChange={(e) => setSenderPhone(e.target.value)}
-              placeholder="+44..."
-              className="mt-1.5"
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <Label htmlFor="whatsapp-raw">Raw WhatsApp message</Label>
-            <Textarea
-              id="whatsapp-raw"
-              rows={5}
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="Paste dealer message, e.g. 1.52ct Oval Lab Diamond IGI LG123456789 D VS1 price 950 USD..."
-              className="mt-1.5"
-            />
-          </div>
-          <div className="lg:col-span-2">
-            <Label htmlFor="whatsapp-media">Attach WhatsApp media</Label>
-            <input
-              id="whatsapp-media"
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-              className="mt-1.5 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-            {files.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                {files.map((file) => (
-                  <span key={`${file.name}-${file.size}`} className="rounded-full bg-muted px-2 py-1">
-                    {file.name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Button onClick={runIngestParser} disabled={submitting}>
-            {submitting ? "Parsing..." : "Run Ingest Parser"}
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            Creates a draft first. Nothing goes live until you approve it.
-          </span>
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
-        <div className="rounded-lg border border-border bg-card">
-          <div className="border-b border-border p-4">
-            <div className="font-medium">Processing queue</div>
-            <div className="mt-3 flex max-w-full gap-1 overflow-x-auto rounded-md border border-border p-1 text-xs [-webkit-overflow-scrolling:touch]">
-              {(["active", "all", "high", "medium", "low"] as const).map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setFilter(item)}
-                  className={`shrink-0 rounded px-2.5 py-1 capitalize ${filter === item ? "bg-foreground text-background" : "text-muted-foreground"}`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-          {loading ? (
-            <div className="p-6 text-sm text-muted-foreground">Loading intake queue...</div>
-          ) : drafts.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">No WhatsApp intake drafts yet.</div>
-          ) : (
-            <div className="max-h-[680px] overflow-y-auto">
-              {drafts.map((draft) => (
-                <button
-                  key={draft.id}
-                  type="button"
-                  onClick={() => setSelectedId(draft.id)}
-                  className={`block w-full border-b border-border p-4 text-left transition-colors hover:bg-muted/30 ${
-                    selectedDraft?.id === draft.id ? "bg-[var(--color-gold)]/10" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">
-                      {draft.carat ? `${Number(draft.carat).toFixed(2)}ct ` : ""}
-                      {draft.shape ?? ""} {draft.stone_type ?? "Unknown stone"}
-                    </span>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ${confidenceLabelClass(draft.confidence_score)}`}>
-                      {draft.confidence_score}
-                    </span>
-                  </div>
-                  <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                    {draft.message?.raw_message_text}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <span>{draft.message?.processing_status?.replaceAll("_", " ")}</span>
-                    <span>·</span>
-                    <span>{draft.missing_fields.length} missing</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-lg border border-border bg-card p-5">
-          {!selectedDraft || !draftForm ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Select an intake draft to review.</div>
-          ) : (
-            <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs uppercase ${confidenceLabelClass(selectedDraft.confidence_score)}`}>
-                    {selectedDraft.confidence_score} confidence
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    {selectedDraft.message?.processing_status?.replaceAll("_", " ")}
-                  </span>
-                </div>
-                <h3 className="mt-3 font-serif text-xl">Raw dealer message</h3>
-                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-4 text-xs leading-5">
-                  {selectedDraft.message?.raw_message_text}
-                </pre>
-                {selectedDraft.uploaded_media_urls.length > 0 && (
-                  <div className="mt-4">
-                    <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Attached media</div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      {selectedDraft.uploaded_media_urls.map((url) =>
-                        isVideoUrl(url) ? (
-                          <video key={url} src={url} controls className="aspect-square w-full rounded-md border border-border object-cover" />
-                        ) : (
-                          <img key={url} src={url} alt="WhatsApp intake media" className="aspect-square w-full rounded-md border border-border object-cover" />
-                        ),
-                      )}
-                    </div>
-                  </div>
-                )}
-                <div className="mt-4 rounded-md border border-border bg-background p-3">
-                  <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Diagnostics</div>
-                  <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-muted-foreground">
-                    {JSON.stringify(selectedDraft.parsing_diagnostics, null, 2)}
-                  </pre>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-serif text-xl">Review parsed fields</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Amber fields were missing or uncertain in the message. Edit before approving.
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={archiveSelectedDraft}>
-                      Archive
-                    </Button>
-                    <Button size="sm" onClick={approveSelectedDraft} disabled={approving || selectedDraft.is_approved}>
-                      {selectedDraft.is_approved ? "Approved" : approving ? "Creating..." : "Approve & Create Live Listing"}
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <Label htmlFor="whatsapp-review-dealer">Listing dealer</Label>
-                    <select
-                      id="whatsapp-review-dealer"
-                      value={reviewDealerId}
-                      onChange={(e) => setReviewDealerId(e.target.value)}
-                      className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">Choose dealer before approving</option>
-                      {dealers.map((dealer) => (
-                        <option key={dealer.id} value={dealer.id}>
-                          {dealer.company_name || dealer.full_name || dealer.email || dealer.id}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <WhatsAppField label="Stone type" field="stone_type" draft={selectedDraft} value={draftForm.stone_type} onChange={(value) => setDraftForm({ ...draftForm, stone_type: value })} />
-                  <WhatsAppField label="Shape" field="shape" draft={selectedDraft} value={draftForm.shape} onChange={(value) => setDraftForm({ ...draftForm, shape: value })} />
-                  <WhatsAppField label="Carat" field="carat" draft={selectedDraft} value={draftForm.carat} type="number" onChange={(value) => setDraftForm({ ...draftForm, carat: value })} />
-                  <WhatsAppField label="Price" field="price" draft={selectedDraft} value={draftForm.price} type="number" onChange={(value) => setDraftForm({ ...draftForm, price: value })} />
-                  <WhatsAppField label="Currency" field="currency" draft={selectedDraft} value={draftForm.currency} onChange={(value) => setDraftForm({ ...draftForm, currency: value })} />
-                  <WhatsAppField label="Colour" field="color" draft={selectedDraft} value={draftForm.color} onChange={(value) => setDraftForm({ ...draftForm, color: value })} />
-                  <WhatsAppField label="Clarity" field="clarity" draft={selectedDraft} value={draftForm.clarity} onChange={(value) => setDraftForm({ ...draftForm, clarity: value })} />
-                  <WhatsAppField label="Cert lab" field="cert_lab" draft={selectedDraft} value={draftForm.cert_lab} onChange={(value) => setDraftForm({ ...draftForm, cert_lab: value })} />
-                  <WhatsAppField label="Cert number" field="cert_number" draft={selectedDraft} value={draftForm.cert_number} onChange={(value) => setDraftForm({ ...draftForm, cert_number: value })} />
-                  <WhatsAppField label="Stock number" field="stock_number" draft={selectedDraft} value={draftForm.stock_number} onChange={(value) => setDraftForm({ ...draftForm, stock_number: value })} />
-                  <WhatsAppField label="Treatment" field="treatment" draft={selectedDraft} value={draftForm.treatment} onChange={(value) => setDraftForm({ ...draftForm, treatment: value })} />
-                  <WhatsAppField label="Origin" field="origin" draft={selectedDraft} value={draftForm.origin} onChange={(value) => setDraftForm({ ...draftForm, origin: value })} />
-                  <div className="sm:col-span-2">
-                    <WhatsAppField label="Dimensions" field="dimensions" draft={selectedDraft} value={draftForm.dimensions} onChange={(value) => setDraftForm({ ...draftForm, dimensions: value })} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function WhatsAppField({
-  label,
-  field,
-  draft,
-  value,
-  type = "text",
-  onChange,
-}: {
-  label: string;
-  field: string;
-  draft: WhatsAppIntakeDraft;
-  value: string | number | null;
-  type?: "text" | "number";
-  onChange: (value: any) => void;
-}) {
-  const needsReview = draft.missing_fields.includes(field);
-  return (
-    <div className={needsReview ? "rounded-md border border-amber-300 bg-amber-50/70 p-2" : ""}>
-      <Label>{label}</Label>
-      <Input
-        type={type}
-        value={value ?? ""}
-        onChange={(e) => onChange(type === "number" ? toNullableNumber(e.target.value) : e.target.value)}
-        className="mt-1.5"
-      />
-    </div>
-  );
-}
-
-function cleanText(value: unknown) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function toNullableNumber(value: unknown) {
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function isVideoUrl(url: string) {
-  return /\.(mp4|mov|webm|m4v)(?:\?|$)/i.test(url);
-}
-
-function buildMissingFields(form: WhatsAppDraftForm) {
-  const required: Array<keyof WhatsAppDraftForm> = ["stone_type", "carat", "price", "shape"];
-  return required.filter((field) => {
-    const value = form[field];
-    return value === null || value === undefined || value === "";
-  });
-}
-
-const THEME_EDITOR_TABS: Array<{
-  id: "presets" | "brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview";
-  label: string;
-  description: string;
-}> = [
-  {
-    id: "presets",
-    label: "Presets",
-    description: "Apply a curated visual direction, then fine tune it before saving.",
-  },
-  {
-    id: "brand",
-    label: "Brand",
-    description: "Logo, colours, contact links and footer wording.",
-  },
-  {
-    id: "hero",
-    label: "Hero",
-    description: "Homepage headline, background media, motion style and main buttons.",
-  },
-  {
-    id: "seo",
-    label: "SEO",
-    description: "Default search result text and social sharing image.",
-  },
-  {
-    id: "modules",
-    label: "Modules",
-    description: "Ticker strip and visual shape discovery settings.",
-  },
-  {
-    id: "layout",
-    label: "Layout",
-    description: "Toggle and reorder homepage sections.",
-  },
-  {
-    id: "copy",
-    label: "Copy",
-    description: "Edit homepage section headings and CTA wording.",
-  },
-  {
-    id: "preview",
-    label: "Preview",
-    description: "Review how the current settings will feel before saving.",
-  },
-];
-
-const SHAPE_CARD_IMAGE_FIELDS = [
-  { key: "round", label: "Round" },
-  { key: "oval", label: "Oval" },
-  { key: "emerald", label: "Emerald" },
-  { key: "cushion", label: "Cushion" },
-  { key: "pear", label: "Pear" },
-  { key: "radiant", label: "Radiant" },
-] as const;
-
-const THEME_PRESETS: Array<{
-  id: string;
-  name: string;
-  strapline: string;
-  description: string;
-  swatches: string[];
-  apply: (current: SiteThemeSettings) => SiteThemeSettings;
-}> = [
-  {
-    id: "trade-classic",
-    name: "Trade Classic",
-    strapline: "Quiet B2B trust",
-    description: "Balanced navy, champagne gold and restrained motion for a credible trade marketplace.",
-    swatches: ["#E8C97A", "#0F1B3D", "#F8F6F0"],
-    apply: (current) =>
-      normalizeSiteTheme({
-        ...current,
-        accent_color: "#E8C97A",
-        primary_glow_color: "#E8C97A",
-        animation_preset: "classic-fade",
-        enable_parallax: true,
-        hero_media_type: "image",
-        hero_overlay_opacity: 0.62,
-        ticker_enabled: true,
-        shape_grid_enabled: true,
-        shape_grid_mode: "grid",
-        hero_badge_label: "B2B · For the trade",
-        hero_primary_cta_label: "Browse marketplace",
-        hero_primary_cta_url: "/marketplace",
-        hero_secondary_cta_label: "Sign up",
-        hero_secondary_cta_url: "/sign-up",
-      }),
-  },
-  {
-    id: "luxury-editorial",
-    name: "Luxury Editorial",
-    strapline: "Magazine-like launch page",
-    description: "Warmer glow, slower reveal and stronger storytelling for a premium jewellery-house feel.",
-    swatches: ["#D6B35A", "#111827", "#F5EFE3"],
-    apply: (current) =>
-      normalizeSiteTheme({
-        ...current,
-        accent_color: "#D6B35A",
-        primary_glow_color: "#F2D184",
-        animation_preset: "luxury-fade",
-        enable_parallax: true,
-        hero_media_type: "image",
-        hero_overlay_opacity: 0.68,
-        ticker_enabled: true,
-        ticker_speed_seconds: 46,
-        shape_grid_enabled: true,
-        shape_grid_mode: "carousel",
-        hero_badge_label: "Curated trade sourcing",
-        hero_primary_cta_label: "Explore stones",
-        hero_primary_cta_url: "/marketplace",
-        hero_secondary_cta_label: "Learn how Chaos works",
-        hero_secondary_cta_url: "/about",
-      }),
-  },
-  {
-    id: "dark-cinema",
-    name: "Dark Cinema",
-    strapline: "Video-first drama",
-    description: "Designed for a cinematic hero video with spring motion, high contrast and a showroom mood.",
-    swatches: ["#C7A74A", "#050814", "#111827"],
-    apply: (current) =>
-      normalizeSiteTheme({
-        ...current,
-        accent_color: "#C7A74A",
-        primary_glow_color: "#C7A74A",
-        animation_preset: "spring-slide",
-        enable_parallax: true,
-        hero_media_type: "video",
-        hero_overlay_opacity: 0.74,
-        ticker_enabled: true,
-        ticker_speed_seconds: 32,
-        shape_grid_enabled: true,
-        shape_grid_mode: "carousel",
-        hero_badge_label: "Live inventory · Global dealers",
-        hero_primary_cta_label: "Enter marketplace",
-        hero_primary_cta_url: "/marketplace",
-        hero_secondary_cta_label: "Retail showroom",
-        hero_secondary_cta_url: "/retail",
-      }),
-  },
-  {
-    id: "clean-retail",
-    name: "Clean Retail",
-    strapline: "Client-friendly clarity",
-    description: "More minimal motion and direct CTAs for retail showroom or client-facing browsing.",
-    swatches: ["#A88F4B", "#FFFFFF", "#1F2937"],
-    apply: (current) =>
-      normalizeSiteTheme({
-        ...current,
-        accent_color: "#A88F4B",
-        primary_glow_color: "#C8B46A",
-        animation_preset: "classic-fade",
-        enable_parallax: false,
-        hero_media_type: "image",
-        hero_overlay_opacity: 0.48,
-        ticker_enabled: false,
-        shape_grid_enabled: true,
-        shape_grid_mode: "grid",
-        hero_badge_label: "Retail-ready sourcing",
-        hero_primary_cta_label: "Browse retail showroom",
-        hero_primary_cta_url: "/retail",
-        hero_secondary_cta_label: "Request a stone",
-        hero_secondary_cta_url: "/requests",
-      }),
-  },
-];
-
 function ThemeSettingsPanel({ userId }: { userId: string }) {
-  const queryClient = useQueryClient();
   const [configId, setConfigId] = useState<string | null>(null);
   const [form, setForm] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
-  const [lastSavedTheme, setLastSavedTheme] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
-  const [editorTab, setEditorTab] = useState<"presets" | "brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview">("presets");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [checkingSaved, setCheckingSaved] = useState(false);
-  const [themeLog, setThemeLog] = useState<Array<{ id: string; level: "info" | "success" | "warning" | "error"; message: string }>>([]);
-  const [databaseSetupMissing, setDatabaseSetupMissing] = useState(false);
-
-  function addThemeLog(level: "info" | "success" | "warning" | "error", message: string) {
-    setThemeLog((current) => [
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, level, message },
-      ...current,
-    ].slice(0, 12));
-  }
-
-  function describeError(error: unknown) {
-    if (!error) return "Unknown error";
-    if (error instanceof Error) return error.message;
-    if (typeof error === "object" && "message" in error) return String((error as { message?: unknown }).message);
-    return String(error);
-  }
+  // Which section copy editors are open
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  // Drag-and-drop state (block id being dragged)
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -1422,25 +617,10 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         .limit(1)
         .maybeSingle();
       if (error) {
-        addThemeLog("error", `Theme load failed: ${error.message}`);
-        if (isMissingSiteConfigurationsTableError(error)) {
-          setDatabaseSetupMissing(true);
-          toast.error("Theme database setup is missing", {
-            description: "Apply the site_configurations repair migration, then reload this page.",
-          });
-        } else {
-          toast.error(error.message);
-        }
+        toast.error(error.message);
       } else if (data) {
-        setDatabaseSetupMissing(false);
         setConfigId(data.id);
-        const theme = normalizeSiteTheme(data.theme_data);
-        setForm(theme);
-        setLastSavedTheme(theme);
-        setLastSavedAt(new Date().toISOString());
-        addThemeLog("success", "Loaded active theme settings from Supabase.");
-      } else {
-        addThemeLog("warning", "No active theme settings row was found. Defaults are shown until saved.");
+        setForm(normalizeSiteTheme(data.theme_data));
       }
       setLoading(false);
     })();
@@ -1457,64 +637,6 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     }));
   }
 
-  function applyPreset(preset: (typeof THEME_PRESETS)[number]) {
-    setForm((current) => preset.apply(current));
-    toast.message(`${preset.name} preset applied`, {
-      description: "Preview the changes, then press Save changes to publish them.",
-    });
-  }
-
-  const hasUnsavedChanges = JSON.stringify(normalizeSiteTheme(form)) !== JSON.stringify(normalizeSiteTheme(lastSavedTheme));
-
-  useEffect(() => {
-    if (!hasUnsavedChanges) return;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warnBeforeUnload);
-    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [hasUnsavedChanges]);
-
-  async function reloadSavedTheme() {
-    setCheckingSaved(true);
-    addThemeLog("info", "Checking the active saved theme in Supabase...");
-    const { data, error } = await supabase
-      .from("site_configurations")
-      .select("id, theme_data, is_active")
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-    setCheckingSaved(false);
-    if (error) {
-      addThemeLog("error", `Reload failed: ${error.message}`);
-      if (isMissingSiteConfigurationsTableError(error)) {
-        setDatabaseSetupMissing(true);
-        toast.error("Theme database setup is missing", {
-          description: "Apply the site_configurations repair migration, then reload this page.",
-        });
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-    if (!data) {
-      addThemeLog("error", "Reload failed: no active site configuration row exists.");
-      toast.error("No active site configuration was found.");
-      return;
-    }
-    const theme = normalizeSiteTheme(data.theme_data);
-    setDatabaseSetupMissing(false);
-    setConfigId(data.id);
-    setForm(theme);
-    setLastSavedTheme(theme);
-    setLastSavedAt(new Date().toISOString());
-    queryClient.setQueryData(["site-theme"], theme);
-    await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
-    addThemeLog("success", "Reloaded saved theme from Supabase and refreshed the public theme cache.");
-    toast.success("Reloaded the saved theme from Supabase");
-  }
-
   function toggleBlock(index: number) {
     setForm((current) => ({
       ...current,
@@ -1524,174 +646,102 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     }));
   }
 
-  function moveBlock(index: number, direction: -1 | 1) {
-    setForm((current) => {
-      const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= current.homepage_layout.length) return current;
-      const next = [...current.homepage_layout];
-      const [item] = next.splice(index, 1);
-      next.splice(nextIndex, 0, item);
-      return { ...current, homepage_layout: next };
+  function toggleSectionOpen(id: string) {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   }
 
-  async function persistTheme(nextTheme: SiteThemeSettings, options?: { silent?: boolean }) {
-    setSaving(true);
-    addThemeLog("info", configId ? "Saving theme settings to Supabase..." : "Creating active theme settings row in Supabase...");
-    try {
-      const normalizedTheme = normalizeSiteTheme(nextTheme);
-      const payload = {
-        ...(configId ? { id: configId } : {}),
-        is_active: true,
-        theme_data: normalizedTheme as any,
-      };
-      const { data, error } = await supabase
-        .from("site_configurations")
-        .upsert(payload)
-        .select("id")
-        .single();
-      if (error) {
-        addThemeLog("error", `Database save failed: ${error.message}`);
-        if (isMissingSiteConfigurationsTableError(error)) {
-          setDatabaseSetupMissing(true);
-          toast.error("Theme database setup is missing", {
-            description: "The site_configurations table does not exist in Supabase yet. Apply the repair migration.",
-          });
-        } else {
-          toast.error("Theme save failed", { description: error.message });
-        }
-        return false;
-      }
-      setConfigId(data.id);
-      setDatabaseSetupMissing(false);
-      setForm(normalizedTheme);
-      setLastSavedTheme(normalizedTheme);
-      setLastSavedAt(new Date().toISOString());
-      queryClient.setQueryData(["site-theme"], normalizedTheme);
-      await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
-      addThemeLog("success", "Theme saved to Supabase and public theme cache refreshed.");
-      if (!options?.silent) toast.success("Theme settings saved and applied");
-      return true;
-    } catch (error) {
-      const message = describeError(error);
-      addThemeLog("error", `Unexpected save failure: ${message}`);
-      toast.error("Theme save failed unexpectedly", { description: message });
-      return false;
-    } finally {
-      setSaving(false);
-    }
+  // ─── Drag-and-drop handlers ───────────────────────────────────────────────
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>, id: string) {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = "move";
+    // Firefox requires setting data
+    e.dataTransfer.setData("text/plain", id);
   }
 
-  async function uploadThemeImage(file: File, target: "logo_url" | "hero_background_image_url" | "seo_image_url") {
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>, id: string) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (id !== dragOverId) setDragOverId(id);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>, targetId: string) {
+    e.preventDefault();
+    if (!dragId || dragId === targetId) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+    setForm((current) => {
+      const blocks = [...current.homepage_layout];
+      const fromIdx = blocks.findIndex((b) => b.id === dragId);
+      const toIdx = blocks.findIndex((b) => b.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return current;
+      const [moved] = blocks.splice(fromIdx, 1);
+      blocks.splice(toIdx, 0, moved);
+      return { ...current, homepage_layout: blocks };
+    });
+    setDragId(null);
+    setDragOverId(null);
+  }
+
+  function handleDragEnd() {
+    setDragId(null);
+    setDragOverId(null);
+  }
+
+  // ─── Image upload ─────────────────────────────────────────────────────────
+  async function uploadThemeImage(file: File, target: "logo_url" | "hero_background_image_url") {
     if (!file.type.startsWith("image/")) {
-      addThemeLog("error", `Upload blocked: ${file.name} is not an image file.`);
       toast.error("Please choose an image file.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      addThemeLog("error", `Upload blocked: ${file.name} is larger than 5MB.`);
       toast.error("Images must be under 5MB.");
       return;
     }
     setUploading(true);
-    addThemeLog("info", `Uploading ${labelForThemeImageTarget(target)} image "${file.name}" to Supabase storage...`);
-    try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const path = `${userId}/site-config/${target}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("stone-images").upload(path, file, {
-        upsert: true,
-        contentType: file.type,
-        cacheControl: "31536000",
-      });
-      if (error) {
-        addThemeLog("error", `Storage upload failed for ${file.name}: ${error.message}`);
-        toast.error("Image upload failed", { description: error.message });
-        return;
-      }
-      const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
-      if (!data.publicUrl) {
-        addThemeLog("error", `Upload completed but Supabase did not return a public URL for ${path}.`);
-        toast.error("Image upload failed", { description: "Supabase did not return a public URL." });
-        return;
-      }
-      addThemeLog("success", `Image uploaded to storage: ${path}`);
-      const nextTheme = normalizeSiteTheme({ ...form, [target]: data.publicUrl });
-      setForm(nextTheme);
-      addThemeLog("info", `Applying uploaded ${labelForThemeImageTarget(target)} image to the active theme...`);
-      const saved = await persistTheme(nextTheme, { silent: true });
-      if (!saved) return;
-      toast.success(
-        target === "logo_url"
-          ? "Logo uploaded and applied"
-          : target === "seo_image_url"
-          ? "Social sharing image uploaded and applied"
-          : "Hero background uploaded and applied",
-      );
-    } catch (error) {
-      const message = describeError(error);
-      addThemeLog("error", `Unexpected upload failure for ${file.name}: ${message}`);
-      toast.error("Image upload failed unexpectedly", { description: message });
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function uploadShapeCardImage(file: File, shapeKey: string, shapeLabel: string) {
-    if (!file.type.startsWith("image/")) {
-      addThemeLog("error", `Upload blocked: ${file.name} is not an image file.`);
-      toast.error("Please choose an image file.");
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const path = `${userId}/site-config/${target}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("stone-images").upload(path, file, {
+      upsert: true,
+      contentType: file.type,
+      cacheControl: "31536000",
+    });
+    setUploading(false);
+    if (error) {
+      toast.error(error.message);
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      addThemeLog("error", `Upload blocked: ${file.name} is larger than 5MB.`);
-      toast.error("Images must be under 5MB.");
-      return;
-    }
-    setUploading(true);
-    addThemeLog("info", `Uploading ${shapeLabel} shape card image "${file.name}" to Supabase storage...`);
-    try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const path = `${userId}/site-config/shape-card-images/${shapeKey}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("stone-images").upload(path, file, {
-        upsert: true,
-        contentType: file.type,
-        cacheControl: "31536000",
-      });
-      if (error) {
-        addThemeLog("error", `Storage upload failed for ${file.name}: ${error.message}`);
-        toast.error("Shape image upload failed", { description: error.message });
-        return;
-      }
-      const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
-      if (!data.publicUrl) {
-        addThemeLog("error", `Upload completed but Supabase did not return a public URL for ${path}.`);
-        toast.error("Shape image upload failed", { description: "Supabase did not return a public URL." });
-        return;
-      }
-      addThemeLog("success", `${shapeLabel} shape image uploaded to storage: ${path}`);
-      const nextTheme = normalizeSiteTheme({
-        ...form,
-        shape_card_images: {
-          ...form.shape_card_images,
-          [shapeKey]: data.publicUrl,
-        },
-      });
-      setForm(nextTheme);
-      addThemeLog("info", `Applying uploaded ${shapeLabel} image to the homepage shape grid...`);
-      const saved = await persistTheme(nextTheme, { silent: true });
-      if (!saved) return;
-      toast.success(`${shapeLabel} image uploaded and applied`);
-    } catch (error) {
-      const message = describeError(error);
-      addThemeLog("error", `Unexpected shape image upload failure for ${file.name}: ${message}`);
-      toast.error("Shape image upload failed unexpectedly", { description: message });
-    } finally {
-      setUploading(false);
-    }
+    const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
+    setField(target, data.publicUrl);
+    toast.success(target === "logo_url" ? "Logo uploaded" : "Hero background uploaded");
   }
 
+  // ─── Save ─────────────────────────────────────────────────────────────────
   async function save() {
-    await persistTheme(form);
+    setSaving(true);
+    const payload = {
+      ...(configId ? { id: configId } : {}),
+      is_active: true,
+      theme_data: normalizeSiteTheme(form) as any,
+    };
+    const { data, error } = await supabase
+      .from("site_configurations")
+      .upsert(payload)
+      .select("id")
+      .single();
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setConfigId(data.id);
+    toast.success("Theme settings saved");
   }
 
   if (loading) {
@@ -1702,531 +752,277 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     );
   }
 
-  return (
-    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
-      <section className="rounded-md border border-border bg-card p-6">
+  // Determine which section copy panels exist per block type
+  const SECTION_COPY_BLOCKS: Partial<Record<string, () => ReactNode>> = {
+    featured_stones: () => (
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Site customiser</div>
-          <h2 className="mt-2 font-serif text-2xl">Theme settings</h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Edit the homepage hero copy, accent colour and contact details without changing code.
-          </p>
+          <Label htmlFor="copy-fs-eyebrow" className="text-xs">Eyebrow label</Label>
+          <Input id="copy-fs-eyebrow" value={form.homepage_copy.featured_stones_eyebrow} onChange={(e) => setCopyField("featured_stones_eyebrow", e.target.value)} className="mt-1" />
         </div>
-
-        <div className="mt-5 overflow-x-auto rounded-md border border-border bg-muted/20 p-1 [-webkit-overflow-scrolling:touch]">
-          <div className="flex min-w-max gap-1">
-            {THEME_EDITOR_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setEditorTab(tab.id)}
-                className={`rounded px-3 py-2 text-xs font-medium transition-colors ${
-                  editorTab === tab.id
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:bg-background hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div>
+          <Label htmlFor="copy-fs-title" className="text-xs">Section title</Label>
+          <Input id="copy-fs-title" value={form.homepage_copy.featured_stones_title} onChange={(e) => setCopyField("featured_stones_title", e.target.value)} className="mt-1" />
         </div>
-
-        <div className="mt-4 rounded-md border border-[var(--gold-border)] bg-[var(--color-gold)]/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
-                {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.label}
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.description}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span
-                className={`rounded-full px-2.5 py-1 font-medium ${
-                  hasUnsavedChanges
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
-                {hasUnsavedChanges ? "Unsaved changes" : "Saved"}
-              </span>
-              {lastSavedAt && (
-                <span className="text-muted-foreground">
-                  Last checked {new Date(lastSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              )}
-            </div>
-          </div>
+        <div>
+          <Label htmlFor="copy-fs-link" className="text-xs">Link label</Label>
+          <Input id="copy-fs-link" value={form.homepage_copy.featured_stones_link_label} onChange={(e) => setCopyField("featured_stones_link_label", e.target.value)} className="mt-1" />
         </div>
-
-        {databaseSetupMissing && (
-          <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm">
-            <div className="font-medium text-destructive">Theme database setup is missing</div>
-            <p className="mt-2 text-muted-foreground">
-              Supabase says <code>public.site_configurations</code> is not in the schema cache. The Theme editor cannot save
-              until the repair migration has been applied to the live Supabase project.
-            </p>
-            <p className="mt-2 text-muted-foreground">
-              Apply migration <code>20260606150000_repair_site_configurations.sql</code>, then refresh this page and press
-              Reload saved theme.
-            </p>
-          </div>
-        )}
-
-        <div className="mt-6 space-y-5">
-          {editorTab === "presets" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              {THEME_PRESETS.map((preset) => (
-                <div key={preset.id} className="rounded-md border border-border bg-background p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-serif text-xl">{preset.name}</h3>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--color-gold)]">
-                        {preset.strapline}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      {preset.swatches.map((swatch) => (
-                        <span
-                          key={swatch}
-                          className="h-5 w-5 rounded-full border border-border"
-                          style={{ backgroundColor: swatch }}
-                          aria-hidden="true"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{preset.description}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <Button type="button" size="sm" onClick={() => applyPreset(preset)}>
-                      Apply preset
-                    </Button>
-                    <span className="text-xs text-muted-foreground">Does not publish until saved</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {editorTab === "brand" && (
-          <>
+      </div>
+    ),
+    matched_pairs: () => (
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label htmlFor="theme-site-name">Site name</Label>
-            <Input
-              id="theme-site-name"
-              value={form.site_name}
-              onChange={(e) => setField("site_name", e.target.value)}
-              placeholder="Chaos"
-              className="mt-1.5"
-            />
+            <Label htmlFor="copy-mp-eyebrow" className="text-xs">Eyebrow label</Label>
+            <Input id="copy-mp-eyebrow" value={form.homepage_copy.matched_pairs_eyebrow} onChange={(e) => setCopyField("matched_pairs_eyebrow", e.target.value)} className="mt-1" />
           </div>
-
           <div>
-            <Label htmlFor="theme-logo">Logo URL</Label>
-            <Input
-              id="theme-logo"
-              value={form.logo_url}
-              onChange={(e) => setField("logo_url", e.target.value)}
-              placeholder="https://..."
-              className="mt-1.5"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Uploads auto-save and apply to the public header. Manual URL edits still need Save changes.
-            </p>
-            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
-              {uploading ? "Uploading..." : "Upload logo image"}
+            <Label htmlFor="copy-mp-link" className="text-xs">Link label</Label>
+            <Input id="copy-mp-link" value={form.homepage_copy.matched_pairs_link_label} onChange={(e) => setCopyField("matched_pairs_link_label", e.target.value)} className="mt-1" />
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="copy-mp-title" className="text-xs">Section title</Label>
+          <Input id="copy-mp-title" value={form.homepage_copy.matched_pairs_title} onChange={(e) => setCopyField("matched_pairs_title", e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label htmlFor="copy-mp-body" className="text-xs">Body copy</Label>
+          <Textarea id="copy-mp-body" rows={2} value={form.homepage_copy.matched_pairs_body} onChange={(e) => setCopyField("matched_pairs_body", e.target.value)} className="mt-1" />
+        </div>
+      </div>
+    ),
+    featured_vendors: () => (
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="copy-fv-eyebrow" className="text-xs">Eyebrow label</Label>
+          <Input id="copy-fv-eyebrow" value={form.homepage_copy.featured_vendors_eyebrow} onChange={(e) => setCopyField("featured_vendors_eyebrow", e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label htmlFor="copy-fv-title" className="text-xs">Section title</Label>
+          <Input id="copy-fv-title" value={form.homepage_copy.featured_vendors_title} onChange={(e) => setCopyField("featured_vendors_title", e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label htmlFor="copy-fv-link" className="text-xs">Link label</Label>
+          <Input id="copy-fv-link" value={form.homepage_copy.featured_vendors_link_label} onChange={(e) => setCopyField("featured_vendors_link_label", e.target.value)} className="mt-1" />
+        </div>
+      </div>
+    ),
+    whatsapp_cta: () => (
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="copy-wa-title" className="text-xs">CTA title</Label>
+            <Input id="copy-wa-title" value={form.homepage_copy.whatsapp_cta_title} onChange={(e) => setCopyField("whatsapp_cta_title", e.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <Label htmlFor="copy-wa-btn" className="text-xs">Button label</Label>
+            <Input id="copy-wa-btn" value={form.homepage_copy.whatsapp_cta_button_label} onChange={(e) => setCopyField("whatsapp_cta_button_label", e.target.value)} className="mt-1" />
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="copy-wa-body" className="text-xs">Body copy</Label>
+          <Textarea id="copy-wa-body" rows={2} value={form.homepage_copy.whatsapp_cta_body} onChange={(e) => setCopyField("whatsapp_cta_body", e.target.value)} className="mt-1" />
+        </div>
+      </div>
+    ),
+    hero: () => (
+      <div className="grid gap-3">
+        <div>
+          <Label htmlFor="copy-hero-badge" className="text-xs">Badge label</Label>
+          <Input id="copy-hero-badge" value={form.hero_badge_label} onChange={(e) => setField("hero_badge_label", e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label htmlFor="copy-hero-title" className="text-xs">Headline</Label>
+          <Input id="copy-hero-title" value={form.hero_title} onChange={(e) => setField("hero_title", e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label htmlFor="copy-hero-sub" className="text-xs">Subtitle</Label>
+          <Textarea id="copy-hero-sub" rows={3} value={form.hero_subtitle} onChange={(e) => setField("hero_subtitle", e.target.value)} className="mt-1" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="copy-hero-overlay" className="text-xs">Overlay strength</Label>
+            <div className="mt-1 flex items-center gap-3">
               <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={uploading || databaseSetupMissing}
-                onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "logo_url")}
-              />
-            </label>
-          </div>
-
-          <div>
-            <Label htmlFor="theme-logo-size">Logo mark size</Label>
-            <div className="mt-1.5 flex items-center gap-3">
-              <input
-                id="theme-logo-size"
+                id="copy-hero-overlay"
                 type="range"
-                min="18"
-                max="64"
-                step="1"
-                value={form.logo_mark_size}
-                onChange={(e) => setField("logo_mark_size", Number(e.target.value))}
+                min="0.15"
+                max="0.9"
+                step="0.05"
+                value={form.hero_overlay_opacity}
+                onChange={(e) => setField("hero_overlay_opacity", Number(e.target.value))}
                 className="w-full"
               />
-              <span className="w-14 text-right font-mono text-xs text-muted-foreground">
-                {form.logo_mark_size}px
+              <span className="w-10 text-right font-mono text-xs text-muted-foreground">
+                {Math.round(form.hero_overlay_opacity * 100)}%
               </span>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Controls the header, footer and homepage preview logo mark. Press Save changes to publish manual size edits.
-            </p>
           </div>
-          </>
-          )}
-
-          {editorTab === "hero" && (
-          <>
-          <div className="grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="theme-badge">Hero badge label</Label>
-              <Input
-                id="theme-badge"
-                value={form.hero_badge_label}
-                onChange={(e) => setField("hero_badge_label", e.target.value)}
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="theme-hero-media-type">Hero media type</Label>
-              <select
-                id="theme-hero-media-type"
-                value={form.hero_media_type}
-                onChange={(e) => setField("hero_media_type", e.target.value as SiteThemeSettings["hero_media_type"])}
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="image">Image</option>
-                <option value="video">Video</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="theme-animation">Animation preset</Label>
-              <select
-                id="theme-animation"
-                value={form.animation_preset}
-                onChange={(e) => setField("animation_preset", e.target.value as SiteThemeSettings["animation_preset"])}
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="luxury-fade">Luxury reveal</option>
-                <option value="spring-slide">Spring slide</option>
-                <option value="classic-fade">Classic fade</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="theme-overlay">Hero overlay strength</Label>
-              <div className="mt-1.5 flex items-center gap-3">
-                <input
-                  id="theme-overlay"
-                  type="range"
-                  min="0.15"
-                  max="0.9"
-                  step="0.05"
-                  value={form.hero_overlay_opacity}
-                  onChange={(e) => setField("hero_overlay_opacity", Number(e.target.value))}
-                  className="w-full"
+        </div>
+        <div>
+          <Label className="text-xs">Hero background image</Label>
+          <div className="mt-1.5 flex flex-wrap items-start gap-3">
+            {form.hero_background_image_url ? (
+              <div className="relative flex-shrink-0">
+                <img
+                  src={form.hero_background_image_url}
+                  alt="Hero background preview"
+                  className="h-20 w-36 rounded-md border border-border object-cover"
                 />
-                <span className="w-12 text-right font-mono text-xs text-muted-foreground">
-                  {Math.round(form.hero_overlay_opacity * 100)}%
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setField("hero_background_image_url", "")}
+                  className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] text-white hover:opacity-90"
+                  title="Remove background"
+                >
+                  ✕
+                </button>
               </div>
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="theme-hero-bg">Hero background image URL</Label>
+            ) : (
+              <div className="flex h-20 w-36 items-center justify-center rounded-md border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
+                No image
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs hover:bg-accent">
+                {uploading ? "Uploading…" : "Upload image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "hero_background_image_url")}
+                />
+              </label>
               <Input
-                id="theme-hero-bg"
                 value={form.hero_background_image_url}
                 onChange={(e) => setField("hero_background_image_url", e.target.value)}
                 placeholder="https://..."
-                className="mt-1.5"
+                className="h-8 text-xs"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Uploaded hero images auto-save. Pasted URLs need Save changes.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
-                  {uploading ? "Uploading..." : "Upload hero background"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploading || databaseSetupMissing}
-                    onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "hero_background_image_url")}
-                  />
-                </label>
-                {form.hero_background_image_url && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setField("hero_background_image_url", "")}
-                    disabled={saving || uploading || databaseSetupMissing}
-                  >
-                    Remove background
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="theme-hero-video">Hero background video URL</Label>
-              <Input
-                id="theme-hero-video"
-                value={form.hero_video_url}
-                onChange={(e) => setField("hero_video_url", e.target.value)}
-                placeholder="https://.../hero.mp4"
-                className="mt-1.5"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Use a short, muted MP4/WebM URL for the cleanest mobile performance.
-              </p>
             </div>
           </div>
+        </div>
+      </div>
+    ),
+  };
 
+  return (
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="rounded-md border border-border bg-card p-6">
+        {/* ── Header ── */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <Label htmlFor="theme-title">Homepage headline</Label>
-            <Input
-              id="theme-title"
-              value={form.hero_title}
-              onChange={(e) => setField("hero_title", e.target.value)}
-              className="mt-1.5"
-            />
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Site customiser</div>
+            <h2 className="mt-2 font-serif text-2xl">Theme settings</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Edit brand, copy, and homepage layout without touching code.
+            </p>
           </div>
+          <a
+            href="/?preview=true"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+            Preview site
+          </a>
+        </div>
 
-          <div>
-            <Label htmlFor="theme-subtitle">Homepage subtitle</Label>
-            <Textarea
-              id="theme-subtitle"
-              rows={4}
-              value={form.hero_subtitle}
-              onChange={(e) => setField("hero_subtitle", e.target.value)}
-              className="mt-1.5"
-            />
-          </div>
-          </>
-          )}
+        <div className="mt-7 space-y-6">
 
-          {editorTab === "seo" && (
-          <div className="grid gap-4 rounded-md border border-border p-4">
+          {/* ── Brand ── */}
+          <div className="space-y-4 rounded-md border border-border p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Brand</div>
+
+            {/* Logo */}
             <div>
-              <Label>SEO &amp; sharing</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Control the default browser title, Google description and social preview image for the site.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="theme-seo-title">Default SEO title</Label>
-              <Input
-                id="theme-seo-title"
-                value={form.seo_title}
-                onChange={(e) => setField("seo_title", e.target.value)}
-                className="mt-1.5"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">{form.seo_title.length} characters</p>
-            </div>
-            <div>
-              <Label htmlFor="theme-seo-description">Default meta description</Label>
-              <Textarea
-                id="theme-seo-description"
-                rows={3}
-                value={form.seo_description}
-                onChange={(e) => setField("seo_description", e.target.value)}
-                className="mt-1.5"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">{form.seo_description.length} characters</p>
-            </div>
-            <div>
-              <Label htmlFor="theme-seo-image">Social sharing image URL</Label>
-              <Input
-                id="theme-seo-image"
-                value={form.seo_image_url}
-                onChange={(e) => setField("seo_image_url", e.target.value)}
-                placeholder="https://..."
-                className="mt-1.5"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Uploaded sharing images auto-save. Pasted URLs need Save changes.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
-                  {uploading ? "Uploading..." : "Upload sharing image"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={uploading || databaseSetupMissing}
-                    onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "seo_image_url")}
-                  />
-                </label>
-                {form.seo_image_url && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setField("seo_image_url", DEFAULT_SITE_THEME.seo_image_url)}
-                    disabled={saving || uploading || databaseSetupMissing}
-                  >
-                    Use default image
-                  </Button>
+              <Label className="text-xs">Logo image</Label>
+              <div className="mt-1.5 flex flex-wrap items-start gap-3">
+                {form.logo_url ? (
+                  <div className="relative flex-shrink-0">
+                    <img
+                      src={form.logo_url}
+                      alt="Logo preview"
+                      className="h-16 w-16 rounded-md border border-border object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setField("logo_url", "")}
+                      className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] text-white hover:opacity-90"
+                      title="Remove logo"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
+                    No logo
+                  </div>
                 )}
+                <div className="flex flex-col gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs hover:bg-accent">
+                    {uploading ? "Uploading…" : "Upload logo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "logo_url")}
+                    />
+                  </label>
+                  <Input
+                    value={form.logo_url}
+                    onChange={(e) => setField("logo_url", e.target.value)}
+                    placeholder="https://..."
+                    className="h-8 text-xs"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-          )}
 
-          {editorTab === "hero" && (
-          <div className="grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <Label>Hero buttons</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Control the main calls to action in the homepage hero.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="theme-primary-cta-label">Primary button label</Label>
-              <Input
-                id="theme-primary-cta-label"
-                value={form.hero_primary_cta_label}
-                onChange={(e) => setField("hero_primary_cta_label", e.target.value)}
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="theme-primary-cta-url">Primary button URL</Label>
-              <Input
-                id="theme-primary-cta-url"
-                value={form.hero_primary_cta_url}
-                onChange={(e) => setField("hero_primary_cta_url", e.target.value)}
-                placeholder="/marketplace"
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="theme-secondary-cta-label">Secondary button label</Label>
-              <Input
-                id="theme-secondary-cta-label"
-                value={form.hero_secondary_cta_label}
-                onChange={(e) => setField("hero_secondary_cta_label", e.target.value)}
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="theme-secondary-cta-url">Secondary button URL</Label>
-              <Input
-                id="theme-secondary-cta-url"
-                value={form.hero_secondary_cta_url}
-                onChange={(e) => setField("hero_secondary_cta_url", e.target.value)}
-                placeholder="/sign-up"
-                className="mt-1.5"
-              />
-            </div>
-          </div>
-          )}
-
-          {editorTab === "brand" && (
-          <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="theme-accent">Accent colour</Label>
-              <div className="mt-1.5 flex items-center gap-3">
-                <input
-                  id="theme-accent"
-                  type="color"
-                  value={form.accent_color}
-                  onChange={(e) => setField("accent_color", e.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded-md border border-border bg-background p-1"
-                />
+            {/* Accent colour + WhatsApp */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="theme-accent" className="text-xs">Accent colour</Label>
+                <div className="mt-1.5 flex items-center gap-3">
+                  <input
+                    id="theme-accent"
+                    type="color"
+                    value={form.accent_color}
+                    onChange={(e) => setField("accent_color", e.target.value)}
+                    className="h-10 w-14 cursor-pointer rounded-md border border-border bg-background p-1"
+                  />
+                  <Input
+                    value={form.accent_color}
+                    onChange={(e) => setField("accent_color", e.target.value)}
+                    placeholder="#E8C97A"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="theme-whatsapp" className="text-xs">Contact WhatsApp</Label>
                 <Input
-                  value={form.accent_color}
-                  onChange={(e) => setField("accent_color", e.target.value)}
-                  placeholder="#E8C97A"
-                  className="font-mono"
+                  id="theme-whatsapp"
+                  value={form.contact_whatsapp}
+                  onChange={(e) => setField("contact_whatsapp", e.target.value)}
+                  placeholder="+44..."
+                  className="mt-1.5"
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="theme-glow">Glow colour</Label>
-              <div className="mt-1.5 flex items-center gap-3">
-                <input
-                  id="theme-glow"
-                  type="color"
-                  value={form.primary_glow_color}
-                  onChange={(e) => setField("primary_glow_color", e.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded-md border border-border bg-background p-1"
-                />
-                <Input
-                  value={form.primary_glow_color}
-                  onChange={(e) => setField("primary_glow_color", e.target.value)}
-                  placeholder="#E8C97A"
-                  className="font-mono"
-                />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 rounded-md border border-border p-3 text-sm">
-              <Checkbox
-                checked={form.enable_parallax}
-                onCheckedChange={(checked) => setField("enable_parallax", checked === true)}
-              />
-              Enable parallax accents
-            </label>
-            <div>
-              <Label htmlFor="theme-whatsapp">Contact WhatsApp</Label>
-              <Input
-                id="theme-whatsapp"
-                value={form.contact_whatsapp}
-                onChange={(e) => setField("contact_whatsapp", e.target.value)}
-                placeholder="+44..."
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="theme-email">Contact email</Label>
-              <Input
-                id="theme-email"
-                value={form.contact_email}
-                onChange={(e) => setField("contact_email", e.target.value)}
-                placeholder="hello@chaosgemstones.com"
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="theme-instagram">Instagram URL or handle</Label>
-              <Input
-                id="theme-instagram"
-                value={form.instagram_url}
-                onChange={(e) => setField("instagram_url", e.target.value)}
-                placeholder="https://www.instagram.com/chaosgemstonemarket"
-                className="mt-1.5"
-              />
-            </div>
           </div>
 
-          <div className="grid gap-4 rounded-md border border-border p-4">
-            <div>
-              <Label htmlFor="theme-footer-tagline">Footer tagline</Label>
-              <Textarea
-                id="theme-footer-tagline"
-                rows={2}
-                value={form.footer_tagline}
-                onChange={(e) => setField("footer_tagline", e.target.value)}
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="theme-footer-notice">Footer notice</Label>
-              <Textarea
-                id="theme-footer-notice"
-                rows={2}
-                value={form.footer_notice}
-                onChange={(e) => setField("footer_notice", e.target.value)}
-                className="mt-1.5"
-              />
-            </div>
-          </div>
-          </>
-          )}
-
-          {editorTab === "layout" && (
+          {/* ── Homepage layout blocks ── */}
           <div>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <Label>Homepage layout blocks</Label>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Toggle sections on or off and reorder the homepage without editing code.
+                <Label className="text-sm font-medium">Homepage layout</Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Toggle sections on/off, drag to reorder, and expand to edit copy.
                 </p>
               </div>
               <Button
@@ -2239,369 +1035,115 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                 Reset layout
               </Button>
             </div>
+
             <div className="mt-3 divide-y divide-border rounded-md border border-border">
-              {form.homepage_layout.map((block, index) => (
-                <div key={block.id} className="flex flex-wrap items-center gap-3 p-3">
-                  <Checkbox checked={block.enabled} onCheckedChange={() => toggleBlock(index)} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{HOMEPAGE_BLOCK_LABELS[block.type]}</div>
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{block.type}</div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => moveBlock(index, -1)}
-                      disabled={index === 0 || saving || uploading}
-                    >
-                      Up
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => moveBlock(index, 1)}
-                      disabled={index === form.homepage_layout.length - 1 || saving || uploading}
-                    >
-                      Down
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
+              {form.homepage_layout.map((block, index) => {
+                const hasCopy = block.type in SECTION_COPY_BLOCKS;
+                const isOpen = openSections.has(block.id);
+                const isDragging = dragId === block.id;
+                const isDragTarget = dragOverId === block.id && dragId !== block.id;
 
-          {editorTab === "modules" && (
-          <div className="grid gap-4 rounded-md border border-border p-4">
-            <div>
-              <Label>Landing modules</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Configure the visual discovery strips that make the homepage feel more editorial and interactive.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex items-center gap-2 rounded-md border border-border p-3 text-sm">
-                <Checkbox
-                  checked={form.ticker_enabled}
-                  onCheckedChange={(checked) => setField("ticker_enabled", checked === true)}
-                />
-                Show ticker strip
-              </label>
-              <label className="flex items-center gap-2 rounded-md border border-border p-3 text-sm">
-                <Checkbox
-                  checked={form.shape_grid_enabled}
-                  onCheckedChange={(checked) => setField("shape_grid_enabled", checked === true)}
-                />
-                Show shape grid
-              </label>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="theme-ticker-speed">Ticker speed</Label>
-                <div className="mt-1.5 flex items-center gap-3">
-                  <input
-                    id="theme-ticker-speed"
-                    type="range"
-                    min="12"
-                    max="90"
-                    step="2"
-                    value={form.ticker_speed_seconds}
-                    onChange={(e) => setField("ticker_speed_seconds", Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <span className="w-12 text-right font-mono text-xs text-muted-foreground">{form.ticker_speed_seconds}s</span>
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="theme-shape-mode">Shape grid mode</Label>
-                <select
-                  id="theme-shape-mode"
-                  value={form.shape_grid_mode}
-                  onChange={(e) => setField("shape_grid_mode", e.target.value as SiteThemeSettings["shape_grid_mode"])}
-                  className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="grid">Grid</option>
-                  <option value="carousel">Horizontal carousel</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="theme-shape-title">Shape grid title</Label>
-              <Input
-                id="theme-shape-title"
-                value={form.shape_grid_title}
-                onChange={(e) => setField("shape_grid_title", e.target.value)}
-                className="mt-1.5"
-              />
-            </div>
-            <div>
-              <Label>Shape card images</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Upload real diamond photos for the homepage shape cards. Blank shapes keep the simple fallback mark.
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {SHAPE_CARD_IMAGE_FIELDS.map((shape) => {
-                  const imageUrl = form.shape_card_images[shape.key] ?? "";
-                  return (
-                    <div key={shape.key} className="rounded-md border border-border bg-background p-3">
-                      <div className="flex items-start gap-3">
-                        {imageUrl ? (
-                          <img
-                            src={imageUrl}
-                            alt={`${shape.label} shape preview`}
-                            className="h-16 w-16 rounded-full border border-[var(--gold-border)] object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-xs text-muted-foreground">
-                            No image
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <Label htmlFor={`theme-shape-image-${shape.key}`}>{shape.label}</Label>
-                          <Input
-                            id={`theme-shape-image-${shape.key}`}
-                            value={imageUrl}
-                            onChange={(e) =>
-                              setField("shape_card_images", {
-                                ...form.shape_card_images,
-                                [shape.key]: e.target.value,
-                              })
-                            }
-                            placeholder="https://..."
-                            className="mt-1.5"
-                          />
-                        </div>
+                return (
+                  <div
+                    key={block.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, block.id)}
+                    onDragOver={(e) => handleDragOver(e, block.id)}
+                    onDrop={(e) => handleDrop(e, block.id)}
+                    onDragEnd={handleDragEnd}
+                    className={[
+                      "transition-colors",
+                      isDragging ? "opacity-40" : "",
+                      isDragTarget ? "bg-[var(--color-gold)]/10 ring-1 ring-inset ring-[var(--color-gold)]/40" : "",
+                    ].join(" ")}
+                  >
+                    {/* Row header */}
+                    <div className="flex flex-wrap items-center gap-3 p-3">
+                      {/* Drag handle */}
+                      <div
+                        className="cursor-grab touch-none select-none text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing"
+                        title="Drag to reorder"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+                          <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+                          <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                        </svg>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs hover:bg-accent">
-                          {uploading ? "Uploading..." : `Upload ${shape.label}`}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={uploading || databaseSetupMissing}
-                            onChange={(e) => e.target.files?.[0] && uploadShapeCardImage(e.target.files[0], shape.key, shape.label)}
-                          />
-                        </label>
-                        {imageUrl && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const nextImages = { ...form.shape_card_images };
-                              delete nextImages[shape.key];
-                              setField("shape_card_images", nextImages);
-                            }}
-                            disabled={saving || uploading || databaseSetupMissing}
+
+                      <Checkbox
+                        checked={block.enabled}
+                        onCheckedChange={() => toggleBlock(index)}
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium">{HOMEPAGE_BLOCK_LABELS[block.type]}</div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{block.type}</div>
+                      </div>
+
+                      {hasCopy && (
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionOpen(block.id)}
+                          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                        >
+                          Edit copy
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                           >
-                            Remove
-                          </Button>
-                        )}
-                      </div>
+                            <path d="m6 9 6 6 6-6"/>
+                          </svg>
+                        </button>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="theme-ticker-items">Ticker announcements</Label>
-              <Textarea
-                id="theme-ticker-items"
-                rows={4}
-                value={form.ticker_items.join("\n")}
-                onChange={(e) =>
-                  setField(
-                    "ticker_items",
-                    e.target.value
-                      .split("\n")
-                      .map((item) => item.trim())
-                      .filter(Boolean),
-                  )
-                }
-                className="mt-1.5"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">One ticker item per line. Keep each item short.</p>
+
+                    {/* Collapsible copy editor */}
+                    {hasCopy && isOpen && (
+                      <div className="border-t border-border bg-muted/30 px-4 pb-4 pt-3">
+                        {SECTION_COPY_BLOCKS[block.type]?.()}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-          )}
 
-          {editorTab === "copy" && (
-          <div>
-            <Label>Section copy</Label>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Edit the headings and CTA text for the homepage blocks.
-            </p>
-            <div className="mt-3 grid gap-4 rounded-md border border-border p-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="copy-featured-stones-eyebrow">Featured stones eyebrow</Label>
-                  <Input
-                    id="copy-featured-stones-eyebrow"
-                    value={form.homepage_copy.featured_stones_eyebrow}
-                    onChange={(e) => setCopyField("featured_stones_eyebrow", e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="copy-featured-stones-title">Featured stones title</Label>
-                  <Input
-                    id="copy-featured-stones-title"
-                    value={form.homepage_copy.featured_stones_title}
-                    onChange={(e) => setCopyField("featured_stones_title", e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="copy-vendors-eyebrow">Vendors eyebrow</Label>
-                  <Input
-                    id="copy-vendors-eyebrow"
-                    value={form.homepage_copy.featured_vendors_eyebrow}
-                    onChange={(e) => setCopyField("featured_vendors_eyebrow", e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="copy-vendors-title">Vendors title</Label>
-                  <Input
-                    id="copy-vendors-title"
-                    value={form.homepage_copy.featured_vendors_title}
-                    onChange={(e) => setCopyField("featured_vendors_title", e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="copy-matched-title">Matched pairs title</Label>
-                <Input
-                  id="copy-matched-title"
-                  value={form.homepage_copy.matched_pairs_title}
-                  onChange={(e) => setCopyField("matched_pairs_title", e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label htmlFor="copy-matched-body">Matched pairs body</Label>
-                <Textarea
-                  id="copy-matched-body"
-                  rows={3}
-                  value={form.homepage_copy.matched_pairs_body}
-                  onChange={(e) => setCopyField("matched_pairs_body", e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="copy-whatsapp-title">WhatsApp CTA title</Label>
-                  <Input
-                    id="copy-whatsapp-title"
-                    value={form.homepage_copy.whatsapp_cta_title}
-                    onChange={(e) => setCopyField("whatsapp_cta_title", e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="copy-whatsapp-button">WhatsApp button label</Label>
-                  <Input
-                    id="copy-whatsapp-button"
-                    value={form.homepage_copy.whatsapp_cta_button_label}
-                    onChange={(e) => setCopyField("whatsapp_cta_button_label", e.target.value)}
-                    className="mt-1.5"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="copy-whatsapp-body">WhatsApp CTA body</Label>
-                <Textarea
-                  id="copy-whatsapp-body"
-                  rows={3}
-                  value={form.homepage_copy.whatsapp_cta_body}
-                  onChange={(e) => setCopyField("whatsapp_cta_body", e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-            </div>
-          </div>
-          )}
-
-          {editorTab === "preview" && (
-            <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground lg:hidden">
-              The live preview is shown below on mobile and beside the editor on desktop.
-            </div>
-          )}
-
+          {/* ── Action buttons ── */}
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={save} disabled={saving || uploading || databaseSetupMissing || !hasUnsavedChanges} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
-              {saving ? "Saving..." : hasUnsavedChanges ? "Save changes" : "Saved"}
+            <Button
+              onClick={save}
+              disabled={saving || uploading}
+              className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+            >
+              {saving ? "Saving…" : "Save changes"}
             </Button>
-            <Button type="button" variant="outline" onClick={reloadSavedTheme} disabled={saving || uploading || checkingSaved}>
-              {checkingSaved ? "Checking..." : "Reload saved theme"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setForm(DEFAULT_SITE_THEME)} disabled={saving || uploading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setForm(DEFAULT_SITE_THEME)}
+              disabled={saving || uploading}
+            >
               Reset to defaults
             </Button>
-          </div>
-          {hasUnsavedChanges && (
-            <p className="text-xs text-amber-700">
-              These edits are only in this editor until you press Save changes. Uploaded images save automatically.
-            </p>
-          )}
-          <div className="rounded-md border border-border bg-background">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
-              <div>
-                <div className="text-sm font-medium">Theme Diagnostics</div>
-                <p className="text-xs text-muted-foreground">Save, upload and Supabase cache events for this admin editor.</p>
-              </div>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setThemeLog([])} disabled={themeLog.length === 0}>
-                Clear
-              </Button>
-            </div>
-            <div className="max-h-56 overflow-y-auto p-3 text-xs">
-              {themeLog.length === 0 ? (
-                <p className="text-muted-foreground">No theme editor events yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {themeLog.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className={`rounded border px-3 py-2 ${
-                        entry.level === "error"
-                          ? "border-destructive/40 bg-destructive/10 text-destructive"
-                          : entry.level === "success"
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                          : entry.level === "warning"
-                          ? "border-amber-200 bg-amber-50 text-amber-800"
-                          : "border-border bg-muted/30 text-muted-foreground"
-                      }`}
-                    >
-                      <span className="font-medium uppercase tracking-wider">{entry.level}</span>
-                      <span className="mx-2">·</span>
-                      <span>{entry.message}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </section>
 
-      <aside className={`rounded-md border border-border bg-card p-5 ${editorTab === "preview" ? "lg:col-span-2" : ""}`}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live preview</div>
-          {hasUnsavedChanges && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-800">
-              Draft preview
-            </span>
-          )}
-        </div>
+      {/* ── Live preview sidebar ── */}
+      <aside className="rounded-md border border-border bg-card p-5">
+        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live preview</div>
         <div className="relative mt-4 overflow-hidden rounded-md border border-border bg-primary text-primary-foreground">
-          {form.hero_media_type === "image" && form.hero_background_image_url && (
+          {form.hero_background_image_url && (
             <img
               src={form.hero_background_image_url}
               alt=""
@@ -2609,44 +1151,20 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               className="absolute inset-0 h-full w-full object-cover"
             />
           )}
-          {form.hero_media_type === "video" && form.hero_video_url && (
-            <video
-              src={form.hero_video_url}
-              className="absolute inset-0 h-full w-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
-              aria-hidden="true"
-            />
-          )}
           <div
             className="absolute inset-0"
-            style={{
-              backgroundColor: `rgba(8, 18, 54, ${
-                form.hero_background_image_url || form.hero_video_url ? form.hero_overlay_opacity : 0
-              })`,
-            }}
+            style={{ backgroundColor: `rgba(8, 18, 54, ${form.hero_background_image_url ? form.hero_overlay_opacity : 0})` }}
             aria-hidden="true"
           />
           <div className="relative p-5">
             {form.logo_url ? (
-              <img
-                src={form.logo_url}
-                alt="Site logo preview"
-                className="mb-4 rounded object-cover"
-                style={{ width: form.logo_mark_size, height: form.logo_mark_size }}
-              />
+              <img src={form.logo_url} alt="Site logo preview" className="mb-4 h-10 w-10 rounded object-cover" />
             ) : (
-              <div
-                className="mb-4 rounded bg-white/10"
-                style={{ width: form.logo_mark_size, height: form.logo_mark_size }}
-              />
+              <div className="mb-4 h-10 w-10 rounded bg-white/10" />
             )}
-            <div className="mb-4 font-serif text-xl italic tracking-tight">{form.site_name.toUpperCase()}</div>
             <span
               className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
-              style={{ backgroundColor: form.accent_color, color: readableAccentText(form.accent_color) }}
+              style={{ backgroundColor: form.accent_color, color: "#081236" }}
             >
               {form.hero_badge_label}
             </span>
@@ -2655,67 +1173,46 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
             <button
               type="button"
               className="mt-5 rounded-md px-4 py-2 text-sm font-medium"
-              style={{ backgroundColor: form.accent_color, color: readableAccentText(form.accent_color) }}
+              style={{ backgroundColor: form.accent_color, color: "#081236" }}
             >
-              {form.hero_primary_cta_label}
+              Browse marketplace
             </button>
           </div>
         </div>
-        <p className="mt-4 text-xs leading-5 text-muted-foreground">
-          This is now a lightweight Shopify-style customiser: editable brand controls plus a modular homepage section order.
-        </p>
-        <div className="mt-5 rounded-md border border-border bg-background p-4">
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Search preview</div>
-          <div className="mt-3 text-[11px] text-green-700">chaosgemstones.com</div>
-          <div className="mt-1 line-clamp-2 text-sm font-medium text-blue-700">{form.seo_title}</div>
-          <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{form.seo_description}</p>
-        </div>
-        <div className="mt-4 overflow-hidden rounded-md border border-border bg-background">
-          {form.seo_image_url ? (
-            <img
-              src={form.seo_image_url}
-              alt=""
-              aria-hidden="true"
-              className="aspect-[1.91/1] w-full object-cover"
-            />
-          ) : (
-            <div className="aspect-[1.91/1] bg-muted" />
-          )}
-          <div className="p-3">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Social share</div>
-            <div className="mt-1 line-clamp-2 text-sm font-medium">{form.seo_title}</div>
-            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{form.seo_description}</p>
+
+        {/* Accent colour swatch row */}
+        <div className="mt-4 flex items-center gap-3">
+          <div
+            className="h-8 w-8 flex-shrink-0 rounded-full border border-border shadow-sm"
+            style={{ backgroundColor: form.accent_color }}
+            title={form.accent_color}
+          />
+          <div>
+            <div className="text-xs font-medium">Accent</div>
+            <div className="font-mono text-[11px] text-muted-foreground">{form.accent_color}</div>
           </div>
         </div>
+
+        {/* Enabled blocks summary */}
+        <div className="mt-4">
+          <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Active sections</div>
+          <div className="flex flex-wrap gap-1.5">
+            {form.homepage_layout.filter((b) => b.enabled).map((b) => (
+              <span
+                key={b.id}
+                className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground"
+              >
+                {HOMEPAGE_BLOCK_LABELS[b.type]}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">
+          Drag blocks to reorder, expand to edit section copy. Changes are live after Save.
+        </p>
       </aside>
     </div>
-  );
-}
-
-function readableAccentText(hex: string): "#081236" | "#FFFFFF" {
-  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!match) return "#081236";
-  const r = parseInt(match[1], 16);
-  const g = parseInt(match[2], 16);
-  const b = parseInt(match[3], 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.58 ? "#081236" : "#FFFFFF";
-}
-
-function labelForThemeImageTarget(target: "logo_url" | "hero_background_image_url" | "seo_image_url") {
-  if (target === "logo_url") return "logo";
-  if (target === "seo_image_url") return "social sharing";
-  return "hero background";
-}
-
-function isMissingSiteConfigurationsTableError(error: unknown) {
-  const message =
-    typeof error === "object" && error && "message" in error
-      ? String((error as { message?: unknown }).message)
-      : String(error ?? "");
-  return (
-    message.includes("site_configurations") &&
-    (message.includes("schema cache") || message.includes("Could not find the table") || message.includes("does not exist"))
   );
 }
 
@@ -3385,6 +1882,248 @@ function DataCleanupPanel() {
       </div>
       {result && (
         <pre className="mt-3 whitespace-pre-wrap rounded bg-muted p-3 text-xs">{result}</pre>
+      )}
+    </div>
+  );
+}
+
+// ─── IntakeQueuePanel ─────────────────────────────────────────────────────────
+
+type IntakeRow = {
+  id: string;
+  stone_id: string | null;
+  raw_message: string;
+  confidence: string | null;
+  warnings: string[] | null;
+  raw_price_text: string | null;
+  original_currency: string | null;
+  status: string;
+  created_at: string;
+  processed_at: string | null;
+  stone?: {
+    stone_type: string;
+    shape: string | null;
+    carat_weight: number | null;
+    cert_lab: string | null;
+    cert_number: string | null;
+    wholesale_price_usd: number | null;
+    treatment: string | null;
+  } | null;
+  dealer?: { full_name: string | null; company_name: string | null } | null;
+};
+
+function IntakeQueuePanel() {
+  const [rows, setRows] = useState<IntakeRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"saved" | "approved" | "rejected" | "all">("saved");
+
+  const approveFn = useServerFn(approveWhatsAppStoneFn);
+  const rejectFn  = useServerFn(rejectWhatsAppStoneFn);
+
+  useEffect(() => {
+    load();
+  }, [filter]);
+
+  async function load() {
+    setLoading(true);
+    let q = supabase
+      .from("whatsapp_intake_log")
+      .select(`
+        id, stone_id, raw_message, confidence, warnings,
+        raw_price_text, original_currency, status, created_at, processed_at,
+        stone:stone_id(stone_type, shape, carat_weight, cert_lab, cert_number, wholesale_price_usd, treatment),
+        dealer:dealer_id(full_name, company_name)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (filter !== "all") q = q.eq("status", filter);
+
+    const { data, error } = await q;
+    setLoading(false);
+    if (error) { toast.error(error.message); return; }
+    setRows((data as IntakeRow[]) ?? []);
+  }
+
+  async function approve(row: IntakeRow) {
+    if (!row.stone_id) { toast.error("No stone linked to this log entry."); return; }
+    setBusyId(row.id);
+    try {
+      const res = await approveFn({ data: { stoneId: row.stone_id } });
+      if (res.ok) {
+        toast.success("Stone approved and published to marketplace.");
+        setRows((prev) => prev.map((r) => r.id === row.id ? { ...r, status: "approved" } : r));
+      } else {
+        toast.error(res.error);
+      }
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function reject(row: IntakeRow) {
+    if (!row.stone_id) { toast.error("No stone linked."); return; }
+    setBusyId(row.id);
+    try {
+      const res = await rejectFn({ data: { stoneId: row.stone_id } });
+      if (res.ok) {
+        toast.success("Draft rejected and hidden.");
+        setRows((prev) => prev.map((r) => r.id === row.id ? { ...r, status: "rejected" } : r));
+      } else {
+        toast.error(res.error);
+      }
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const pendingCount = rows.filter((r) => r.status === "saved").length;
+
+  return (
+    <div className="mt-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">WhatsApp intake</div>
+          <h2 className="mt-1 font-serif text-2xl">Intake queue</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Stones submitted via WhatsApp intake. Approve to publish, reject to discard.
+            {pendingCount > 0 && (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                {pendingCount} pending
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {(["saved", "approved", "rejected", "all"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded px-3 py-1 text-sm capitalize ${filter === f ? "bg-foreground text-background" : "text-muted-foreground hover:bg-accent"}`}
+            >
+              {f === "saved" ? "Pending" : f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      )}
+
+      {!loading && rows.length === 0 && (
+        <div className="rounded-md border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+          No intake logs {filter !== "all" ? `with status "${filter === "saved" ? "pending" : filter}"` : ""}.
+        </div>
+      )}
+
+      {!loading && rows.length > 0 && (
+        <div className="divide-y divide-border rounded-md border border-border">
+          {rows.map((row) => {
+            const s = row.stone;
+            const dealer = row.dealer;
+            const isPending = row.status === "saved";
+            const isBusy = busyId === row.id;
+
+            return (
+              <div key={row.id} className={`p-4 ${isPending ? "" : "opacity-60"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    {/* Stone summary */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-sm">
+                        {s ? `${s.carat_weight ? `${Number(s.carat_weight).toFixed(2)}ct ` : ""}${s.shape || ""} ${s.stone_type}` : "Unknown stone"}
+                      </span>
+                      {row.confidence && (
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                          row.confidence === "high" ? "border-emerald-200 bg-emerald-50 text-emerald-800" :
+                          row.confidence === "medium" ? "border-amber-200 bg-amber-50 text-amber-800" :
+                          "border-red-200 bg-red-50 text-red-800"
+                        }`}>
+                          {row.confidence} confidence
+                        </span>
+                      )}
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+                        row.status === "approved" ? "bg-emerald-100 text-emerald-800" :
+                        row.status === "rejected" ? "bg-red-100 text-red-800" :
+                        row.status === "duplicate" ? "bg-purple-100 text-purple-800" :
+                        "bg-amber-100 text-amber-800"
+                      }`}>
+                        {row.status === "saved" ? "pending" : row.status}
+                      </span>
+                    </div>
+
+                    {/* Key fields */}
+                    <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                      {s?.cert_lab && <span>Cert: {s.cert_lab} {s.cert_number}</span>}
+                      {s?.treatment && <span>Treatment: {s.treatment}</span>}
+                      {s?.wholesale_price_usd && <span>Price: ${s.wholesale_price_usd.toLocaleString()}</span>}
+                      {row.raw_price_text && row.original_currency !== "USD" && (
+                        <span className="text-amber-700">Original: {row.raw_price_text} {row.original_currency}</span>
+                      )}
+                      {dealer && <span>Dealer: {dealer.company_name || dealer.full_name || "—"}</span>}
+                      <span>{new Date(row.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+
+                    {/* Warnings */}
+                    {row.warnings && row.warnings.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {row.warnings.map((w, i) => (
+                          <span key={i} className="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] text-amber-800">
+                            ⚠ {w}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Raw message preview */}
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
+                        View raw message
+                      </summary>
+                      <pre className="mt-1.5 whitespace-pre-wrap rounded bg-muted p-2 font-mono text-[11px] leading-relaxed">
+                        {row.raw_message}
+                      </pre>
+                    </details>
+                  </div>
+
+                  {/* Actions */}
+                  {isPending && row.stone_id && (
+                    <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                      {row.stone_id && (
+                        <Link to="/dashboard/stones/$id/edit" params={{ id: row.stone_id }}>
+                          <Button variant="outline" size="sm">Edit</Button>
+                        </Link>
+                      )}
+                      <Button
+                        size="sm"
+                        disabled={isBusy}
+                        onClick={() => approve(row)}
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        {isBusy ? "…" : "Approve"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isBusy}
+                        onClick={() => reject(row)}
+                        className="border-destructive/40 text-destructive hover:bg-destructive/5"
+                      >
+                        {isBusy ? "…" : "Reject"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
