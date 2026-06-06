@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
-import { Copy, Eye, EyeOff, RefreshCw, BookOpen, Terminal, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, RefreshCw, BookOpen, Terminal } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { isDealer as checkD } from "@/lib/auth.utils";
@@ -16,7 +16,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  getDealerApiStatus, generateDealerApiKey, updateDealerSyncSettings, runDealerSync, clearDealerImportedInventory,
+  getDealerApiStatus, generateDealerApiKey, updateDealerSyncSettings, runDealerSync,
 } from "@/lib/dealer-api.functions";
 import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
 import { detectPreset } from "@/lib/dealer-feed-mappings";
@@ -44,33 +44,13 @@ function diagnosticPrefix(log: SyncDiagnostic) {
   return "ℹ";
 }
 
-function fieldLabel(field?: string) {
-  const labels: Record<string, string> = {
-    cert_number: "Certificate/report number",
-    cert_lab: "Certificate lab",
-    carat_weight: "Carat weight",
-    wholesale_price_usd: "Wholesale price",
-    stone_type: "Stone type",
-    shape: "Shape",
-    _upsert: "Database upsert",
-    _insert: "Database insert",
-    _update: "Database update",
-    _write: "Database write",
-    _prepare: "Preparation",
-    _sync: "Sync",
-    _fetch: "Feed fetch",
-  };
-  return field ? labels[field] ?? field : null;
-}
-
 function diagnosticText(log: SyncDiagnostic) {
-  const label = fieldLabel(log.field);
   const context = [
     log.batch ? `Batch ${log.batch}` : null,
     log.row ? `Row ${log.row}` : null,
     log.stockNo ? `StockNo: ${log.stockNo}` : null,
-    log.certNumber ? `Sync key: ${log.certNumber}` : null,
-    label && !log.field?.startsWith("_") ? `Field: ${label}` : null,
+    log.certNumber ? `Key: ${log.certNumber}` : null,
+    log.field && !log.field.startsWith("_") ? `Field: ${log.field}` : null,
   ].filter(Boolean);
   const suffix = [log.pgCode ? `Postgres ${log.pgCode}` : null, log.details, log.hint].filter(Boolean).join(" | ");
   return `${diagnosticPrefix(log)} ${context.length ? `${context.join(" · ")} — ` : ""}${log.message ?? "Unknown sync event"}${suffix ? ` (${suffix})` : ""}`;
@@ -88,52 +68,34 @@ function ErrorDiagnosticsLog({
   syncing: boolean;
 }) {
   const hasLogs = logs.length > 0;
-  const errorCount = logs.filter((log) => log.level === "error").length;
-  const warningCount = logs.filter((log) => log.level === "warning").length;
-  const successCount = logs.filter((log) => log.level === "success").length;
   return (
-    <details open={syncing || hasLogs} className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 bg-muted/30 px-4 py-3 text-sm">
-        <span className="inline-flex items-center gap-2 font-medium text-foreground">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-gold)]/15 text-[var(--color-gold)]">
-            <Terminal className="h-4 w-4" />
-          </span>
-          Sync Diagnostics
+    <details open={syncing || hasLogs} className="rounded-md border border-border bg-background">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm">
+        <span className="inline-flex items-center gap-2 font-medium">
+          <Terminal className="h-4 w-4" />
+          Error Diagnostics Log
         </span>
-        <span className="flex flex-wrap items-center gap-2 text-[11px]">
-          {syncing && <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-800">Running</span>}
-          <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">{logs.length} events</span>
-          {errorCount > 0 && <span className="rounded-full bg-red-50 px-2 py-1 text-red-800">{errorCount} errors</span>}
-          {warningCount > 0 && <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">{warningCount} warnings</span>}
-          {successCount > 0 && <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-800">{successCount} saved</span>}
+        <span className="text-xs text-muted-foreground">
+          {syncing ? "sync running" : hasLogs ? `${logs.length} event${logs.length === 1 ? "" : "s"}` : "no events yet"}
         </span>
       </summary>
-      <div className="max-h-80 overflow-auto border-t border-border bg-background p-3 text-xs">
-        {syncing && (
-          <div className="mb-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">
-            Sync request sent. Waiting for chunked database writes to finish.
-          </div>
-        )}
-        {!syncing && !hasLogs && (
-          <div className="rounded-md border border-dashed border-border p-4 text-center text-muted-foreground">
-            Run a sync to see batch-by-batch diagnostics here.
-          </div>
-        )}
+      <div className="max-h-72 overflow-auto border-t border-border bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-100">
+        {syncing && <div className="text-zinc-300">ℹ Sync request sent. Waiting for the server to finish chunked upserts...</div>}
+        {!syncing && !hasLogs && <div className="text-zinc-400">Run a sync to see batch-by-batch diagnostics here.</div>}
         {logs.map((log, idx) => (
           <div
             key={`${log.batch ?? "x"}-${log.row ?? "x"}-${idx}`}
             className={
               log.level === "error"
-                ? "mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-950"
+                ? "text-red-300"
                 : log.level === "warning"
-                  ? "mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950"
+                  ? "text-amber-200"
                   : log.level === "success"
-                    ? "mb-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-950"
-                    : "mb-2 rounded-md border border-border bg-card px-3 py-2 text-foreground"
+                    ? "text-emerald-300"
+                    : "text-zinc-300"
             }
           >
-            <div className="font-medium">{diagnosticText(log)}</div>
-            {log.rawValue && <div className="mt-1 font-mono text-[11px] opacity-75">Raw value: {log.rawValue}</div>}
+            {diagnosticText(log)}
           </div>
         ))}
       </div>
@@ -148,13 +110,11 @@ function DealerApiPage() {
   const createKey = useServerFn(generateDealerApiKey);
   const saveSync = useServerFn(updateDealerSyncSettings);
   const triggerSync = useServerFn(runDealerSync);
-  const clearImported = useServerFn(clearDealerImportedInventory);
   const fetchFeed = useServerFn(fetchExternalFeed);
 
   const [revealed, setRevealed] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [clearing, setClearing] = useState(false);
   const [feedUrl, setFeedUrl] = useState("");
   const [autoSync, setAutoSync] = useState(false);
   const [method, setMethod] = useState<"GET" | "POST">("GET");
@@ -230,7 +190,7 @@ function DealerApiPage() {
       {
         level: "info",
         field: "_start",
-        message: `Saving the visible sync settings, then starting sync with ${method}. Chaos will clean rows, deduplicate sync keys, then save database changes in batches of 200.`,
+        message: `Saving the visible sync settings, then starting sync with ${method}. Chaos will clean rows, deduplicate sync keys, then upsert in batches of 200.`,
       },
     ]);
     try {
@@ -327,36 +287,6 @@ function DealerApiPage() {
     }
   }
 
-  async function clearImportedInventory() {
-    setClearing(true);
-    try {
-      const result = await clearImported();
-      setSyncDiagnostics([
-        {
-          level: "success",
-          field: "_clear",
-          message: `Cleared ${result.deleted ?? 0} imported feed listing${result.deleted === 1 ? "" : "s"} and reset the sync log.`,
-        },
-      ]);
-      setSyncProgress(0);
-      await refetch();
-      qc.invalidateQueries({ queryKey: ["dealer-api-status"] });
-      toast.success(`Cleared ${result.deleted ?? 0} imported feed listing${result.deleted === 1 ? "" : "s"}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Clear failed";
-      setSyncDiagnostics([
-        {
-          level: "error",
-          field: "_clear",
-          message: msg,
-        },
-      ]);
-      toast.error(msg);
-    } finally {
-      setClearing(false);
-    }
-  }
-
   const lastLog: any = (status?.syncLogs ?? [])[0] ?? null;
   const lastLogErrors: any[] = Array.isArray(lastLog?.errors) ? lastLog.errors : [];
   const lastLogErrorCount = errorDiagnosticCount(lastLogErrors);
@@ -374,11 +304,11 @@ function DealerApiPage() {
         </Link>
       </div>
 
-      <section className="rounded-md border border-border bg-card p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="rounded-md border border-border bg-card p-5">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Your write API key</div>
-            <div className="mt-2 max-w-full overflow-hidden break-all rounded-md bg-muted/30 px-2 py-1 font-mono text-xs sm:text-sm">
+            <div className="mt-1 break-all font-mono text-sm">
               {revealed ?? (activeKey ? `${activeKey.key_prefix ?? "chaos_"}${"•".repeat(40)}` : "No key yet")}
             </div>
             {activeKey?.last_used_at && (
@@ -387,20 +317,20 @@ function DealerApiPage() {
               </div>
             )}
           </div>
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+          <div className="flex shrink-0 gap-2">
             {revealed && (
               <>
-                <Button className="flex-1 sm:flex-none" size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(revealed); toast.success("Copied"); }}>
+                <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(revealed); toast.success("Copied"); }}>
                   <Copy className="mr-1 h-3 w-3" /> Copy
                 </Button>
-                <Button className="flex-1 sm:flex-none" size="sm" variant="ghost" onClick={() => setRevealed(null)}>
+                <Button size="sm" variant="ghost" onClick={() => setRevealed(null)}>
                   <EyeOff className="mr-1 h-3 w-3" />
                 </Button>
               </>
             )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" className="flex-1 bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90 sm:flex-none">
+                <Button size="sm" className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
                   <RefreshCw className="mr-1 h-3 w-3" /> {activeKey ? "Regenerate" : "Generate"}
                 </Button>
               </AlertDialogTrigger>
@@ -435,7 +365,7 @@ function DealerApiPage() {
         <h2 className="font-serif text-xl">Sync URL</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Optional: paste a URL that returns your inventory as JSON or CSV. Chaos will fetch
-          and sync stones by <code>cert_number</code>.
+          and upsert stones by <code>cert_number</code>.
         </p>
         <div className="mt-4 space-y-3">
           <div>
@@ -450,7 +380,7 @@ function DealerApiPage() {
           </div>
           <div>
             <Label>Request method</Label>
-            <div className="mt-1 flex flex-wrap gap-2">
+            <div className="mt-1 flex gap-2">
               {(["GET", "POST"] as const).map((m) => (
                 <Button
                   key={m}
@@ -481,7 +411,7 @@ function DealerApiPage() {
             <Switch id="autoSync" checked={autoSync} onCheckedChange={setAutoSync} />
             <Label htmlFor="autoSync" className="text-sm">Auto-sync every 24 hours</Label>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={saveSettings}>Save settings</Button>
             <Button size="sm" variant="outline" onClick={testFeed} disabled={testing || !feedUrl.trim()}>
               {testing ? "Testing…" : "Test feed URL"}
@@ -489,38 +419,6 @@ function DealerApiPage() {
             <Button size="sm" onClick={sync} disabled={syncing || !feedUrl.trim()}>
               {syncing ? "Syncing…" : "Sync now"}
             </Button>
-          </div>
-          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-medium">Imported feed inventory</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Clears listings created by the inventory feed so the next sync can rebuild from a clean slate. Manual listings are left alone.
-                </div>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="destructive" disabled={clearing || syncing}>
-                    <Trash2 className="mr-1 h-3.5 w-3.5" />
-                    {clearing ? "Clearing…" : "Clear Imported Inventory"}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Clear imported feed inventory?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This removes imported feed listings for your dealer account and clears the sync log. Manual listings and other dealers' inventory are left alone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={clearImportedInventory} disabled={clearing}>
-                      Clear imported inventory
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
           </div>
           {(syncing || syncDiagnostics.length > 0) && (
             <div className="space-y-2">
@@ -576,8 +474,8 @@ function DealerApiPage() {
 
       <section>
         <h2 className="font-serif text-xl">Recent sync log</h2>
-        <div className="mt-3 overflow-x-auto rounded-md border border-border">
-          <table className="min-w-[720px] w-full text-sm">
+        <div className="mt-3 overflow-hidden rounded-md border border-border">
+          <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-left">When</th>
