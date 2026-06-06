@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ShieldCheck, Globe2, Boxes } from "lucide-react";
 import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Motion";
-import { LuxuryReveal, ParallaxScroll } from "@/components/anim/LuxuryReveal";
 import { LaunchBanner } from "@/components/site/LaunchBanner";
 import { GemParticles } from "@/components/site/GemParticles";
 import { CertLabBar } from "@/components/site/CertLabBar";
@@ -197,12 +196,8 @@ function Home() {
         return <CertLabBar />;
       case "trust_strip":
         return <TrustStrip />;
-      case "ticker":
-        return <LiveTickerSection siteTheme={siteTheme} />;
       case "audience_cards":
         return <AudienceCardsSection />;
-      case "shape_grid":
-        return <ShapeGridSection siteTheme={siteTheme} />;
       case "whatsapp_cta":
         return <WhatsAppCtaSection siteTheme={siteTheme} />;
       case "featured_stones":
@@ -235,10 +230,9 @@ function Home() {
 }
 
 function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
-  const heroLogoSize = Math.max(28, Math.min(80, Math.round(siteTheme.logo_mark_size * 1.5)));
   return (
     <section className="relative overflow-hidden text-primary-foreground hero-aurora">
-      {siteTheme.hero_media_type === "image" && siteTheme.hero_background_image_url && (
+      {siteTheme.hero_background_image_url && (
         <img
           src={siteTheme.hero_background_image_url}
           alt=""
@@ -247,44 +241,35 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           loading="eager"
         />
       )}
-      {siteTheme.hero_media_type === "video" && siteTheme.hero_video_url && (
-        <video
-          className="absolute inset-0 h-full w-full object-cover"
-          src={siteTheme.hero_video_url}
-          autoPlay
-          muted
-          loop
-          playsInline
-          aria-hidden="true"
-        />
-      )}
-      {(siteTheme.hero_background_image_url || siteTheme.hero_video_url) && (
+      {/* Bottom-heavy gradient overlay: always readable, more cinematic than flat opacity */}
+      <div className="hero-gradient-overlay" aria-hidden="true" />
+      {/* Optional flat tint on top when user sets hero opacity */}
+      {siteTheme.hero_background_image_url && siteTheme.hero_overlay_opacity > 0 && (
         <div
           className="absolute inset-0"
-          style={{ backgroundColor: `rgba(8, 18, 54, ${siteTheme.hero_overlay_opacity})` }}
+          style={{ backgroundColor: `rgba(8, 18, 54, ${siteTheme.hero_overlay_opacity * 0.5})` }}
           aria-hidden="true"
         />
       )}
       <div className="hero-light" aria-hidden />
       <GemParticles count={14} />
       <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
-        <LuxuryReveal preset={siteTheme.animation_preset}>
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           {siteTheme.logo_url && (
             <img
               src={siteTheme.logo_url}
               alt="Chaos logo"
-              className="mb-5 rounded-md object-cover shadow-lg ring-1 ring-white/20"
-              style={{ width: heroLogoSize, height: heroLogoSize }}
+              className="mb-5 h-14 w-14 rounded-md object-cover shadow-lg ring-1 ring-white/20"
               loading="eager"
             />
           )}
           <Badge
             className="border-0"
-            style={{ backgroundColor: siteTheme.accent_color, color: "var(--color-gold-foreground)" }}
+            style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
           >
             {siteTheme.hero_badge_label}
           </Badge>
-        </LuxuryReveal>
+        </motion.div>
         <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">
           <WordReveal text={siteTheme.hero_title} />
         </h1>
@@ -302,26 +287,26 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.9 }}
         >
-          <a href={siteTheme.hero_primary_cta_url}>
+          <Link to="/marketplace">
             <Button
               size="lg"
               className="group relative overflow-hidden border-0 gold-glow transition-shadow hover:opacity-95"
-              style={{ backgroundColor: siteTheme.accent_color, color: "var(--color-gold-foreground)" }}
+              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
             >
-              {siteTheme.hero_primary_cta_label} <ArrowRight className="ml-2 h-4 w-4" />
+              Browse marketplace <ArrowRight className="ml-2 h-4 w-4" />
               <span className="shimmer-overlay" aria-hidden />
             </Button>
-          </a>
-          <a href={siteTheme.hero_secondary_cta_url}>
+          </Link>
+          <Link to="/sign-up">
             <Button
               size="lg"
               variant="outline"
               className="bg-transparent transition-colors hover:bg-white/10"
               style={{ borderColor: siteTheme.accent_color, color: siteTheme.accent_color }}
             >
-              {siteTheme.hero_secondary_cta_label}
+              Sign up
             </Button>
-          </a>
+          </Link>
           {siteTheme.contact_whatsapp && (
             <a
               href={`https://wa.me/${siteTheme.contact_whatsapp.replace(/[^0-9]/g, "")}`}
@@ -346,94 +331,7 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           </Link>
         </motion.p>
       </div>
-      <ParallaxScroll
-        enabled={siteTheme.enable_parallax}
-        intensity={80}
-        className="chaos-parallax-orb pointer-events-none absolute -right-24 bottom-10 hidden h-72 w-72 rounded-full border border-[var(--gold-border)] blur-sm lg:block"
-      >
-        <span className="block h-full w-full" />
-      </ParallaxScroll>
       <span className="gold-line-draw absolute bottom-0 left-0 right-0" aria-hidden />
-    </section>
-  );
-}
-
-function LiveTickerSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
-  if (!siteTheme.ticker_enabled) return null;
-  const items = siteTheme.ticker_items.length ? siteTheme.ticker_items : DEFAULT_SITE_THEME.ticker_items;
-  const repeated = [...items, ...items];
-  return (
-    <section className="overflow-hidden border-y border-[var(--gold-border)] bg-primary py-3 text-primary-foreground">
-      <div
-        className="chaos-ticker-track flex min-w-max gap-8 whitespace-nowrap text-xs uppercase tracking-[0.18em] opacity-90"
-        style={{ ["--ticker-speed" as string]: `${siteTheme.ticker_speed_seconds}s` }}
-      >
-        {repeated.map((item, index) => (
-          <span key={`${item}-${index}`} className="inline-flex items-center gap-8">
-            <span>{item}</span>
-            <span className="text-[var(--color-gold)]">◆</span>
-          </span>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-const SHAPE_LINKS = [
-  { key: "round", label: "Round", href: "/marketplace?shape=Round", mark: "○" },
-  { key: "oval", label: "Oval", href: "/marketplace?shape=Oval", mark: "⬭" },
-  { key: "emerald", label: "Emerald", href: "/marketplace?shape=Emerald", mark: "▭" },
-  { key: "cushion", label: "Cushion", href: "/marketplace?shape=Cushion", mark: "▢" },
-  { key: "pear", label: "Pear", href: "/marketplace?shape=Pear", mark: "◍" },
-  { key: "radiant", label: "Radiant", href: "/marketplace?shape=Radiant", mark: "◇" },
-];
-
-function ShapeGridSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
-  if (!siteTheme.shape_grid_enabled) return null;
-  const isCarousel = siteTheme.shape_grid_mode === "carousel";
-  return (
-    <section className="border-t border-border bg-background py-16">
-      <div className="mx-auto max-w-7xl px-6">
-        <LuxuryReveal preset={siteTheme.animation_preset} className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Visual discovery</div>
-            <h2 className="mt-2 font-serif text-4xl">{siteTheme.shape_grid_title}</h2>
-          </div>
-          <Link to="/marketplace" className="text-sm text-foreground hover:text-[var(--color-gold)]">
-            Explore all stones →
-          </Link>
-        </LuxuryReveal>
-        <div className={`mt-8 ${isCarousel ? "overflow-x-auto [-webkit-overflow-scrolling:touch]" : ""}`}>
-          <div className={isCarousel ? "flex min-w-max gap-4" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-6"}>
-            {SHAPE_LINKS.map((shape, index) => {
-              const imageUrl = siteTheme.shape_card_images[shape.key];
-              return (
-                <LuxuryReveal key={shape.key} preset={siteTheme.animation_preset} delay={index * 0.04}>
-                  <a
-                    href={shape.href}
-                    className="shape-discovery-card group flex min-h-40 flex-col items-center justify-center rounded-md border border-border bg-card p-5 text-center transition-all hover:-translate-y-1 hover:border-[var(--color-gold)]"
-                  >
-                    <span className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-[var(--gold-border)] bg-[var(--color-gold)]/10 font-serif text-4xl text-[var(--color-gold)] transition-transform group-hover:scale-105">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={`${shape.label} diamond shape`}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                          loading="lazy"
-                        />
-                      ) : (
-                        shape.mark
-                      )}
-                    </span>
-                    <span className="mt-4 font-medium">{shape.label}</span>
-                    <span className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">View inventory</span>
-                  </a>
-                </LuxuryReveal>
-              );
-            })}
-          </div>
-        </div>
-      </div>
     </section>
   );
 }
@@ -445,28 +343,38 @@ function AudienceCardsSection() {
         <LaunchBanner />
       </FadeUp>
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #162347 100%)" }}>
-          <GemMarkWatermark />
-          <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
-          <h2 className="relative mt-3 font-serif text-3xl">Source verified stones. Sell as your own.</h2>
-          <p className="relative mt-4 opacity-80">
-            Browse thousands of certified stones from trusted dealers. Follow vendors you trust, set your markup, embed a live API feed into your own website. Sold stones drop out of your inventory automatically.
-          </p>
-          <Link to="/sign-up/jeweller" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
-            Create a jeweller account <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-        </div>
-        <div className="group relative overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground" style={{ background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }}>
-          <GemMarkWatermark />
-          <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Dealers</div>
-          <h2 className="relative mt-3 font-serif text-3xl">List once. Reach jewellers worldwide.</h2>
-          <p className="relative mt-4 opacity-80">
-            Upload your inventory manually or via CSV. Get discovered by jewellers across the UK, US, Europe and Australia. Your stones appear in their stores automatically; mark sold and they disappear instantly.
-          </p>
-          <Link to="/sign-up/dealer" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
-            Become a verified dealer <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-        </div>
+        <FadeUp delay={0.05}>
+          <div
+            className="audience-card-jeweller group relative h-full overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground"
+            style={{ background: "linear-gradient(135deg, #0F1B3D 0%, #162347 100%)" }}
+          >
+            <GemMarkWatermark />
+            <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Jewellers</div>
+            <h2 className="relative mt-3 font-serif text-3xl">Source verified stones. Sell as your own.</h2>
+            <p className="relative mt-4 opacity-80">
+              Browse thousands of certified stones from trusted dealers. Follow vendors you trust, set your markup, embed a live API feed into your own website. Sold stones drop out of your inventory automatically.
+            </p>
+            <Link to="/sign-up/jeweller" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
+              Create a jeweller account <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+        </FadeUp>
+        <FadeUp delay={0.12}>
+          <div
+            className="audience-card-dealer group relative h-full overflow-hidden rounded-md border border-[var(--gold-border)] p-8 text-primary-foreground"
+            style={{ background: "linear-gradient(135deg, #1B3A2D 0%, #0D2418 100%)" }}
+          >
+            <GemMarkWatermark />
+            <div className="relative text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">For Dealers</div>
+            <h2 className="relative mt-3 font-serif text-3xl">List once. Reach jewellers worldwide.</h2>
+            <p className="relative mt-4 opacity-80">
+              Upload your inventory manually or via CSV. Get discovered by jewellers across the UK, US, Europe and Australia. Your stones appear in their stores automatically; mark sold and they disappear instantly.
+            </p>
+            <Link to="/sign-up/dealer" className="relative mt-6 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90">
+              Become a verified dealer <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+        </FadeUp>
       </div>
     </section>
   );
@@ -482,22 +390,43 @@ function FeaturedStonesSection({
   siteTheme: typeof DEFAULT_SITE_THEME;
 }) {
   return (
-    <section className="bg-secondary/30 py-20">
+    <section
+      className="py-20"
+      style={{ background: "linear-gradient(180deg, var(--color-secondary) 0%, #0F1B3D 100%)" }}
+    >
       <div className="mx-auto max-w-7xl px-6">
         <FadeUp className="flex items-end justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{siteTheme.homepage_copy.featured_stones_eyebrow}</div>
-            <h2 className="mt-2 font-serif text-4xl">{siteTheme.homepage_copy.featured_stones_title}</h2>
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]/70">
+              {siteTheme.homepage_copy.featured_stones_eyebrow}
+            </div>
+            <h2 className="mt-2 font-serif text-4xl text-primary-foreground">
+              {siteTheme.homepage_copy.featured_stones_title}
+            </h2>
           </div>
-          <Link to="/marketplace" className="text-sm text-foreground hover:text-[var(--color-gold)]">
+          <Link
+            to="/marketplace"
+            className="text-sm text-[var(--color-gold)] hover:opacity-80"
+          >
             {siteTheme.homepage_copy.featured_stones_link_label} →
           </Link>
         </FadeUp>
-        <StaggerGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" delay={0.08}>
-          {featuredStones.map((s) => (
-            <StoneCard key={s.id} stone={{ ...s, isWishlisted: wishlistIds?.has(s.id) ?? false }} />
-          ))}
-        </StaggerGroup>
+        {featuredStones.length > 0 ? (
+          <StaggerGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" delay={0.07}>
+            {featuredStones.map((s) => (
+              <StoneCard
+                key={s.id}
+                stone={{ ...s, isWishlisted: wishlistIds?.has(s.id) ?? false }}
+              />
+            ))}
+          </StaggerGroup>
+        ) : (
+          <FadeUp delay={0.1}>
+            <div className="mt-10 rounded-md border border-[var(--gold-border)] bg-white/5 p-10 text-center text-sm text-primary-foreground/60">
+              Featured stones coming soon — dealers are being onboarded now.
+            </div>
+          </FadeUp>
+        )}
       </div>
     </section>
   );
@@ -522,7 +451,7 @@ function WhatsAppCtaSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEM
             <Button
               size="lg"
               className="w-full border-0 md:w-auto"
-              style={{ backgroundColor: siteTheme.accent_color, color: "var(--color-gold-foreground)" }}
+              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
             >
               {siteTheme.homepage_copy.whatsapp_cta_button_label}
             </Button>
@@ -627,16 +556,19 @@ function FeaturedVendorsSection({ featuredVendors, siteTheme }: { featuredVendor
 
 function StatsTrustSection({ stats }: { stats: { dealers: number; stones: number; countries: number } | undefined }) {
   return (
-    <section className="border-t border-border bg-secondary/30 py-16">
-      <div className="mx-auto grid max-w-7xl gap-8 px-6 md:grid-cols-3 md:divide-x md:divide-border">
-        <StatBig label="Approved dealers" value={stats?.dealers ?? 0} />
-        <StatBig label="Stones available" value={stats?.stones ?? 0} />
-        <StatBig label="Sourcing countries" value={stats?.countries ?? 0} />
-      </div>
-      <div className="mx-auto mt-10 grid max-w-7xl gap-8 px-6 md:grid-cols-3">
-        <Feature icon={<ShieldCheck className="h-5 w-5" />} title="Verified dealers" desc="Every supplier reviewed and approved before listing." />
-        <Feature icon={<Globe2 className="h-5 w-5" />} title="Global sourcing" desc="Direct access to Jaipur, Surat, Bangkok, Colombo and beyond." />
-        <Feature icon={<Boxes className="h-5 w-5" />} title="Live inventory sync" desc="Sold stones drop out of every jeweller's feed within 60 seconds." />
+    <section className="border-t border-border bg-secondary/30 py-20">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid gap-10 md:grid-cols-3 md:divide-x md:divide-border">
+          <FadeUp delay={0.00}><StatBig label="Approved dealers"   value={stats?.dealers   ?? 0} /></FadeUp>
+          <FadeUp delay={0.08}><StatBig label="Stones available"   value={stats?.stones    ?? 0} /></FadeUp>
+          <FadeUp delay={0.16}><StatBig label="Sourcing countries" value={stats?.countries ?? 0} /></FadeUp>
+        </div>
+        <div className="section-gold-rule mt-14" aria-hidden />
+        <div className="mt-14 grid gap-8 md:grid-cols-3">
+          <FadeUp delay={0.04}><Feature icon={<ShieldCheck className="h-5 w-5" />} title="Verified dealers"      desc="Every supplier reviewed and approved before listing." /></FadeUp>
+          <FadeUp delay={0.10}><Feature icon={<Globe2 className="h-5 w-5" />}      title="Global sourcing"       desc="Direct access to Jaipur, Surat, Bangkok, Colombo and beyond." /></FadeUp>
+          <FadeUp delay={0.16}><Feature icon={<Boxes className="h-5 w-5" />}       title="Live inventory sync"   desc="Sold stones drop out of every jeweller's feed within 60 seconds." /></FadeUp>
+        </div>
       </div>
     </section>
   );

@@ -319,23 +319,114 @@
 button, .btn { transition: transform 0.08s ease; }
 button:active, .btn:active { transform: scale(0.97); }
 
-@keyframes chaosTicker {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+/* ============ Patch 10 — Homepage visual upgrade ============ */
+
+/* Continuous horizontal ticker for CertLabBar */
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
-.chaos-ticker-track {
-  animation: chaosTicker var(--ticker-speed, 36s) linear infinite;
+.cert-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ticker-scroll 22s linear infinite;
   will-change: transform;
 }
-.chaos-parallax-orb {
-  background: radial-gradient(circle, rgba(var(--chaos-glow-rgb, 232, 201, 122), 0.24), transparent 62%);
+.cert-ticker-track:hover {
+  animation-play-state: paused;
 }
-.shape-discovery-card:hover {
-  box-shadow: 0 18px 50px -28px rgba(var(--chaos-glow-rgb, 232, 201, 122), 0.85);
+.cert-ticker-wrap {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .chaos-ticker-track {
-    animation: none !important;
-  }
+/* Hero gradient overlay — richer bottom-to-top fade so text is always legible */
+.hero-gradient-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(8, 18, 54, 0.82) 0%,
+    rgba(8, 18, 54, 0.50) 40%,
+    rgba(8, 18, 54, 0.18) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
+
+/* Stone card — deeper hover shadow + price shimmer */
+@keyframes price-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.price-shimmer {
+  background: linear-gradient(
+    100deg,
+    var(--color-foreground) 35%,
+    var(--color-gold) 50%,
+    var(--color-foreground) 65%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.group:hover .price-shimmer {
+  animation: price-shimmer 1.4s ease-out forwards;
+}
+
+/* Section divider — subtle gold rule */
+.section-gold-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(232,201,122,0.25) 50%, transparent 100%);
+}
+
+/* Audience card — animated border on hover */
+.audience-card-dealer,
+.audience-card-jeweller {
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+.audience-card-dealer:hover,
+.audience-card-jeweller:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 28px 60px -20px rgba(15, 27, 61, 0.55),
+              0 0 0 1px rgba(232, 201, 122, 0.3);
+}
+
+/* FounderQuote — slow ken-burns on optional bg */
+@keyframes ken-burns {
+  0%   { transform: scale(1)   translateX(0); }
+  100% { transform: scale(1.07) translateX(-2%); }
+}
+.founder-bg-kenburns {
+  animation: ken-burns 18s ease-in-out alternate infinite;
+}
+
+/* Scroll-reveal utility — for sections that aren't yet wrapped in FadeUp */
+@keyframes section-rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.scroll-reveal {
+  opacity: 0;
+  animation: section-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-play-state: paused;
+}
+.scroll-reveal.in-view {
+  animation-play-state: running;
+}
+
+/* Stats number — larger, more impact */
+.stat-serif-xl {
+  font-family: var(--font-serif);
+  font-size: clamp(3rem, 7vw, 5rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Stagger delay helpers for CSS-only lists */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.12s; }
+.stagger-3 { animation-delay: 0.19s; }
+.stagger-4 { animation-delay: 0.26s; }
