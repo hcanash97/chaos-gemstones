@@ -3,6 +3,9 @@ export interface SiteThemeSettings {
   accent_color: string;
   hero_title: string;
   hero_subtitle: string;
+  hero_badge_label: string;
+  hero_background_image_url: string;
+  hero_overlay_opacity: number;
   contact_whatsapp: string;
   homepage_layout: HomepageLayoutBlock[];
   homepage_copy: HomepageSectionCopy;
@@ -98,6 +101,9 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   hero_title: "Verified diamonds & coloured stones, sourced direct from the world's dealers.",
   hero_subtitle:
     "The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.",
+  hero_badge_label: "B2B · For the trade",
+  hero_background_image_url: "",
+  hero_overlay_opacity: 0.62,
   contact_whatsapp: "",
   homepage_layout: DEFAULT_HOMEPAGE_LAYOUT,
   homepage_copy: DEFAULT_HOMEPAGE_COPY,
@@ -113,6 +119,10 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
       typeof raw.hero_subtitle === "string" && raw.hero_subtitle.trim()
         ? raw.hero_subtitle
         : DEFAULT_SITE_THEME.hero_subtitle,
+    hero_badge_label: stringOrDefault(raw.hero_badge_label, DEFAULT_SITE_THEME.hero_badge_label),
+    hero_background_image_url:
+      typeof raw.hero_background_image_url === "string" ? raw.hero_background_image_url : DEFAULT_SITE_THEME.hero_background_image_url,
+    hero_overlay_opacity: normalizeOverlayOpacity(raw.hero_overlay_opacity),
     contact_whatsapp: typeof raw.contact_whatsapp === "string" ? raw.contact_whatsapp : DEFAULT_SITE_THEME.contact_whatsapp,
     homepage_layout: normalizeHomepageLayout(raw.homepage_layout),
     homepage_copy: normalizeHomepageCopy(raw.homepage_copy),
@@ -181,4 +191,10 @@ export function normalizeHomepageCopy(value: unknown): HomepageSectionCopy {
 
 function stringOrDefault(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function normalizeOverlayOpacity(value: unknown): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : DEFAULT_SITE_THEME.hero_overlay_opacity;
+  if (!Number.isFinite(n)) return DEFAULT_SITE_THEME.hero_overlay_opacity;
+  return Math.min(0.9, Math.max(0.15, n));
 }

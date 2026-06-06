@@ -243,6 +243,22 @@ function Home() {
 function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
   return (
     <section className="relative overflow-hidden text-primary-foreground hero-aurora">
+      {siteTheme.hero_background_image_url && (
+        <img
+          src={siteTheme.hero_background_image_url}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover"
+          loading="eager"
+        />
+      )}
+      {siteTheme.hero_background_image_url && (
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: `rgba(8, 18, 54, ${siteTheme.hero_overlay_opacity})` }}
+          aria-hidden="true"
+        />
+      )}
       <div className="hero-light" aria-hidden />
       <GemParticles count={14} />
       <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
@@ -259,7 +275,7 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
             className="border-0"
             style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
           >
-            B2B · For the trade
+            {siteTheme.hero_badge_label}
           </Badge>
         </motion.div>
         <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">

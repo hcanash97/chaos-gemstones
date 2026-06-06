@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS public.site_configurations (
     'accent_color', '#E8C97A',
     'hero_title', 'Verified diamonds & coloured stones, sourced direct from the world''s dealers.',
     'hero_subtitle', 'The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.',
+    'hero_badge_label', 'B2B · For the trade',
+    'hero_background_image_url', '',
+    'hero_overlay_opacity', 0.62,
     'contact_whatsapp', '',
     'homepage_layout', jsonb_build_array(
       jsonb_build_object('id', 'hero', 'type', 'hero', 'enabled', true),

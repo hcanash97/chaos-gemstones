@@ -643,7 +643,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     });
   }
 
-  async function uploadLogo(file: File) {
+  async function uploadThemeImage(file: File, target: "logo_url" | "hero_background_image_url") {
     if (!file.type.startsWith("image/")) {
       toast.error("Please choose an image file.");
       return;
@@ -654,7 +654,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     }
     setUploading(true);
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `${userId}/site-config/${Date.now()}.${ext}`;
+    const path = `${userId}/site-config/${target}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("stone-images").upload(path, file, {
       upsert: true,
       contentType: file.type,
@@ -666,8 +666,8 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       return;
     }
     const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
-    setField("logo_url", data.publicUrl);
-    toast.success("Logo uploaded");
+    setField(target, data.publicUrl);
+    toast.success(target === "logo_url" ? "Logo uploaded" : "Hero background uploaded");
   }
 
   async function save() {
@@ -727,9 +727,72 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                 accept="image/*"
                 className="hidden"
                 disabled={uploading}
-                onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])}
+                onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "logo_url")}
               />
             </label>
+          </div>
+
+          <div className="grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="theme-badge">Hero badge label</Label>
+              <Input
+                id="theme-badge"
+                value={form.hero_badge_label}
+                onChange={(e) => setField("hero_badge_label", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-overlay">Hero overlay strength</Label>
+              <div className="mt-1.5 flex items-center gap-3">
+                <input
+                  id="theme-overlay"
+                  type="range"
+                  min="0.15"
+                  max="0.9"
+                  step="0.05"
+                  value={form.hero_overlay_opacity}
+                  onChange={(e) => setField("hero_overlay_opacity", Number(e.target.value))}
+                  className="w-full"
+                />
+                <span className="w-12 text-right font-mono text-xs text-muted-foreground">
+                  {Math.round(form.hero_overlay_opacity * 100)}%
+                </span>
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="theme-hero-bg">Hero background image URL</Label>
+              <Input
+                id="theme-hero-bg"
+                value={form.hero_background_image_url}
+                onChange={(e) => setField("hero_background_image_url", e.target.value)}
+                placeholder="https://..."
+                className="mt-1.5"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
+                  {uploading ? "Uploading..." : "Upload hero background"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "hero_background_image_url")}
+                  />
+                </label>
+                {form.hero_background_image_url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setField("hero_background_image_url", "")}
+                    disabled={saving || uploading}
+                  >
+                    Remove background
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div>
@@ -946,8 +1009,21 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
 
       <aside className="rounded-md border border-border bg-card p-5">
         <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live preview</div>
-        <div className="mt-4 overflow-hidden rounded-md border border-border bg-primary text-primary-foreground">
-          <div className="p-5">
+        <div className="relative mt-4 overflow-hidden rounded-md border border-border bg-primary text-primary-foreground">
+          {form.hero_background_image_url && (
+            <img
+              src={form.hero_background_image_url}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: `rgba(8, 18, 54, ${form.hero_background_image_url ? form.hero_overlay_opacity : 0})` }}
+            aria-hidden="true"
+          />
+          <div className="relative p-5">
             {form.logo_url ? (
               <img src={form.logo_url} alt="Site logo preview" className="mb-4 h-10 w-10 rounded object-cover" />
             ) : (
@@ -957,7 +1033,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
               style={{ backgroundColor: form.accent_color, color: "#081236" }}
             >
-              B2B · For the trade
+              {form.hero_badge_label}
             </span>
             <h3 className="mt-4 font-serif text-2xl leading-tight">{form.hero_title}</h3>
             <p className="mt-3 line-clamp-4 text-sm opacity-80">{form.hero_subtitle}</p>
