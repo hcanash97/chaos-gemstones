@@ -50,6 +50,7 @@ function DashboardLayout() {
     { to: "/dashboard/sales", label: "Sales", exact: false },
     { to: "/dashboard/dealer/pricing", label: "Pricing rules", exact: false },
     { to: "/dashboard/import", label: "CSV Import", exact: false },
+    { to: "/dashboard/dealer/whatsapp", label: "WhatsApp Intake", exact: false },
     { to: "/dashboard/dealer/api", label: "Developer API", exact: false },
   ];
   const jewellerNav = [

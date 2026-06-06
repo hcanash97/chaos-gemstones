@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { toast } from "sonner";
-import { Heart } from "lucide-react";
+import { FileText, Heart } from "lucide-react";
+import { ClientQuoteDialog } from "@/components/site/ClientQuoteDialog";
 
 export const Route = createFileRoute("/dashboard/jeweller/wishlist")({
   component: WishlistPage,
@@ -28,7 +29,7 @@ function WishlistPage() {
     const { data, error } = await (supabase as any)
       .from("wishlists")
       .select(
-        "id, stone_id, stone:stone_id(id, stone_type, shape, carat_weight, wholesale_price_usd, cert_lab, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order))",
+        "id, stone_id, stone:stone_id(id, stone_type, shape, carat_weight, colour_grade, clarity_grade, treatment, country_of_origin, wholesale_price_usd, price_currency, cert_lab, cert_number, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order))",
       )
       .eq("jeweller_id", user.id)
       .order("created_at", { ascending: false });
@@ -103,6 +104,15 @@ function WishlistPage() {
                       trigger={
                         <Button size="sm" className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
                           Enquire
+                        </Button>
+                      }
+                    />
+                    <ClientQuoteDialog
+                      stone={{ ...s, image: src }}
+                      trigger={
+                        <Button size="sm" variant="outline">
+                          <FileText className="mr-1.5 h-3.5 w-3.5" />
+                          Quote
                         </Button>
                       }
                     />

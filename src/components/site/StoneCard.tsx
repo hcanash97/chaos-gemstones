@@ -39,16 +39,18 @@ export type StoneCardData = {
 function StoneCardImpl({
   stone,
   followedDealerIds,
+  retailMode = false,
 }: {
   stone: StoneCardData;
   followedDealerIds?: Set<string>;
+  retailMode?: boolean;
 }) {
   const { user, profile } = useAuth();
   const isJeweller = checkJeweller(profile);
   const isApprovedJeweller = isJeweller && profile?.is_approved;
   const isDealer = checkDealer(profile);
   const isAdmin = checkAdmin(profile);
-  const showWholesale = isDealer || isAdmin || isApprovedJeweller;
+  const showWholesale = (isDealer || isAdmin || isApprovedJeweller) && !retailMode;
   const compare = useCompare();
   const inCompare = compare.has(stone.id);
   const compareDisabled = !inCompare && compare.ids.length >= compare.max;
@@ -202,11 +204,11 @@ function StoneCardImpl({
               <ShieldCheck className="h-3.5 w-3.5 text-[var(--color-gold)]" aria-label="Verified dealer" />
             )}
           </span>
-          {stone.dealer_country ? (
+          {!retailMode && stone.dealer_country ? (
             <span className="text-muted-foreground">
               {countryFlag(stone.dealer_country)} {stone.dealer_country}
             </span>
-          ) : stone.country_of_origin ? (
+          ) : !retailMode && stone.country_of_origin ? (
             <span className="text-muted-foreground">
               {countryFlag(stone.country_of_origin)} {stone.country_of_origin}
             </span>
@@ -231,9 +233,11 @@ function StoneCardImpl({
               </>
             ) : (
               <>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Price</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {retailMode ? "Client view" : "Price"}
+                </div>
                 <div className="font-mono text-xs font-medium text-muted-foreground">
-                  {user ? "Pending approval" : "Sign in to view"}
+                  {retailMode ? "Quote in detail" : user ? "Pending approval" : "Sign in to view"}
                 </div>
               </>
             )}

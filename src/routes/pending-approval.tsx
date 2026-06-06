@@ -15,6 +15,14 @@ function Pending() {
         <p className="mt-3 text-sm text-muted-foreground">
           Thanks for joining Chaos. New accounts are reviewed by our team before dashboard access is granted. You'll receive an email once you're approved.
         </p>
+        <div className="mt-6 rounded-md border border-border bg-card p-4 text-left text-xs text-muted-foreground">
+          <div className="font-medium text-foreground">What happens next</div>
+          <ul className="mt-2 space-y-1">
+            <li>1. Chaos checks the account details.</li>
+            <li>2. Approved dealers can list stones manually, by CSV, WhatsApp intake, or API feed.</li>
+            <li>3. Approved jewellers can save stones, follow dealers, and prepare client quotes.</li>
+          </ul>
+        </div>
         <Link to="/" className="mt-6 inline-block"><Button variant="outline">Back to homepage</Button></Link>
       </div>
       <SiteFooter />

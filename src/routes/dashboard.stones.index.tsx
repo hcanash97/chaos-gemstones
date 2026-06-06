@@ -263,10 +263,21 @@ function StonesList() {
           </table>
         ) : rows.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-muted-foreground">No stones yet.</p>
-            <Link to="/dashboard/stones/new" className="mt-3 inline-block">
-              <Button variant="outline" size="sm">Add your first stone</Button>
-            </Link>
+            <h2 className="font-serif text-2xl">Start building your Chaos inventory</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Add one stone manually, paste WhatsApp stock messages into the intake workspace, or connect a live feed when you are ready to sync in bulk.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <Link to="/dashboard/stones/new">
+                <Button size="sm">Add your first stone</Button>
+              </Link>
+              <Link to="/dashboard/dealer/whatsapp">
+                <Button variant="outline" size="sm">Parse WhatsApp stock</Button>
+              </Link>
+              <Link to="/dashboard/dealer/api">
+                <Button variant="ghost" size="sm">Connect API feed</Button>
+              </Link>
+            </div>
           </div>
         ) : (
           <table className="min-w-[860px] w-full text-sm">

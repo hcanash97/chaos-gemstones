@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
+import { useRetailMode } from "@/hooks/useRetailMode";
 import {
   defaultFilters,
   activeFilterCount,
@@ -118,6 +120,7 @@ function Marketplace() {
   const { user, profile } = useAuth();
   const [page, setPage] = useState(1);
   const [debouncedF, setDebouncedF] = useState<FilterState>(initialFromUrl);
+  const { retailMode, setRetailMode } = useRetailMode();
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
   const clearFilters = () => dispatch({ type: "reset" });
@@ -819,6 +822,12 @@ function Marketplace() {
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {isApprovedJeweller && (
+              <label className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs">
+                <Switch checked={retailMode} onCheckedChange={setRetailMode} />
+                <span className="font-medium">Retail mode</span>
+              </label>
+            )}
             {filterCount > 0 && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 Clear filters
@@ -947,13 +956,13 @@ function Marketplace() {
             ) : f.view === "grid" ? (
               <StaggerGroup className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" delay={0.06}>
                 {visible.map((s) => (
-                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} />
+                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} retailMode={retailMode} />
                 ))}
               </StaggerGroup>
             ) : (
               <div className="flex flex-col gap-3">
                 {visible.map((s) => (
-                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} />
+                  <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} retailMode={retailMode} />
                 ))}
               </div>
             )}
@@ -1361,7 +1370,10 @@ function EmptyMarketplace({
     return (
       <div className="rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground md:p-10">
         <div className="text-center">
-          <p>No stones match your current filters.</p>
+          <h2 className="font-serif text-2xl text-foreground">No matching stones yet</h2>
+          <p className="mx-auto mt-2 max-w-md">
+            Try clearing one or two filters, or use diagnostics to see the exact values currently stored in Chaos for shape, lab, colour, and treatment.
+          </p>
           <Button variant="outline" size="sm" className="mt-4" onClick={onClearFilters}>
             Clear all filters
           </Button>

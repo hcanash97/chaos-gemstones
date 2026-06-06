@@ -19,6 +19,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { StoneCard } from "@/components/site/StoneCard";
+import { ClientQuoteDialog } from "@/components/site/ClientQuoteDialog";
+import { Switch } from "@/components/ui/switch";
+import { useRetailMode } from "@/hooks/useRetailMode";
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -118,9 +121,10 @@ function StoneDetail() {
   const { id } = Route.useParams();
   const { user, profile } = useAuth();
   const { format } = useCurrency();
+  const { retailMode, setRetailMode } = useRetailMode();
   const isJeweller = checkJ(profile) && profile?.is_approved;
   const showWholesale =
-    checkD(profile) || checkA(profile) || isJeweller;
+    (checkD(profile) || checkA(profile) || isJeweller) && !retailMode;
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -402,6 +406,15 @@ function StoneDetail() {
             </div>
 
             <div className="mt-6 rounded-md border border-border bg-card p-5">
+              {isJeweller && (
+                <label className="mb-4 flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-xs">
+                  <span>
+                    <span className="font-medium">Retail mode</span>
+                    <span className="ml-2 text-muted-foreground">Hide wholesale details for client-facing browsing.</span>
+                  </span>
+                  <Switch checked={retailMode} onCheckedChange={setRetailMode} />
+                </label>
+              )}
               {stone.status !== "available" && (
                 <div
                   className={`mb-4 rounded-md border px-3 py-2 text-xs font-medium uppercase tracking-wider ${
@@ -420,6 +433,10 @@ function StoneDetail() {
                 <div className="mt-1 font-mono text-3xl font-semibold">
                   {format(stone.wholesale_price_usd, (stone as { price_currency?: string }).price_currency ?? "USD")}
                 </div>
+              ) : retailMode ? (
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Wholesale pricing hidden. Use a client quote before sharing.
+                </div>
               ) : user ? (
                 <div className="mt-1 text-sm text-muted-foreground">
                   Pricing visible to approved jewellers.
@@ -433,11 +450,19 @@ function StoneDetail() {
               )}
               <div className="mt-4">
                 {stone.status === "available" ? (
-                  <EnquireDialog
-                    dealerId={stone.dealer_id}
-                    stoneId={stone.id}
-                    context={`${stone.carat_weight ? Number(stone.carat_weight).toFixed(2) + "ct " : ""}${stone.shape || ""} ${stone.stone_type}`}
-                  />
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <EnquireDialog
+                      dealerId={stone.dealer_id}
+                      stoneId={stone.id}
+                      context={`${stone.carat_weight ? Number(stone.carat_weight).toFixed(2) + "ct " : ""}${stone.shape || ""} ${stone.stone_type}`}
+                    />
+                    {isJeweller && (
+                      <ClientQuoteDialog
+                        stone={{ ...stone, image: primaryImage }}
+                        trigger={<Button variant="outline" className="w-full sm:w-auto">Client quote</Button>}
+                      />
+                    )}
+                  </div>
                 ) : (
                   <Button disabled variant="outline" className="w-full">
                     {stone.status === "sold" ? "Sold" : "Reserved"}
@@ -462,7 +487,7 @@ function StoneDetail() {
             )}
 
             {/* Vendor card */}
-            {slug && (
+            {slug && !retailMode && (
               <Link
                 to="/vendors/$slug"
                 params={{ slug }}
