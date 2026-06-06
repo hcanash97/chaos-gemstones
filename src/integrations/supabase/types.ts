@@ -58,24 +58,6 @@ export type Database = {
           },
         ]
       }
-      site_configurations: {
-        Row: {
-          id: string
-          is_active: boolean
-          theme_data: Json
-        }
-        Insert: {
-          id?: string
-          is_active?: boolean
-          theme_data?: Json
-        }
-        Update: {
-          id?: string
-          is_active?: boolean
-          theme_data?: Json
-        }
-        Relationships: []
-      }
       dealer_follows: {
         Row: {
           created_at: string
