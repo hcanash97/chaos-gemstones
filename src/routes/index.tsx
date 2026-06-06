@@ -235,6 +235,7 @@ function Home() {
 }
 
 function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
+  const heroLogoSize = Math.max(28, Math.min(80, Math.round(siteTheme.logo_mark_size * 1.5)));
   return (
     <section className="relative overflow-hidden text-primary-foreground hero-aurora">
       {siteTheme.hero_media_type === "image" && siteTheme.hero_background_image_url && (
@@ -272,7 +273,8 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
             <img
               src={siteTheme.logo_url}
               alt="Chaos logo"
-              className="mb-5 h-14 w-14 rounded-md object-cover shadow-lg ring-1 ring-white/20"
+              className="mb-5 rounded-md object-cover shadow-lg ring-1 ring-white/20"
+              style={{ width: heroLogoSize, height: heroLogoSize }}
               loading="eager"
             />
           )}
@@ -378,12 +380,12 @@ function LiveTickerSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME
 }
 
 const SHAPE_LINKS = [
-  { label: "Round", href: "/marketplace?shape=Round", mark: "○" },
-  { label: "Oval", href: "/marketplace?shape=Oval", mark: "⬭" },
-  { label: "Emerald", href: "/marketplace?shape=Emerald", mark: "▭" },
-  { label: "Cushion", href: "/marketplace?shape=Cushion", mark: "▢" },
-  { label: "Pear", href: "/marketplace?shape=Pear", mark: "◍" },
-  { label: "Radiant", href: "/marketplace?shape=Radiant", mark: "◇" },
+  { key: "round", label: "Round", href: "/marketplace?shape=Round", mark: "○" },
+  { key: "oval", label: "Oval", href: "/marketplace?shape=Oval", mark: "⬭" },
+  { key: "emerald", label: "Emerald", href: "/marketplace?shape=Emerald", mark: "▭" },
+  { key: "cushion", label: "Cushion", href: "/marketplace?shape=Cushion", mark: "▢" },
+  { key: "pear", label: "Pear", href: "/marketplace?shape=Pear", mark: "◍" },
+  { key: "radiant", label: "Radiant", href: "/marketplace?shape=Radiant", mark: "◇" },
 ];
 
 function ShapeGridSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
@@ -403,20 +405,32 @@ function ShapeGridSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME 
         </LuxuryReveal>
         <div className={`mt-8 ${isCarousel ? "overflow-x-auto [-webkit-overflow-scrolling:touch]" : ""}`}>
           <div className={isCarousel ? "flex min-w-max gap-4" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-6"}>
-            {SHAPE_LINKS.map((shape, index) => (
-              <LuxuryReveal key={shape.label} preset={siteTheme.animation_preset} delay={index * 0.04}>
-                <a
-                  href={shape.href}
-                  className="shape-discovery-card group flex min-h-40 flex-col items-center justify-center rounded-md border border-border bg-card p-5 text-center transition-all hover:-translate-y-1 hover:border-[var(--color-gold)]"
-                >
-                  <span className="flex h-16 w-16 items-center justify-center rounded-full border border-[var(--gold-border)] bg-[var(--color-gold)]/10 font-serif text-4xl text-[var(--color-gold)] transition-transform group-hover:scale-110">
-                    {shape.mark}
-                  </span>
-                  <span className="mt-4 font-medium">{shape.label}</span>
-                  <span className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">View inventory</span>
-                </a>
-              </LuxuryReveal>
-            ))}
+            {SHAPE_LINKS.map((shape, index) => {
+              const imageUrl = siteTheme.shape_card_images[shape.key];
+              return (
+                <LuxuryReveal key={shape.key} preset={siteTheme.animation_preset} delay={index * 0.04}>
+                  <a
+                    href={shape.href}
+                    className="shape-discovery-card group flex min-h-40 flex-col items-center justify-center rounded-md border border-border bg-card p-5 text-center transition-all hover:-translate-y-1 hover:border-[var(--color-gold)]"
+                  >
+                    <span className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-[var(--gold-border)] bg-[var(--color-gold)]/10 font-serif text-4xl text-[var(--color-gold)] transition-transform group-hover:scale-105">
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={`${shape.label} diamond shape`}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy"
+                        />
+                      ) : (
+                        shape.mark
+                      )}
+                    </span>
+                    <span className="mt-4 font-medium">{shape.label}</span>
+                    <span className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">View inventory</span>
+                  </a>
+                </LuxuryReveal>
+              );
+            })}
           </div>
         </div>
       </div>

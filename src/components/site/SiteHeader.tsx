@@ -82,7 +82,11 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <span className="logo-glow">
-          <Logo imageUrl={theme.logo_url} brandName={theme.site_name.toUpperCase()} />
+          <Logo
+            imageUrl={theme.logo_url}
+            brandName={theme.site_name.toUpperCase()}
+            markSize={theme.logo_mark_size}
+          />
         </span>
         <nav aria-label="Main navigation" className="hidden items-center gap-7 text-sm md:flex">
           {navLinks.map((l) => {
@@ -232,6 +236,7 @@ function MobileBottomNav() {
 
 export function SiteFooter() {
   const { theme } = useSiteTheme();
+  const footerLogoSize = Math.max(20, Math.min(42, Math.round(theme.logo_mark_size * 0.9)));
   return (
     <footer className="border-t border-border bg-primary text-primary-foreground">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 md:grid-cols-3">
@@ -240,15 +245,15 @@ export function SiteFooter() {
             {theme.logo_url ? (
               <img
                 src={theme.logo_url}
-                width={26}
-                height={26}
+                width={footerLogoSize}
+                height={footerLogoSize}
                 alt=""
                 aria-hidden="true"
                 className="rounded-sm object-cover"
-                style={{ width: 26, height: 26 }}
+                style={{ width: footerLogoSize, height: footerLogoSize }}
               />
             ) : (
-              <GemMark size={26} className="invert brightness-0 contrast-100" style={{ filter: "brightness(0) invert(1)" }} />
+              <GemMark size={footerLogoSize} className="invert brightness-0 contrast-100" style={{ filter: "brightness(0) invert(1)" }} />
             )}
             <span className="font-serif text-2xl italic font-medium tracking-tight">{theme.site_name.toUpperCase()}</span>
           </div>

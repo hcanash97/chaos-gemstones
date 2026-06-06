@@ -25,6 +25,7 @@ export function Logo({
   tone = "default",
   imageUrl = "",
   brandName = "CHAOS",
+  markSize,
 }: {
   size?: "sm" | "md" | "lg";
   withTagline?: boolean;
@@ -32,6 +33,7 @@ export function Logo({
   tone?: "default" | "inverted";
   imageUrl?: string;
   brandName?: string;
+  markSize?: number;
 }) {
   const text =
     size === "lg"
@@ -39,7 +41,7 @@ export function Logo({
       : size === "sm"
       ? "text-xl"
       : "text-2xl";
-  const markPx = size === "lg" ? 32 : size === "sm" ? 20 : 26;
+  const markPx = markSize ?? (size === "lg" ? 32 : size === "sm" ? 20 : 26);
   const color = tone === "inverted" ? "text-primary-foreground" : "text-primary";
 
   return (

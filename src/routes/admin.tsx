@@ -634,6 +634,15 @@ const THEME_EDITOR_TABS: Array<{
   },
 ];
 
+const SHAPE_CARD_IMAGE_FIELDS = [
+  { key: "round", label: "Round" },
+  { key: "oval", label: "Oval" },
+  { key: "emerald", label: "Emerald" },
+  { key: "cushion", label: "Cushion" },
+  { key: "pear", label: "Pear" },
+  { key: "radiant", label: "Radiant" },
+] as const;
+
 const THEME_PRESETS: Array<{
   id: string;
   name: string;
@@ -998,6 +1007,60 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     }
   }
 
+  async function uploadShapeCardImage(file: File, shapeKey: string, shapeLabel: string) {
+    if (!file.type.startsWith("image/")) {
+      addThemeLog("error", `Upload blocked: ${file.name} is not an image file.`);
+      toast.error("Please choose an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      addThemeLog("error", `Upload blocked: ${file.name} is larger than 5MB.`);
+      toast.error("Images must be under 5MB.");
+      return;
+    }
+    setUploading(true);
+    addThemeLog("info", `Uploading ${shapeLabel} shape card image "${file.name}" to Supabase storage...`);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = `${userId}/site-config/shape-card-images/${shapeKey}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("stone-images").upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: "31536000",
+      });
+      if (error) {
+        addThemeLog("error", `Storage upload failed for ${file.name}: ${error.message}`);
+        toast.error("Shape image upload failed", { description: error.message });
+        return;
+      }
+      const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
+      if (!data.publicUrl) {
+        addThemeLog("error", `Upload completed but Supabase did not return a public URL for ${path}.`);
+        toast.error("Shape image upload failed", { description: "Supabase did not return a public URL." });
+        return;
+      }
+      addThemeLog("success", `${shapeLabel} shape image uploaded to storage: ${path}`);
+      const nextTheme = normalizeSiteTheme({
+        ...form,
+        shape_card_images: {
+          ...form.shape_card_images,
+          [shapeKey]: data.publicUrl,
+        },
+      });
+      setForm(nextTheme);
+      addThemeLog("info", `Applying uploaded ${shapeLabel} image to the homepage shape grid...`);
+      const saved = await persistTheme(nextTheme, { silent: true });
+      if (!saved) return;
+      toast.success(`${shapeLabel} image uploaded and applied`);
+    } catch (error) {
+      const message = describeError(error);
+      addThemeLog("error", `Unexpected shape image upload failure for ${file.name}: ${message}`);
+      toast.error("Shape image upload failed unexpectedly", { description: message });
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function save() {
     await persistTheme(form);
   }
@@ -1153,6 +1216,28 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                 onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "logo_url")}
               />
             </label>
+          </div>
+
+          <div>
+            <Label htmlFor="theme-logo-size">Logo mark size</Label>
+            <div className="mt-1.5 flex items-center gap-3">
+              <input
+                id="theme-logo-size"
+                type="range"
+                min="18"
+                max="64"
+                step="1"
+                value={form.logo_mark_size}
+                onChange={(e) => setField("logo_mark_size", Number(e.target.value))}
+                className="w-full"
+              />
+              <span className="w-14 text-right font-mono text-xs text-muted-foreground">
+                {form.logo_mark_size}px
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Controls the header, footer and homepage preview logo mark. Press Save changes to publish manual size edits.
+            </p>
           </div>
           </>
           )}
@@ -1623,6 +1708,77 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               />
             </div>
             <div>
+              <Label>Shape card images</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Upload real diamond photos for the homepage shape cards. Blank shapes keep the simple fallback mark.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {SHAPE_CARD_IMAGE_FIELDS.map((shape) => {
+                  const imageUrl = form.shape_card_images[shape.key] ?? "";
+                  return (
+                    <div key={shape.key} className="rounded-md border border-border bg-background p-3">
+                      <div className="flex items-start gap-3">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={`${shape.label} shape preview`}
+                            className="h-16 w-16 rounded-full border border-[var(--gold-border)] object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border text-xs text-muted-foreground">
+                            No image
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <Label htmlFor={`theme-shape-image-${shape.key}`}>{shape.label}</Label>
+                          <Input
+                            id={`theme-shape-image-${shape.key}`}
+                            value={imageUrl}
+                            onChange={(e) =>
+                              setField("shape_card_images", {
+                                ...form.shape_card_images,
+                                [shape.key]: e.target.value,
+                              })
+                            }
+                            placeholder="https://..."
+                            className="mt-1.5"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs hover:bg-accent">
+                          {uploading ? "Uploading..." : `Upload ${shape.label}`}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploading || databaseSetupMissing}
+                            onChange={(e) => e.target.files?.[0] && uploadShapeCardImage(e.target.files[0], shape.key, shape.label)}
+                          />
+                        </label>
+                        {imageUrl && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const nextImages = { ...form.shape_card_images };
+                              delete nextImages[shape.key];
+                              setField("shape_card_images", nextImages);
+                            }}
+                            disabled={saving || uploading || databaseSetupMissing}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
               <Label htmlFor="theme-ticker-items">Ticker announcements</Label>
               <Textarea
                 id="theme-ticker-items"
@@ -1846,9 +2002,17 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
           />
           <div className="relative p-5">
             {form.logo_url ? (
-              <img src={form.logo_url} alt="Site logo preview" className="mb-4 h-10 w-10 rounded object-cover" />
+              <img
+                src={form.logo_url}
+                alt="Site logo preview"
+                className="mb-4 rounded object-cover"
+                style={{ width: form.logo_mark_size, height: form.logo_mark_size }}
+              />
             ) : (
-              <div className="mb-4 h-10 w-10 rounded bg-white/10" />
+              <div
+                className="mb-4 rounded bg-white/10"
+                style={{ width: form.logo_mark_size, height: form.logo_mark_size }}
+              />
             )}
             <div className="mb-4 font-serif text-xl italic tracking-tight">{form.site_name.toUpperCase()}</div>
             <span

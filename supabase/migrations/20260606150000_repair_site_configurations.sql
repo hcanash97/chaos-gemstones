@@ -69,6 +69,7 @@ set theme_data =
   jsonb_build_object(
     'site_name', 'Chaos',
     'logo_url', '',
+    'logo_mark_size', 26,
     'accent_color', '#E8C97A',
     'hero_title', 'Verified diamonds & coloured stones, sourced direct from the world''s dealers.',
     'hero_subtitle', 'The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.',
@@ -103,6 +104,7 @@ set theme_data =
     'shape_grid_enabled', true,
     'shape_grid_title', 'Browse by diamond shape',
     'shape_grid_mode', 'grid',
+    'shape_card_images', '{}'::jsonb,
     'homepage_layout', jsonb_build_array(
       jsonb_build_object('id', 'hero', 'type', 'hero', 'enabled', true),
       jsonb_build_object('id', 'ticker', 'type', 'ticker', 'enabled', true),

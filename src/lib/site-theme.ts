@@ -1,6 +1,7 @@
 export interface SiteThemeSettings {
   site_name: string;
   logo_url: string;
+  logo_mark_size: number;
   accent_color: string;
   hero_title: string;
   hero_subtitle: string;
@@ -31,6 +32,7 @@ export interface SiteThemeSettings {
   shape_grid_enabled: boolean;
   shape_grid_title: string;
   shape_grid_mode: "grid" | "carousel";
+  shape_card_images: Record<string, string>;
   homepage_layout: HomepageLayoutBlock[];
   homepage_copy: HomepageSectionCopy;
 }
@@ -128,6 +130,7 @@ export const DEFAULT_HOMEPAGE_COPY: HomepageSectionCopy = {
 export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   site_name: "Chaos",
   logo_url: "",
+  logo_mark_size: 26,
   accent_color: "#E8C97A",
   hero_title: "Verified diamonds & coloured stones, sourced direct from the world's dealers.",
   hero_subtitle:
@@ -163,6 +166,7 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   shape_grid_enabled: true,
   shape_grid_title: "Browse by diamond shape",
   shape_grid_mode: "grid",
+  shape_card_images: {},
   homepage_layout: DEFAULT_HOMEPAGE_LAYOUT,
   homepage_copy: DEFAULT_HOMEPAGE_COPY,
 };
@@ -172,6 +176,7 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
   return {
     site_name: stringOrDefault(raw.site_name, DEFAULT_SITE_THEME.site_name),
     logo_url: typeof raw.logo_url === "string" ? raw.logo_url : DEFAULT_SITE_THEME.logo_url,
+    logo_mark_size: normalizeLogoMarkSize(raw.logo_mark_size),
     accent_color: isHexColor(raw.accent_color) ? raw.accent_color : DEFAULT_SITE_THEME.accent_color,
     hero_title: typeof raw.hero_title === "string" && raw.hero_title.trim() ? raw.hero_title : DEFAULT_SITE_THEME.hero_title,
     hero_subtitle:
@@ -206,6 +211,7 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
     shape_grid_enabled: raw.shape_grid_enabled !== false,
     shape_grid_title: stringOrDefault(raw.shape_grid_title, DEFAULT_SITE_THEME.shape_grid_title),
     shape_grid_mode: raw.shape_grid_mode === "carousel" ? "carousel" : "grid",
+    shape_card_images: normalizeShapeCardImages(raw.shape_card_images),
     homepage_layout: normalizeHomepageLayout(raw.homepage_layout),
     homepage_copy: normalizeHomepageCopy(raw.homepage_copy),
   };
@@ -272,6 +278,21 @@ function normalizeTickerSpeed(value: unknown): number {
   const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : DEFAULT_SITE_THEME.ticker_speed_seconds;
   if (!Number.isFinite(n)) return DEFAULT_SITE_THEME.ticker_speed_seconds;
   return Math.min(90, Math.max(12, n));
+}
+
+function normalizeLogoMarkSize(value: unknown): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : DEFAULT_SITE_THEME.logo_mark_size;
+  if (!Number.isFinite(n)) return DEFAULT_SITE_THEME.logo_mark_size;
+  return Math.min(64, Math.max(18, Math.round(n)));
+}
+
+function normalizeShapeCardImages(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return DEFAULT_SITE_THEME.shape_card_images;
+  const out: Record<string, string> = {};
+  for (const [key, url] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof url === "string" && url.trim()) out[key] = url.trim();
+  }
+  return out;
 }
 
 export function normalizeHomepageCopy(value: unknown): HomepageSectionCopy {
