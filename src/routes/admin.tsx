@@ -586,9 +586,52 @@ type ReferralCreditRow = {
   beneficiary?: { full_name: string | null; company_name: string | null; email: string | null } | null;
 };
 
+const THEME_EDITOR_TABS: Array<{
+  id: "brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview";
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "brand",
+    label: "Brand",
+    description: "Logo, colours, contact links and footer wording.",
+  },
+  {
+    id: "hero",
+    label: "Hero",
+    description: "Homepage headline, background media, motion style and main buttons.",
+  },
+  {
+    id: "seo",
+    label: "SEO",
+    description: "Default search result text and social sharing image.",
+  },
+  {
+    id: "modules",
+    label: "Modules",
+    description: "Ticker strip and visual shape discovery settings.",
+  },
+  {
+    id: "layout",
+    label: "Layout",
+    description: "Toggle and reorder homepage sections.",
+  },
+  {
+    id: "copy",
+    label: "Copy",
+    description: "Edit homepage section headings and CTA wording.",
+  },
+  {
+    id: "preview",
+    label: "Preview",
+    description: "Review how the current settings will feel before saving.",
+  },
+];
+
 function ThemeSettingsPanel({ userId }: { userId: string }) {
   const [configId, setConfigId] = useState<string | null>(null);
   const [form, setForm] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
+  const [editorTab, setEditorTab] = useState<"brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview">("brand");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -716,7 +759,37 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
           </p>
         </div>
 
+        <div className="mt-5 overflow-x-auto rounded-md border border-border bg-muted/20 p-1 [-webkit-overflow-scrolling:touch]">
+          <div className="flex min-w-max gap-1">
+            {THEME_EDITOR_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setEditorTab(tab.id)}
+                className={`rounded px-3 py-2 text-xs font-medium transition-colors ${
+                  editorTab === tab.id
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-background hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-md border border-[var(--gold-border)] bg-[var(--color-gold)]/10 p-4">
+          <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
+            {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.label}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.description}
+          </p>
+        </div>
+
         <div className="mt-6 space-y-5">
+          {editorTab === "brand" && (
+          <>
           <div>
             <Label htmlFor="theme-site-name">Site name</Label>
             <Input
@@ -748,7 +821,11 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               />
             </label>
           </div>
+          </>
+          )}
 
+          {editorTab === "hero" && (
+          <>
           <div className="grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="theme-badge">Hero badge label</Label>
@@ -870,7 +947,10 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               className="mt-1.5"
             />
           </div>
+          </>
+          )}
 
+          {editorTab === "seo" && (
           <div className="grid gap-4 rounded-md border border-border p-4">
             <div>
               <Label>SEO &amp; sharing</Label>
@@ -933,7 +1013,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               </div>
             </div>
           </div>
+          )}
 
+          {editorTab === "hero" && (
           <div className="grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label>Hero buttons</Label>
@@ -980,7 +1062,10 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               />
             </div>
           </div>
+          )}
 
+          {editorTab === "brand" && (
+          <>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="theme-accent">Accent colour</Label>
@@ -1079,7 +1164,10 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               />
             </div>
           </div>
+          </>
+          )}
 
+          {editorTab === "layout" && (
           <div>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -1130,7 +1218,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               ))}
             </div>
           </div>
+          )}
 
+          {editorTab === "modules" && (
           <div className="grid gap-4 rounded-md border border-border p-4">
             <div>
               <Label>Landing modules</Label>
@@ -1213,7 +1303,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               <p className="mt-1 text-xs text-muted-foreground">One ticker item per line. Keep each item short.</p>
             </div>
           </div>
+          )}
 
+          {editorTab === "copy" && (
           <div>
             <Label>Section copy</Label>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -1311,6 +1403,13 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               </div>
             </div>
           </div>
+          )}
+
+          {editorTab === "preview" && (
+            <div className="rounded-md border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground lg:hidden">
+              The live preview is shown below on mobile and beside the editor on desktop.
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-2">
             <Button onClick={save} disabled={saving || uploading} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
@@ -1323,10 +1422,10 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         </div>
       </section>
 
-      <aside className="rounded-md border border-border bg-card p-5">
+      <aside className={`rounded-md border border-border bg-card p-5 ${editorTab === "preview" ? "lg:col-span-2" : ""}`}>
         <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live preview</div>
         <div className="relative mt-4 overflow-hidden rounded-md border border-border bg-primary text-primary-foreground">
-          {form.hero_background_image_url && (
+          {form.hero_media_type === "image" && form.hero_background_image_url && (
             <img
               src={form.hero_background_image_url}
               alt=""
@@ -1334,9 +1433,24 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               className="absolute inset-0 h-full w-full object-cover"
             />
           )}
+          {form.hero_media_type === "video" && form.hero_video_url && (
+            <video
+              src={form.hero_video_url}
+              className="absolute inset-0 h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              aria-hidden="true"
+            />
+          )}
           <div
             className="absolute inset-0"
-            style={{ backgroundColor: `rgba(8, 18, 54, ${form.hero_background_image_url ? form.hero_overlay_opacity : 0})` }}
+            style={{
+              backgroundColor: `rgba(8, 18, 54, ${
+                form.hero_background_image_url || form.hero_video_url ? form.hero_overlay_opacity : 0
+              })`,
+            }}
             aria-hidden="true"
           />
           <div className="relative p-5">
