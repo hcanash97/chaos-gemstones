@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, signOut } from "@/hooks/useAuth";
@@ -629,6 +630,7 @@ const THEME_EDITOR_TABS: Array<{
 ];
 
 function ThemeSettingsPanel({ userId }: { userId: string }) {
+  const queryClient = useQueryClient();
   const [configId, setConfigId] = useState<string | null>(null);
   const [form, setForm] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
   const [editorTab, setEditorTab] = useState<"brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview">("brand");
@@ -686,6 +688,32 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     });
   }
 
+  async function persistTheme(nextTheme: SiteThemeSettings, options?: { silent?: boolean }) {
+    setSaving(true);
+    const normalizedTheme = normalizeSiteTheme(nextTheme);
+    const payload = {
+      ...(configId ? { id: configId } : {}),
+      is_active: true,
+      theme_data: normalizedTheme as any,
+    };
+    const { data, error } = await supabase
+      .from("site_configurations")
+      .upsert(payload)
+      .select("id")
+      .single();
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
+    setConfigId(data.id);
+    setForm(normalizedTheme);
+    queryClient.setQueryData(["site-theme"], normalizedTheme);
+    await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
+    if (!options?.silent) toast.success("Theme settings saved and applied");
+    return true;
+  }
+
   async function uploadThemeImage(file: File, target: "logo_url" | "hero_background_image_url" | "seo_image_url") {
     if (!file.type.startsWith("image/")) {
       toast.error("Please choose an image file.");
@@ -709,35 +737,21 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       return;
     }
     const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
-    setField(target, data.publicUrl);
+    const nextTheme = normalizeSiteTheme({ ...form, [target]: data.publicUrl });
+    setForm(nextTheme);
+    const saved = await persistTheme(nextTheme, { silent: true });
+    if (!saved) return;
     toast.success(
       target === "logo_url"
-        ? "Logo uploaded"
+        ? "Logo uploaded and applied"
         : target === "seo_image_url"
-        ? "Social sharing image uploaded"
-        : "Hero background uploaded",
+        ? "Social sharing image uploaded and applied"
+        : "Hero background uploaded and applied",
     );
   }
 
   async function save() {
-    setSaving(true);
-    const payload = {
-      ...(configId ? { id: configId } : {}),
-      is_active: true,
-      theme_data: normalizeSiteTheme(form) as any,
-    };
-    const { data, error } = await supabase
-      .from("site_configurations")
-      .upsert(payload)
-      .select("id")
-      .single();
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setConfigId(data.id);
-    toast.success("Theme settings saved");
+    await persistTheme(form);
   }
 
   if (loading) {
@@ -810,6 +824,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               placeholder="https://..."
               className="mt-1.5"
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Uploads auto-save and apply to the public header. Manual URL edits still need Save changes.
+            </p>
             <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
               {uploading ? "Uploading..." : "Upload logo image"}
               <input
@@ -888,6 +905,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                 placeholder="https://..."
                 className="mt-1.5"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Uploaded hero images auto-save. Pasted URLs need Save changes.
+              </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
                   {uploading ? "Uploading..." : "Upload hero background"}
@@ -988,6 +1008,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                 placeholder="https://..."
                 className="mt-1.5"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Uploaded sharing images auto-save. Pasted URLs need Save changes.
+              </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
                   {uploading ? "Uploading..." : "Upload sharing image"}
