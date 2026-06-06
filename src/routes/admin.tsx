@@ -633,10 +633,13 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
   const queryClient = useQueryClient();
   const [configId, setConfigId] = useState<string | null>(null);
   const [form, setForm] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
+  const [lastSavedTheme, setLastSavedTheme] = useState<SiteThemeSettings>(DEFAULT_SITE_THEME);
   const [editorTab, setEditorTab] = useState<"brand" | "hero" | "seo" | "modules" | "layout" | "copy" | "preview">("brand");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [checkingSaved, setCheckingSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -651,7 +654,10 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         toast.error(error.message);
       } else if (data) {
         setConfigId(data.id);
-        setForm(normalizeSiteTheme(data.theme_data));
+        const theme = normalizeSiteTheme(data.theme_data);
+        setForm(theme);
+        setLastSavedTheme(theme);
+        setLastSavedAt(new Date().toISOString());
       }
       setLoading(false);
     })();
@@ -666,6 +672,45 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       ...current,
       homepage_copy: { ...current.homepage_copy, [key]: value },
     }));
+  }
+
+  const hasUnsavedChanges = JSON.stringify(normalizeSiteTheme(form)) !== JSON.stringify(normalizeSiteTheme(lastSavedTheme));
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  async function reloadSavedTheme() {
+    setCheckingSaved(true);
+    const { data, error } = await supabase
+      .from("site_configurations")
+      .select("id, theme_data, is_active")
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+    setCheckingSaved(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (!data) {
+      toast.error("No active site configuration was found.");
+      return;
+    }
+    const theme = normalizeSiteTheme(data.theme_data);
+    setConfigId(data.id);
+    setForm(theme);
+    setLastSavedTheme(theme);
+    setLastSavedAt(new Date().toISOString());
+    queryClient.setQueryData(["site-theme"], theme);
+    await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
+    toast.success("Reloaded the saved theme from Supabase");
   }
 
   function toggleBlock(index: number) {
@@ -708,6 +753,8 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     }
     setConfigId(data.id);
     setForm(normalizedTheme);
+    setLastSavedTheme(normalizedTheme);
+    setLastSavedAt(new Date().toISOString());
     queryClient.setQueryData(["site-theme"], normalizedTheme);
     await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
     if (!options?.silent) toast.success("Theme settings saved and applied");
@@ -793,12 +840,32 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         </div>
 
         <div className="mt-4 rounded-md border border-[var(--gold-border)] bg-[var(--color-gold)]/10 p-4">
-          <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
-            {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.label}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
+                {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.label}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.description}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span
+                className={`rounded-full px-2.5 py-1 font-medium ${
+                  hasUnsavedChanges
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-emerald-100 text-emerald-800"
+                }`}
+              >
+                {hasUnsavedChanges ? "Unsaved changes" : "Saved"}
+              </span>
+              {lastSavedAt && (
+                <span className="text-muted-foreground">
+                  Last checked {new Date(lastSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {THEME_EDITOR_TABS.find((tab) => tab.id === editorTab)?.description}
-          </p>
         </div>
 
         <div className="mt-6 space-y-5">
@@ -1435,13 +1502,21 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
           )}
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={save} disabled={saving || uploading} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
-              {saving ? "Saving..." : "Save changes"}
+            <Button onClick={save} disabled={saving || uploading || !hasUnsavedChanges} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+              {saving ? "Saving..." : hasUnsavedChanges ? "Save changes" : "Saved"}
+            </Button>
+            <Button type="button" variant="outline" onClick={reloadSavedTheme} disabled={saving || uploading || checkingSaved}>
+              {checkingSaved ? "Checking..." : "Reload saved theme"}
             </Button>
             <Button type="button" variant="outline" onClick={() => setForm(DEFAULT_SITE_THEME)} disabled={saving || uploading}>
               Reset to defaults
             </Button>
           </div>
+          {hasUnsavedChanges && (
+            <p className="text-xs text-amber-700">
+              These edits are only in this editor until you press Save changes. Uploaded images save automatically.
+            </p>
+          )}
         </div>
       </section>
 
