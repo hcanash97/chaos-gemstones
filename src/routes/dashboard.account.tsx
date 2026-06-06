@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Download, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { exportMyData, deleteMyAccount } from "@/lib/account.functions";
+import { exportMyData, deleteMyAccount, updateMyAccountSettings } from "@/lib/account.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { isDealer as checkD, isJeweller as checkJ } from "@/lib/auth.utils";
@@ -33,6 +33,7 @@ function AccountPage() {
   const { user, profile } = useAuth();
   const exportFn = useServerFn(exportMyData);
   const deleteFn = useServerFn(deleteMyAccount);
+  const saveAccountSettings = useServerFn(updateMyAccountSettings);
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -78,6 +79,7 @@ function AccountPage() {
       </p>
 
       <div className="mt-8 space-y-6">
+        {user && profile && <CoreAccountSettings profile={profile} onSave={saveAccountSettings} />}
         {user && checkJ(profile) && <JewellerPublicProfileForm userId={user.id} />}
         {user && checkD(profile) && <DealerPublicProfileForm userId={user.id} />}
 
@@ -128,6 +130,83 @@ function AccountPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+function CoreAccountSettings({
+  profile,
+  onSave,
+}: {
+  profile: any;
+  onSave: any;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    full_name: profile.full_name ?? "",
+    company_name: profile.company_name ?? "",
+    website: profile.website ?? "",
+    country: profile.country ?? "",
+    city: profile.city ?? "",
+    phone: profile.phone ?? "",
+  });
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave({
+        data: {
+          full_name: form.full_name || null,
+          company_name: form.company_name || null,
+          website: form.website || null,
+          country: form.country || null,
+          city: form.city || null,
+          phone: form.phone || null,
+        },
+      });
+      toast.success("Account settings saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save account settings");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="rounded-md border border-border bg-card p-6">
+      <h2 className="font-serif text-xl">Account settings</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Edit the core details Chaos uses across your dashboard, public profiles, enquiries, and admin views.
+      </p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="acct-name">Full name</Label>
+          <Input id="acct-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="acct-company">Company name</Label>
+          <Input id="acct-company" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="acct-city">City</Label>
+          <Input id="acct-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="acct-country">Country / region</Label>
+          <Input id="acct-country" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="acct-website">Website</Label>
+          <Input id="acct-website" placeholder="https://" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} className="mt-1.5" />
+        </div>
+        <div>
+          <Label htmlFor="acct-phone">Phone</Label>
+          <Input id="acct-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1.5" />
+        </div>
+      </div>
+      <Button onClick={save} disabled={saving} className="mt-5 bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+        {saving ? "Saving..." : "Save account settings"}
+      </Button>
+    </section>
   );
 }
 

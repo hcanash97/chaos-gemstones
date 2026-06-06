@@ -12,6 +12,7 @@ import {
   Users as UsersIcon,
   Search as SearchIcon,
   LayoutDashboard as LayoutDashboardIcon,
+  Instagram,
 } from "lucide-react";
 import { defaultDashboardPath, isDealer, isJeweller } from "@/lib/auth.utils";
 
@@ -63,6 +64,7 @@ export function SiteHeader() {
     { to: "/vendors", label: "Vendors" },
     { to: "/jewellers", label: "Jewellers" },
     { to: "/learn", label: "Learn" },
+    { to: "/faq", label: "FAQ" },
     { to: "/about", label: "About" },
   ];
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
@@ -244,6 +246,7 @@ export function SiteFooter() {
               <li><Link to="/marketplace" className="opacity-80 hover:opacity-100">Marketplace</Link></li>
               <li><Link to="/vendors" className="opacity-80 hover:opacity-100">Vendors</Link></li>
               <li><Link to="/about" className="opacity-80 hover:opacity-100">About</Link></li>
+              <li><Link to="/faq" className="opacity-80 hover:opacity-100">FAQ</Link></li>
               <li><Link to="/learn" className="opacity-80 hover:opacity-100">Learning hub</Link></li>
               <li><Link to="/docs/api" className="opacity-80 hover:opacity-100">API &amp; Embeds</Link></li>
               <li><Link to="/how-it-works/payments" className="opacity-80 hover:opacity-100">Payments</Link></li>
@@ -270,6 +273,15 @@ export function SiteFooter() {
           <p className="mt-3 text-sm opacity-80">
             Jaipur · Surat · Bangkok · Colombo · Antwerp · New York
           </p>
+          <a
+            href="https://www.instagram.com/chaosgemstonemarket"
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mt-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"
+          >
+            <Instagram className="h-4 w-4" />
+            @chaosgemstonemarket
+          </a>
         </div>
       </div>
       <div className="border-t border-[var(--gold-border)] py-4 text-center text-[11px] opacity-70 px-6">

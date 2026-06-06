@@ -185,6 +185,100 @@ export const adminRunDealerSyncFor = createServerFn({ method: "POST" })
     return runDealerSyncForUser(data.dealerId, "admin");
   });
 
+const adminDealerProfileSchema = z.object({
+  dealerId: z.string().uuid(),
+  profile: z.object({
+    full_name: z.string().max(120).nullable(),
+    company_name: z.string().max(160).nullable(),
+    email: z.string().email().max(320).nullable(),
+    website: z.string().max(300).nullable(),
+    country: z.string().max(100).nullable(),
+    city: z.string().max(100).nullable(),
+    phone: z.string().max(80).nullable(),
+  }),
+  dealerProfile: z.object({
+    slug: z.string().max(100).nullable(),
+    tagline: z.string().max(140).nullable(),
+    instagram_url: z.string().max(300).nullable(),
+    story: z.string().max(4000).nullable(),
+    founded_year: z.number().int().min(1700).max(2100).nullable(),
+  }),
+});
+
+export const adminUpdateDealerProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => adminDealerProfileSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const sb = await requireAdmin(context.userId);
+    const { error: profileError } = await sb
+      .from("profiles")
+      .update({
+        full_name: data.profile.full_name?.trim() || null,
+        company_name: data.profile.company_name?.trim() || null,
+        email: data.profile.email?.trim() || null,
+        website: data.profile.website?.trim() || null,
+        country: data.profile.country?.trim() || null,
+        city: data.profile.city?.trim() || null,
+        phone: data.profile.phone?.trim() || null,
+      })
+      .eq("id", data.dealerId);
+
+    if (profileError) throw new Error(profileError.message);
+
+    const { error: dealerError } = await (sb as any)
+      .from("dealer_profiles")
+      .update({
+        slug: data.dealerProfile.slug?.trim() || null,
+        tagline: data.dealerProfile.tagline?.trim() || null,
+        instagram_url: data.dealerProfile.instagram_url?.trim() || null,
+        story: data.dealerProfile.story?.trim() || null,
+        founded_year: data.dealerProfile.founded_year,
+      })
+      .eq("id", data.dealerId);
+
+    if (dealerError) throw new Error(dealerError.message);
+    return { ok: true };
+  });
+
+export const adminCreateDealerCorrectionMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    dealerId: z.string().uuid(),
+    issues: z.array(z.string().min(1).max(240)).min(1).max(10),
+    note: z.string().max(1000).optional(),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const sb = await requireAdmin(context.userId);
+    const { data: profile, error } = await sb
+      .from("profiles")
+      .select("email, full_name, company_name")
+      .eq("id", data.dealerId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+
+    const name = profile?.company_name || profile?.full_name || "there";
+    const body = [
+      `Hi ${name},`,
+      "",
+      "Could you please review and correct the following Chaos profile details?",
+      "",
+      ...data.issues.map((issue, index) => `${index + 1}. ${issue}`),
+      data.note ? ["", data.note] : null,
+      "",
+      "Once updated, this helps jewellers trust your listings and keeps your inventory searchable.",
+      "",
+      "Thanks,",
+      "Chaos Gemstones",
+    ].flat().filter(Boolean).join("\n");
+
+    return {
+      email: profile?.email ?? "",
+      subject: "Please update your Chaos dealer profile",
+      body,
+      mailto: `mailto:${encodeURIComponent(profile?.email ?? "")}?subject=${encodeURIComponent("Please update your Chaos dealer profile")}&body=${encodeURIComponent(body)}`,
+    };
+  });
+
 /**
  * Dealer-health summary for a batch of dealer ids. Returns most-recent stone
  * timestamp and total stone count per dealer; the UI derives 🟢/🟡/🔴/⚫.

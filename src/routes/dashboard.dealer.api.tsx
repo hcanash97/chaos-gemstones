@@ -88,34 +88,52 @@ function ErrorDiagnosticsLog({
   syncing: boolean;
 }) {
   const hasLogs = logs.length > 0;
+  const errorCount = logs.filter((log) => log.level === "error").length;
+  const warningCount = logs.filter((log) => log.level === "warning").length;
+  const successCount = logs.filter((log) => log.level === "success").length;
   return (
-    <details open={syncing || hasLogs} className="rounded-md border border-border bg-background">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm">
-        <span className="inline-flex items-center gap-2 font-medium">
-          <Terminal className="h-4 w-4" />
-          Error Diagnostics Log
+    <details open={syncing || hasLogs} className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 bg-muted/30 px-4 py-3 text-sm">
+        <span className="inline-flex items-center gap-2 font-medium text-foreground">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-gold)]/15 text-[var(--color-gold)]">
+            <Terminal className="h-4 w-4" />
+          </span>
+          Sync Diagnostics
         </span>
-        <span className="text-xs text-muted-foreground">
-          {syncing ? "sync running" : hasLogs ? `${logs.length} event${logs.length === 1 ? "" : "s"}` : "no events yet"}
+        <span className="flex flex-wrap items-center gap-2 text-[11px]">
+          {syncing && <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-800">Running</span>}
+          <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">{logs.length} events</span>
+          {errorCount > 0 && <span className="rounded-full bg-red-50 px-2 py-1 text-red-800">{errorCount} errors</span>}
+          {warningCount > 0 && <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">{warningCount} warnings</span>}
+          {successCount > 0 && <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-800">{successCount} saved</span>}
         </span>
       </summary>
-      <div className="max-h-72 overflow-auto border-t border-border bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-100">
-        {syncing && <div className="text-zinc-300">ℹ Sync request sent. Waiting for the server to finish chunked database writes...</div>}
-        {!syncing && !hasLogs && <div className="text-zinc-400">Run a sync to see batch-by-batch diagnostics here.</div>}
+      <div className="max-h-80 overflow-auto border-t border-border bg-background p-3 text-xs">
+        {syncing && (
+          <div className="mb-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">
+            Sync request sent. Waiting for chunked database writes to finish.
+          </div>
+        )}
+        {!syncing && !hasLogs && (
+          <div className="rounded-md border border-dashed border-border p-4 text-center text-muted-foreground">
+            Run a sync to see batch-by-batch diagnostics here.
+          </div>
+        )}
         {logs.map((log, idx) => (
           <div
             key={`${log.batch ?? "x"}-${log.row ?? "x"}-${idx}`}
             className={
               log.level === "error"
-                ? "text-red-300"
+                ? "mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-950"
                 : log.level === "warning"
-                  ? "text-amber-200"
+                  ? "mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950"
                   : log.level === "success"
-                    ? "text-emerald-300"
-                    : "text-zinc-300"
+                    ? "mb-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-950"
+                    : "mb-2 rounded-md border border-border bg-card px-3 py-2 text-foreground"
             }
           >
-            {diagnosticText(log)}
+            <div className="font-medium">{diagnosticText(log)}</div>
+            {log.rawValue && <div className="mt-1 font-mono text-[11px] opacity-75">Raw value: {log.rawValue}</div>}
           </div>
         ))}
       </div>

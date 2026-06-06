@@ -5,7 +5,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { adminGetDealerDetail, adminRunDealerSyncFor } from "@/lib/admin-dealer.functions";
+import {
+  adminCreateDealerCorrectionMessage,
+  adminGetDealerDetail,
+  adminRunDealerSyncFor,
+  adminUpdateDealerProfile,
+} from "@/lib/admin-dealer.functions";
 import { adminSetUserRoles, adminBulkUpdateAccounts } from "@/lib/admin.functions";
 import { setImpersonation } from "@/lib/impersonation";
 import { EditRolesDialog } from "@/components/admin/EditRolesDialog";
@@ -16,6 +21,7 @@ import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
 import { detectPreset } from "@/lib/dealer-feed-mappings";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/admin/dealer/$id")({
   component: DealerDetailPage,
@@ -28,6 +34,8 @@ function DealerDetailPage() {
   const qc = useQueryClient();
   const fetchDetail = useServerFn(adminGetDealerDetail);
   const runSync = useServerFn(adminRunDealerSyncFor);
+  const updateDealerProfile = useServerFn(adminUpdateDealerProfile);
+  const createCorrectionMessage = useServerFn(adminCreateDealerCorrectionMessage);
   const bulk = useServerFn(adminBulkUpdateAccounts);
 
   const [editRolesOpen, setEditRolesOpen] = useState(false);
@@ -46,6 +54,24 @@ function DealerDetailPage() {
   const [feedMethod, setFeedMethod] = useState<"GET" | "POST">("GET");
   const [feedBody, setFeedBody] = useState("");
   const [savingFeed, setSavingFeed] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    full_name: "",
+    company_name: "",
+    email: "",
+    website: "",
+    country: "",
+    city: "",
+    phone: "",
+    slug: "",
+    tagline: "",
+    instagram_url: "",
+    story: "",
+    founded_year: "",
+  });
+  const [correctionIssues, setCorrectionIssues] = useState("Country/region is incorrect");
+  const [correctionNote, setCorrectionNote] = useState("");
+  const [correctionResult, setCorrectionResult] = useState<{ email: string; subject: string; body: string; mailto: string } | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-dealer", id],
@@ -67,6 +93,24 @@ function DealerDetailPage() {
     if (dealerProfileFromData.external_feed_method === "POST") setFeedMethod("POST");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealerProfileFromData?.external_feed_url, dealerProfileFromData?.external_feed_body, dealerProfileFromData?.external_feed_method]);
+
+  useEffect(() => {
+    if (!data?.profile) return;
+    setProfileForm({
+      full_name: data.profile.full_name ?? "",
+      company_name: data.profile.company_name ?? "",
+      email: data.profile.email ?? "",
+      website: data.profile.website ?? "",
+      country: data.profile.country ?? "",
+      city: data.profile.city ?? "",
+      phone: data.profile.phone ?? "",
+      slug: data.dealerProfile?.slug ?? "",
+      tagline: data.dealerProfile?.tagline ?? "",
+      instagram_url: data.dealerProfile?.instagram_url ?? "",
+      story: data.dealerProfile?.story ?? "",
+      founded_year: data.dealerProfile?.founded_year ? String(data.dealerProfile.founded_year) : "",
+    });
+  }, [data?.profile?.id, data?.dealerProfile?.id]);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;
   if (!user) { navigate({ to: "/login", replace: true }); return null; }
@@ -171,6 +215,63 @@ function DealerDetailPage() {
     await refetch();
   }
 
+  async function saveAdminProfile() {
+    setSavingProfile(true);
+    try {
+      await updateDealerProfile({
+        data: {
+          dealerId: id,
+          profile: {
+            full_name: profileForm.full_name || null,
+            company_name: profileForm.company_name || null,
+            email: profileForm.email || null,
+            website: profileForm.website || null,
+            country: profileForm.country || null,
+            city: profileForm.city || null,
+            phone: profileForm.phone || null,
+          },
+          dealerProfile: {
+            slug: profileForm.slug || null,
+            tagline: profileForm.tagline || null,
+            instagram_url: profileForm.instagram_url || null,
+            story: profileForm.story || null,
+            founded_year: profileForm.founded_year ? Number(profileForm.founded_year) : null,
+          },
+        },
+      });
+      toast.success("Dealer profile updated");
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update dealer profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function buildCorrectionMessage() {
+    const issues = correctionIssues
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (!issues.length) {
+      toast.error("Add at least one issue to request a correction.");
+      return;
+    }
+    try {
+      const result = await createCorrectionMessage({
+        data: {
+          dealerId: id,
+          issues,
+          note: correctionNote,
+        },
+      });
+      setCorrectionResult(result);
+      toast.success("Correction message prepared");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not prepare correction message");
+    }
+  }
+
   function viewAs() {
     setImpersonation({
       userId: id,
@@ -208,6 +309,84 @@ function DealerDetailPage() {
             <Field label="Referral code" value={profile.referral_code} />
             <Field label="Member since" value={new Date(profile.created_at).toLocaleDateString()} />
             <Field label="Referred by" value={profile.referred_by ? String(profile.referred_by).slice(0, 8) : "—"} />
+          </div>
+        </Section>
+
+        <Section title="Edit dealer details">
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <AdminInput label="Full name" value={profileForm.full_name} onChange={(v) => setProfileForm({ ...profileForm, full_name: v })} />
+              <AdminInput label="Company" value={profileForm.company_name} onChange={(v) => setProfileForm({ ...profileForm, company_name: v })} />
+              <AdminInput label="Email" value={profileForm.email} onChange={(v) => setProfileForm({ ...profileForm, email: v })} />
+              <AdminInput label="City" value={profileForm.city} onChange={(v) => setProfileForm({ ...profileForm, city: v })} />
+              <AdminInput label="Country / region" value={profileForm.country} onChange={(v) => setProfileForm({ ...profileForm, country: v })} />
+              <AdminInput label="Phone" value={profileForm.phone} onChange={(v) => setProfileForm({ ...profileForm, phone: v })} />
+              <AdminInput label="Website" value={profileForm.website} onChange={(v) => setProfileForm({ ...profileForm, website: v })} />
+              <AdminInput label="Vendor slug" value={profileForm.slug} onChange={(v) => setProfileForm({ ...profileForm, slug: v })} />
+              <AdminInput label="Instagram URL" value={profileForm.instagram_url} onChange={(v) => setProfileForm({ ...profileForm, instagram_url: v })} />
+              <AdminInput label="Founded year" value={profileForm.founded_year} onChange={(v) => setProfileForm({ ...profileForm, founded_year: v })} />
+              <div className="md:col-span-2">
+                <Label>Tagline</Label>
+                <Input value={profileForm.tagline} onChange={(e) => setProfileForm({ ...profileForm, tagline: e.target.value })} className="mt-1.5" />
+              </div>
+              <div className="md:col-span-3">
+                <Label>Dealer story</Label>
+                <Textarea value={profileForm.story} onChange={(e) => setProfileForm({ ...profileForm, story: e.target.value })} rows={4} className="mt-1.5" />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" onClick={saveAdminProfile} disabled={savingProfile}>
+                {savingProfile ? "Saving..." : "Save dealer details"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setProfileForm({ ...profileForm, country: "India", city: "Surat" })}
+              >
+                Quick set: Surat, India
+              </Button>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Request profile correction">
+          <div className="grid gap-4 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_1fr]">
+            <div className="space-y-3">
+              <div>
+                <Label>Issues to correct, one per line</Label>
+                <Textarea value={correctionIssues} onChange={(e) => setCorrectionIssues(e.target.value)} rows={4} className="mt-1.5" />
+              </div>
+              <div>
+                <Label>Optional note</Label>
+                <Textarea value={correctionNote} onChange={(e) => setCorrectionNote(e.target.value)} rows={3} className="mt-1.5" />
+              </div>
+              <Button size="sm" variant="outline" onClick={buildCorrectionMessage}>Prepare correction email</Button>
+            </div>
+            <div className="rounded-md border border-border bg-muted/20 p-3 text-xs">
+              {correctionResult ? (
+                <div className="space-y-2">
+                  <div><span className="font-medium">To:</span> {correctionResult.email || "No email on profile"}</div>
+                  <div><span className="font-medium">Subject:</span> {correctionResult.subject}</div>
+                  <pre className="max-h-52 overflow-auto whitespace-pre-wrap rounded-md bg-background p-3 text-[11px]">{correctionResult.body}</pre>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={correctionResult.mailto}>
+                      <Button size="sm">Open email</Button>
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigator.clipboard.writeText(correctionResult.body).then(() => toast.success("Copied"))}
+                    >
+                      Copy body
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-muted-foreground">
+                  Prepare a clear message for a dealer when you want them to fix profile details themselves instead of changing it directly.
+                </div>
+              )}
+            </div>
           </div>
         </Section>
 
@@ -481,6 +660,16 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="mb-3 font-serif text-xl text-foreground">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function AdminInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const id = `admin-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} className="mt-1.5" />
+    </div>
   );
 }
 

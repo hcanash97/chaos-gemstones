@@ -1,6 +1,40 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+const accountSettingsSchema = z.object({
+  full_name: z.string().max(120).nullable(),
+  company_name: z.string().max(160).nullable(),
+  website: z.string().max(300).nullable(),
+  country: z.string().max(100).nullable(),
+  city: z.string().max(100).nullable(),
+  phone: z.string().max(80).nullable(),
+});
+
+export const updateMyAccountSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => accountSettingsSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const payload = {
+      full_name: data.full_name?.trim() || null,
+      company_name: data.company_name?.trim() || null,
+      website: data.website?.trim() || null,
+      country: data.country?.trim() || null,
+      city: data.city?.trim() || null,
+      phone: data.phone?.trim() || null,
+    };
+
+    const { data: row, error } = await context.supabase
+      .from("profiles")
+      .update(payload)
+      .eq("id", context.userId)
+      .select("id, full_name, company_name, website, country, city, phone")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { profile: row };
+  });
 
 export const exportMyData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
