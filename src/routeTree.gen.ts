@@ -11,10 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as RetailRouteImport } from './routes/retail'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -28,6 +31,7 @@ import { Route as VendorsSlugRouteImport } from './routes/vendors.$slug'
 import { Route as StoneIdRouteImport } from './routes/stone.$id'
 import { Route as SignUpJewellerRouteImport } from './routes/sign-up.jeweller'
 import { Route as SignUpDealerRouteImport } from './routes/sign-up.dealer'
+import { Route as MarketplaceSlugRouteImport } from './routes/marketplace.$slug'
 import { Route as LegalTermsJewellersRouteImport } from './routes/legal.terms-jewellers'
 import { Route as LegalTermsDealersRouteImport } from './routes/legal.terms-dealers'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
@@ -58,6 +62,7 @@ import { Route as DashboardJewellerMarkupRouteImport } from './routes/dashboard.
 import { Route as DashboardJewellerFeedsRouteImport } from './routes/dashboard.jeweller.feeds'
 import { Route as DashboardJewellerEnquiriesRouteImport } from './routes/dashboard.jeweller.enquiries'
 import { Route as DashboardJewellerApiRouteImport } from './routes/dashboard.jeweller.api'
+import { Route as DashboardDealerWhatsappRouteImport } from './routes/dashboard.dealer.whatsapp'
 import { Route as DashboardDealerPricingRouteImport } from './routes/dashboard.dealer.pricing'
 import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.dealer.api'
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
@@ -84,6 +89,16 @@ const SignUpRoute = SignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetailRoute = RetailRouteImport.update({
+  id: '/retail',
+  path: '/retail',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RequestsRoute = RequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -102,6 +117,11 @@ const MarketplaceRoute = MarketplaceRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -168,6 +188,11 @@ const SignUpDealerRoute = SignUpDealerRouteImport.update({
   id: '/dealer',
   path: '/dealer',
   getParentRoute: () => SignUpRoute,
+} as any)
+const MarketplaceSlugRoute = MarketplaceSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => MarketplaceRoute,
 } as any)
 const LegalTermsJewellersRoute = LegalTermsJewellersRouteImport.update({
   id: '/legal/terms-jewellers',
@@ -323,6 +348,11 @@ const DashboardJewellerApiRoute = DashboardJewellerApiRouteImport.update({
   path: '/jeweller/api',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardDealerWhatsappRoute = DashboardDealerWhatsappRouteImport.update({
+  id: '/dealer/whatsapp',
+  path: '/dealer/whatsapp',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardDealerPricingRoute = DashboardDealerPricingRouteImport.update({
   id: '/dealer/pricing',
   path: '/dealer/pricing',
@@ -410,10 +440,13 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/faq': typeof FaqRoute
   '/login': typeof LoginRoute
-  '/marketplace': typeof MarketplaceRoute
+  '/marketplace': typeof MarketplaceRouteWithChildren
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
+  '/retail': typeof RetailRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
@@ -433,6 +466,7 @@ export interface FileRoutesByFullPath {
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
+  '/marketplace/$slug': typeof MarketplaceSlugRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
@@ -446,6 +480,7 @@ export interface FileRoutesByFullPath {
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/dealer/pricing': typeof DashboardDealerPricingRoute
+  '/dashboard/dealer/whatsapp': typeof DashboardDealerWhatsappRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -475,10 +510,13 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
   '/compare': typeof CompareRoute
+  '/faq': typeof FaqRoute
   '/login': typeof LoginRoute
-  '/marketplace': typeof MarketplaceRoute
+  '/marketplace': typeof MarketplaceRouteWithChildren
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
+  '/retail': typeof RetailRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
@@ -498,6 +536,7 @@ export interface FileRoutesByTo {
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
+  '/marketplace/$slug': typeof MarketplaceSlugRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
@@ -511,6 +550,7 @@ export interface FileRoutesByTo {
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/dealer/pricing': typeof DashboardDealerPricingRoute
+  '/dashboard/dealer/whatsapp': typeof DashboardDealerWhatsappRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -542,10 +582,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/faq': typeof FaqRoute
   '/login': typeof LoginRoute
-  '/marketplace': typeof MarketplaceRoute
+  '/marketplace': typeof MarketplaceRouteWithChildren
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
+  '/retail': typeof RetailRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
@@ -565,6 +608,7 @@ export interface FileRoutesById {
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms-dealers': typeof LegalTermsDealersRoute
   '/legal/terms-jewellers': typeof LegalTermsJewellersRoute
+  '/marketplace/$slug': typeof MarketplaceSlugRoute
   '/sign-up/dealer': typeof SignUpDealerRoute
   '/sign-up/jeweller': typeof SignUpJewellerRoute
   '/stone/$id': typeof StoneIdRoute
@@ -578,6 +622,7 @@ export interface FileRoutesById {
   '/api/public/feed': typeof ApiPublicFeedRoute
   '/dashboard/dealer/api': typeof DashboardDealerApiRoute
   '/dashboard/dealer/pricing': typeof DashboardDealerPricingRoute
+  '/dashboard/dealer/whatsapp': typeof DashboardDealerWhatsappRoute
   '/dashboard/jeweller/api': typeof DashboardJewellerApiRoute
   '/dashboard/jeweller/enquiries': typeof DashboardJewellerEnquiriesRoute
   '/dashboard/jeweller/feeds': typeof DashboardJewellerFeedsRoute
@@ -610,10 +655,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/compare'
     | '/dashboard'
+    | '/faq'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
+    | '/retail'
+    | '/robots.txt'
     | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
@@ -633,6 +681,7 @@ export interface FileRouteTypes {
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
+    | '/marketplace/$slug'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
@@ -646,6 +695,7 @@ export interface FileRouteTypes {
     | '/api/public/feed'
     | '/dashboard/dealer/api'
     | '/dashboard/dealer/pricing'
+    | '/dashboard/dealer/whatsapp'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -675,10 +725,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/compare'
+    | '/faq'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
+    | '/retail'
+    | '/robots.txt'
     | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
@@ -698,6 +751,7 @@ export interface FileRouteTypes {
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
+    | '/marketplace/$slug'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
@@ -711,6 +765,7 @@ export interface FileRouteTypes {
     | '/api/public/feed'
     | '/dashboard/dealer/api'
     | '/dashboard/dealer/pricing'
+    | '/dashboard/dealer/whatsapp'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -741,10 +796,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/compare'
     | '/dashboard'
+    | '/faq'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
+    | '/retail'
+    | '/robots.txt'
     | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
@@ -764,6 +822,7 @@ export interface FileRouteTypes {
     | '/legal/privacy'
     | '/legal/terms-dealers'
     | '/legal/terms-jewellers'
+    | '/marketplace/$slug'
     | '/sign-up/dealer'
     | '/sign-up/jeweller'
     | '/stone/$id'
@@ -777,6 +836,7 @@ export interface FileRouteTypes {
     | '/api/public/feed'
     | '/dashboard/dealer/api'
     | '/dashboard/dealer/pricing'
+    | '/dashboard/dealer/whatsapp'
     | '/dashboard/jeweller/api'
     | '/dashboard/jeweller/enquiries'
     | '/dashboard/jeweller/feeds'
@@ -808,10 +868,13 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   CompareRoute: typeof CompareRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  FaqRoute: typeof FaqRoute
   LoginRoute: typeof LoginRoute
-  MarketplaceRoute: typeof MarketplaceRoute
+  MarketplaceRoute: typeof MarketplaceRouteWithChildren
   PendingApprovalRoute: typeof PendingApprovalRoute
   RequestsRoute: typeof RequestsRoute
+  RetailRoute: typeof RetailRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
   SignUpRoute: typeof SignUpRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
@@ -856,6 +919,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retail': {
+      id: '/retail'
+      path: '/retail'
+      fullPath: '/retail'
+      preLoaderRoute: typeof RetailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/requests': {
       id: '/requests'
       path: '/requests'
@@ -882,6 +959,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -974,6 +1058,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sign-up/dealer'
       preLoaderRoute: typeof SignUpDealerRouteImport
       parentRoute: typeof SignUpRoute
+    }
+    '/marketplace/$slug': {
+      id: '/marketplace/$slug'
+      path: '/$slug'
+      fullPath: '/marketplace/$slug'
+      preLoaderRoute: typeof MarketplaceSlugRouteImport
+      parentRoute: typeof MarketplaceRoute
     }
     '/legal/terms-jewellers': {
       id: '/legal/terms-jewellers'
@@ -1185,6 +1276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardJewellerApiRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/dealer/whatsapp': {
+      id: '/dashboard/dealer/whatsapp'
+      path: '/dealer/whatsapp'
+      fullPath: '/dashboard/dealer/whatsapp'
+      preLoaderRoute: typeof DashboardDealerWhatsappRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/dealer/pricing': {
       id: '/dashboard/dealer/pricing'
       path: '/dealer/pricing'
@@ -1328,6 +1426,7 @@ interface DashboardRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardDealerApiRoute: typeof DashboardDealerApiRoute
   DashboardDealerPricingRoute: typeof DashboardDealerPricingRoute
+  DashboardDealerWhatsappRoute: typeof DashboardDealerWhatsappRoute
   DashboardJewellerApiRoute: typeof DashboardJewellerApiRoute
   DashboardJewellerEnquiriesRoute: typeof DashboardJewellerEnquiriesRoute
   DashboardJewellerFeedsRoute: typeof DashboardJewellerFeedsRoute
@@ -1351,6 +1450,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardDealerApiRoute: DashboardDealerApiRoute,
   DashboardDealerPricingRoute: DashboardDealerPricingRoute,
+  DashboardDealerWhatsappRoute: DashboardDealerWhatsappRoute,
   DashboardJewellerApiRoute: DashboardJewellerApiRoute,
   DashboardJewellerEnquiriesRoute: DashboardJewellerEnquiriesRoute,
   DashboardJewellerFeedsRoute: DashboardJewellerFeedsRoute,
@@ -1367,6 +1467,18 @@ const DashboardRouteChildren: DashboardRouteChildren = {
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
+)
+
+interface MarketplaceRouteChildren {
+  MarketplaceSlugRoute: typeof MarketplaceSlugRoute
+}
+
+const MarketplaceRouteChildren: MarketplaceRouteChildren = {
+  MarketplaceSlugRoute: MarketplaceSlugRoute,
+}
+
+const MarketplaceRouteWithChildren = MarketplaceRoute._addFileChildren(
+  MarketplaceRouteChildren,
 )
 
 interface SignUpRouteChildren {
@@ -1412,10 +1524,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   CompareRoute: CompareRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  FaqRoute: FaqRoute,
   LoginRoute: LoginRoute,
-  MarketplaceRoute: MarketplaceRoute,
+  MarketplaceRoute: MarketplaceRouteWithChildren,
   PendingApprovalRoute: PendingApprovalRoute,
   RequestsRoute: RequestsRoute,
+  RetailRoute: RetailRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
   SignUpRoute: SignUpRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
