@@ -7,10 +7,15 @@ export interface SiteThemeSettings {
   hero_badge_label: string;
   hero_background_image_url: string;
   hero_overlay_opacity: number;
+  hero_media_type: "image" | "video";
+  hero_video_url: string;
   hero_primary_cta_label: string;
   hero_primary_cta_url: string;
   hero_secondary_cta_label: string;
   hero_secondary_cta_url: string;
+  animation_preset: "classic-fade" | "luxury-fade" | "spring-slide";
+  enable_parallax: boolean;
+  primary_glow_color: string;
   contact_whatsapp: string;
   contact_email: string;
   instagram_url: string;
@@ -19,6 +24,13 @@ export interface SiteThemeSettings {
   seo_title: string;
   seo_description: string;
   seo_image_url: string;
+  ticker_enabled: boolean;
+  ticker_mode: "manual" | "recent-stones";
+  ticker_items: string[];
+  ticker_speed_seconds: number;
+  shape_grid_enabled: boolean;
+  shape_grid_title: string;
+  shape_grid_mode: "grid" | "carousel";
   homepage_layout: HomepageLayoutBlock[];
   homepage_copy: HomepageSectionCopy;
 }
@@ -27,7 +39,9 @@ export type HomepageBlockType =
   | "hero"
   | "cert_labs"
   | "trust_strip"
+  | "ticker"
   | "audience_cards"
+  | "shape_grid"
   | "whatsapp_cta"
   | "featured_stones"
   | "matched_pairs"
@@ -67,7 +81,9 @@ export const HOMEPAGE_BLOCK_LABELS: Record<HomepageBlockType, string> = {
   hero: "Hero banner",
   cert_labs: "Certification lab bar",
   trust_strip: "Sourcing countries strip",
+  ticker: "Live ticker strip",
   audience_cards: "Dealer/Jeweller explainer",
+  shape_grid: "Gemstone shape grid",
   whatsapp_cta: "WhatsApp CTA",
   featured_stones: "Featured stones",
   matched_pairs: "Matched pairs CTA",
@@ -78,9 +94,11 @@ export const HOMEPAGE_BLOCK_LABELS: Record<HomepageBlockType, string> = {
 
 export const DEFAULT_HOMEPAGE_LAYOUT: HomepageLayoutBlock[] = [
   { id: "hero", type: "hero", enabled: true },
+  { id: "ticker", type: "ticker", enabled: true },
   { id: "cert_labs", type: "cert_labs", enabled: true },
   { id: "trust_strip", type: "trust_strip", enabled: true },
   { id: "audience_cards", type: "audience_cards", enabled: true },
+  { id: "shape_grid", type: "shape_grid", enabled: true },
   { id: "whatsapp_cta", type: "whatsapp_cta", enabled: false },
   { id: "featured_stones", type: "featured_stones", enabled: true },
   { id: "matched_pairs", type: "matched_pairs", enabled: true },
@@ -117,10 +135,15 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   hero_badge_label: "B2B · For the trade",
   hero_background_image_url: "",
   hero_overlay_opacity: 0.62,
+  hero_media_type: "image",
+  hero_video_url: "",
   hero_primary_cta_label: "Browse marketplace",
   hero_primary_cta_url: "/marketplace",
   hero_secondary_cta_label: "Sign up",
   hero_secondary_cta_url: "/sign-up",
+  animation_preset: "luxury-fade",
+  enable_parallax: true,
+  primary_glow_color: "#E8C97A",
   contact_whatsapp: "",
   contact_email: "",
   instagram_url: "https://www.instagram.com/chaosgemstonemarket",
@@ -129,6 +152,17 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   seo_title: "CHAOS — Gemstone & Diamond Marketplace",
   seo_description: "The global B2B marketplace for independent gemstone and diamond dealers.",
   seo_image_url: "https://chaosgemstones.com/icons/icon-512.png",
+  ticker_enabled: true,
+  ticker_mode: "manual",
+  ticker_items: [
+    "Verified dealers uploading live inventory",
+    "Lab diamonds, coloured stones and matched pairs",
+    "API sync, CSV import and WhatsApp intake workflows",
+  ],
+  ticker_speed_seconds: 36,
+  shape_grid_enabled: true,
+  shape_grid_title: "Browse by diamond shape",
+  shape_grid_mode: "grid",
   homepage_layout: DEFAULT_HOMEPAGE_LAYOUT,
   homepage_copy: DEFAULT_HOMEPAGE_COPY,
 };
@@ -148,10 +182,15 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
     hero_background_image_url:
       typeof raw.hero_background_image_url === "string" ? raw.hero_background_image_url : DEFAULT_SITE_THEME.hero_background_image_url,
     hero_overlay_opacity: normalizeOverlayOpacity(raw.hero_overlay_opacity),
+    hero_media_type: raw.hero_media_type === "video" ? "video" : "image",
+    hero_video_url: typeof raw.hero_video_url === "string" ? raw.hero_video_url : DEFAULT_SITE_THEME.hero_video_url,
     hero_primary_cta_label: stringOrDefault(raw.hero_primary_cta_label, DEFAULT_SITE_THEME.hero_primary_cta_label),
     hero_primary_cta_url: stringOrDefault(raw.hero_primary_cta_url, DEFAULT_SITE_THEME.hero_primary_cta_url),
     hero_secondary_cta_label: stringOrDefault(raw.hero_secondary_cta_label, DEFAULT_SITE_THEME.hero_secondary_cta_label),
     hero_secondary_cta_url: stringOrDefault(raw.hero_secondary_cta_url, DEFAULT_SITE_THEME.hero_secondary_cta_url),
+    animation_preset: normalizeAnimationPreset(raw.animation_preset),
+    enable_parallax: raw.enable_parallax !== false,
+    primary_glow_color: isHexColor(raw.primary_glow_color) ? raw.primary_glow_color : DEFAULT_SITE_THEME.primary_glow_color,
     contact_whatsapp: typeof raw.contact_whatsapp === "string" ? raw.contact_whatsapp : DEFAULT_SITE_THEME.contact_whatsapp,
     contact_email: typeof raw.contact_email === "string" ? raw.contact_email : DEFAULT_SITE_THEME.contact_email,
     instagram_url: stringOrDefault(raw.instagram_url, DEFAULT_SITE_THEME.instagram_url),
@@ -160,6 +199,13 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
     seo_title: stringOrDefault(raw.seo_title, DEFAULT_SITE_THEME.seo_title),
     seo_description: stringOrDefault(raw.seo_description, DEFAULT_SITE_THEME.seo_description),
     seo_image_url: stringOrDefault(raw.seo_image_url, DEFAULT_SITE_THEME.seo_image_url),
+    ticker_enabled: raw.ticker_enabled !== false,
+    ticker_mode: raw.ticker_mode === "recent-stones" ? "recent-stones" : "manual",
+    ticker_items: normalizeTickerItems(raw.ticker_items),
+    ticker_speed_seconds: normalizeTickerSpeed(raw.ticker_speed_seconds),
+    shape_grid_enabled: raw.shape_grid_enabled !== false,
+    shape_grid_title: stringOrDefault(raw.shape_grid_title, DEFAULT_SITE_THEME.shape_grid_title),
+    shape_grid_mode: raw.shape_grid_mode === "carousel" ? "carousel" : "grid",
     homepage_layout: normalizeHomepageLayout(raw.homepage_layout),
     homepage_copy: normalizeHomepageCopy(raw.homepage_copy),
   };
@@ -196,7 +242,9 @@ export function isHomepageBlockType(value: unknown): value is HomepageBlockType 
     value === "hero" ||
     value === "cert_labs" ||
     value === "trust_strip" ||
+    value === "ticker" ||
     value === "audience_cards" ||
+    value === "shape_grid" ||
     value === "whatsapp_cta" ||
     value === "featured_stones" ||
     value === "matched_pairs" ||
@@ -204,6 +252,26 @@ export function isHomepageBlockType(value: unknown): value is HomepageBlockType 
     value === "founder_quote" ||
     value === "stats"
   );
+}
+
+function normalizeAnimationPreset(value: unknown): SiteThemeSettings["animation_preset"] {
+  if (value === "classic-fade" || value === "luxury-fade" || value === "spring-slide") return value;
+  return DEFAULT_SITE_THEME.animation_preset;
+}
+
+function normalizeTickerItems(value: unknown): string[] {
+  if (!Array.isArray(value)) return DEFAULT_SITE_THEME.ticker_items;
+  const items = value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 8);
+  return items.length ? items : DEFAULT_SITE_THEME.ticker_items;
+}
+
+function normalizeTickerSpeed(value: unknown): number {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : DEFAULT_SITE_THEME.ticker_speed_seconds;
+  if (!Number.isFinite(n)) return DEFAULT_SITE_THEME.ticker_speed_seconds;
+  return Math.min(90, Math.max(12, n));
 }
 
 export function normalizeHomepageCopy(value: unknown): HomepageSectionCopy {

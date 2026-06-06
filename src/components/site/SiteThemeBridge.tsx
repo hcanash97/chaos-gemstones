@@ -11,10 +11,17 @@ export function SiteThemeBridge() {
     const rgb = hexToRgb(accent);
     root.style.setProperty("--color-gold", accent);
     root.style.setProperty("--color-gold-foreground", readableTextColor(accent));
+    root.style.setProperty("--chaos-glow-color", theme.primary_glow_color);
+    root.dataset.animationPreset = theme.animation_preset;
+    root.dataset.parallax = theme.enable_parallax ? "on" : "off";
     if (rgb) {
       root.style.setProperty("--gold-border", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.36)`);
     }
-  }, [theme.accent_color]);
+    const glowRgb = hexToRgb(theme.primary_glow_color);
+    if (glowRgb) {
+      root.style.setProperty("--chaos-glow-rgb", `${glowRgb.r}, ${glowRgb.g}, ${glowRgb.b}`);
+    }
+  }, [theme.accent_color, theme.animation_preset, theme.enable_parallax, theme.primary_glow_color]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;

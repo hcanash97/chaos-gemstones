@@ -318,3 +318,24 @@
 /* Button press */
 button, .btn { transition: transform 0.08s ease; }
 button:active, .btn:active { transform: scale(0.97); }
+
+@keyframes chaosTicker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.chaos-ticker-track {
+  animation: chaosTicker var(--ticker-speed, 36s) linear infinite;
+  will-change: transform;
+}
+.chaos-parallax-orb {
+  background: radial-gradient(circle, rgba(var(--chaos-glow-rgb, 232, 201, 122), 0.24), transparent 62%);
+}
+.shape-discovery-card:hover {
+  box-shadow: 0 18px 50px -28px rgba(var(--chaos-glow-rgb, 232, 201, 122), 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chaos-ticker-track {
+    animation: none !important;
+  }
+}

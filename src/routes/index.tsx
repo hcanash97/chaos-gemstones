@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, ShieldCheck, Globe2, Boxes } from "lucide-react";
 import { CountUp, FadeUp, StaggerGroup, WordReveal } from "@/components/anim/Motion";
+import { LuxuryReveal, ParallaxScroll } from "@/components/anim/LuxuryReveal";
 import { LaunchBanner } from "@/components/site/LaunchBanner";
 import { GemParticles } from "@/components/site/GemParticles";
 import { CertLabBar } from "@/components/site/CertLabBar";
@@ -196,8 +197,12 @@ function Home() {
         return <CertLabBar />;
       case "trust_strip":
         return <TrustStrip />;
+      case "ticker":
+        return <LiveTickerSection siteTheme={siteTheme} />;
       case "audience_cards":
         return <AudienceCardsSection />;
+      case "shape_grid":
+        return <ShapeGridSection siteTheme={siteTheme} />;
       case "whatsapp_cta":
         return <WhatsAppCtaSection siteTheme={siteTheme} />;
       case "featured_stones":
@@ -232,7 +237,7 @@ function Home() {
 function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
   return (
     <section className="relative overflow-hidden text-primary-foreground hero-aurora">
-      {siteTheme.hero_background_image_url && (
+      {siteTheme.hero_media_type === "image" && siteTheme.hero_background_image_url && (
         <img
           src={siteTheme.hero_background_image_url}
           alt=""
@@ -241,7 +246,18 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           loading="eager"
         />
       )}
-      {siteTheme.hero_background_image_url && (
+      {siteTheme.hero_media_type === "video" && siteTheme.hero_video_url && (
+        <video
+          className="absolute inset-0 h-full w-full object-cover"
+          src={siteTheme.hero_video_url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden="true"
+        />
+      )}
+      {(siteTheme.hero_background_image_url || siteTheme.hero_video_url) && (
         <div
           className="absolute inset-0"
           style={{ backgroundColor: `rgba(8, 18, 54, ${siteTheme.hero_overlay_opacity})` }}
@@ -251,7 +267,7 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
       <div className="hero-light" aria-hidden />
       <GemParticles count={14} />
       <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <LuxuryReveal preset={siteTheme.animation_preset}>
           {siteTheme.logo_url && (
             <img
               src={siteTheme.logo_url}
@@ -266,7 +282,7 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           >
             {siteTheme.hero_badge_label}
           </Badge>
-        </motion.div>
+        </LuxuryReveal>
         <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">
           <WordReveal text={siteTheme.hero_title} />
         </h1>
@@ -328,7 +344,82 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           </Link>
         </motion.p>
       </div>
+      <ParallaxScroll
+        enabled={siteTheme.enable_parallax}
+        intensity={80}
+        className="chaos-parallax-orb pointer-events-none absolute -right-24 bottom-10 hidden h-72 w-72 rounded-full border border-[var(--gold-border)] blur-sm lg:block"
+      >
+        <span className="block h-full w-full" />
+      </ParallaxScroll>
       <span className="gold-line-draw absolute bottom-0 left-0 right-0" aria-hidden />
+    </section>
+  );
+}
+
+function LiveTickerSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
+  if (!siteTheme.ticker_enabled) return null;
+  const items = siteTheme.ticker_items.length ? siteTheme.ticker_items : DEFAULT_SITE_THEME.ticker_items;
+  const repeated = [...items, ...items];
+  return (
+    <section className="overflow-hidden border-y border-[var(--gold-border)] bg-primary py-3 text-primary-foreground">
+      <div
+        className="chaos-ticker-track flex min-w-max gap-8 whitespace-nowrap text-xs uppercase tracking-[0.18em] opacity-90"
+        style={{ ["--ticker-speed" as string]: `${siteTheme.ticker_speed_seconds}s` }}
+      >
+        {repeated.map((item, index) => (
+          <span key={`${item}-${index}`} className="inline-flex items-center gap-8">
+            <span>{item}</span>
+            <span className="text-[var(--color-gold)]">◆</span>
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const SHAPE_LINKS = [
+  { label: "Round", href: "/marketplace?shape=Round", mark: "○" },
+  { label: "Oval", href: "/marketplace?shape=Oval", mark: "⬭" },
+  { label: "Emerald", href: "/marketplace?shape=Emerald", mark: "▭" },
+  { label: "Cushion", href: "/marketplace?shape=Cushion", mark: "▢" },
+  { label: "Pear", href: "/marketplace?shape=Pear", mark: "◍" },
+  { label: "Radiant", href: "/marketplace?shape=Radiant", mark: "◇" },
+];
+
+function ShapeGridSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
+  if (!siteTheme.shape_grid_enabled) return null;
+  const isCarousel = siteTheme.shape_grid_mode === "carousel";
+  return (
+    <section className="border-t border-border bg-background py-16">
+      <div className="mx-auto max-w-7xl px-6">
+        <LuxuryReveal preset={siteTheme.animation_preset} className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Visual discovery</div>
+            <h2 className="mt-2 font-serif text-4xl">{siteTheme.shape_grid_title}</h2>
+          </div>
+          <Link to="/marketplace" className="text-sm text-foreground hover:text-[var(--color-gold)]">
+            Explore all stones →
+          </Link>
+        </LuxuryReveal>
+        <div className={`mt-8 ${isCarousel ? "overflow-x-auto [-webkit-overflow-scrolling:touch]" : ""}`}>
+          <div className={isCarousel ? "flex min-w-max gap-4" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-6"}>
+            {SHAPE_LINKS.map((shape, index) => (
+              <LuxuryReveal key={shape.label} preset={siteTheme.animation_preset} delay={index * 0.04}>
+                <a
+                  href={shape.href}
+                  className="shape-discovery-card group flex min-h-40 flex-col items-center justify-center rounded-md border border-border bg-card p-5 text-center transition-all hover:-translate-y-1 hover:border-[var(--color-gold)]"
+                >
+                  <span className="flex h-16 w-16 items-center justify-center rounded-full border border-[var(--gold-border)] bg-[var(--color-gold)]/10 font-serif text-4xl text-[var(--color-gold)] transition-transform group-hover:scale-110">
+                    {shape.mark}
+                  </span>
+                  <span className="mt-4 font-medium">{shape.label}</span>
+                  <span className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">View inventory</span>
+                </a>
+              </LuxuryReveal>
+            ))}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

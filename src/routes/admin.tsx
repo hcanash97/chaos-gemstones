@@ -760,6 +760,31 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               />
             </div>
             <div>
+              <Label htmlFor="theme-hero-media-type">Hero media type</Label>
+              <select
+                id="theme-hero-media-type"
+                value={form.hero_media_type}
+                onChange={(e) => setField("hero_media_type", e.target.value as SiteThemeSettings["hero_media_type"])}
+                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="theme-animation">Animation preset</Label>
+              <select
+                id="theme-animation"
+                value={form.animation_preset}
+                onChange={(e) => setField("animation_preset", e.target.value as SiteThemeSettings["animation_preset"])}
+                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="luxury-fade">Luxury reveal</option>
+                <option value="spring-slide">Spring slide</option>
+                <option value="classic-fade">Classic fade</option>
+              </select>
+            </div>
+            <div>
               <Label htmlFor="theme-overlay">Hero overlay strength</Label>
               <div className="mt-1.5 flex items-center gap-3">
                 <input
@@ -809,6 +834,19 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                   </Button>
                 )}
               </div>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="theme-hero-video">Hero background video URL</Label>
+              <Input
+                id="theme-hero-video"
+                value={form.hero_video_url}
+                onChange={(e) => setField("hero_video_url", e.target.value)}
+                placeholder="https://.../hero.mp4"
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Use a short, muted MP4/WebM URL for the cleanest mobile performance.
+              </p>
             </div>
           </div>
 
@@ -963,6 +1001,31 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               </div>
             </div>
             <div>
+              <Label htmlFor="theme-glow">Glow colour</Label>
+              <div className="mt-1.5 flex items-center gap-3">
+                <input
+                  id="theme-glow"
+                  type="color"
+                  value={form.primary_glow_color}
+                  onChange={(e) => setField("primary_glow_color", e.target.value)}
+                  className="h-10 w-14 cursor-pointer rounded-md border border-border bg-background p-1"
+                />
+                <Input
+                  value={form.primary_glow_color}
+                  onChange={(e) => setField("primary_glow_color", e.target.value)}
+                  placeholder="#E8C97A"
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 rounded-md border border-border p-3 text-sm">
+              <Checkbox
+                checked={form.enable_parallax}
+                onCheckedChange={(checked) => setField("enable_parallax", checked === true)}
+              />
+              Enable parallax accents
+            </label>
+            <div>
               <Label htmlFor="theme-whatsapp">Contact WhatsApp</Label>
               <Input
                 id="theme-whatsapp"
@@ -1065,6 +1128,89 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 rounded-md border border-border p-4">
+            <div>
+              <Label>Landing modules</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Configure the visual discovery strips that make the homepage feel more editorial and interactive.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-md border border-border p-3 text-sm">
+                <Checkbox
+                  checked={form.ticker_enabled}
+                  onCheckedChange={(checked) => setField("ticker_enabled", checked === true)}
+                />
+                Show ticker strip
+              </label>
+              <label className="flex items-center gap-2 rounded-md border border-border p-3 text-sm">
+                <Checkbox
+                  checked={form.shape_grid_enabled}
+                  onCheckedChange={(checked) => setField("shape_grid_enabled", checked === true)}
+                />
+                Show shape grid
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="theme-ticker-speed">Ticker speed</Label>
+                <div className="mt-1.5 flex items-center gap-3">
+                  <input
+                    id="theme-ticker-speed"
+                    type="range"
+                    min="12"
+                    max="90"
+                    step="2"
+                    value={form.ticker_speed_seconds}
+                    onChange={(e) => setField("ticker_speed_seconds", Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <span className="w-12 text-right font-mono text-xs text-muted-foreground">{form.ticker_speed_seconds}s</span>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="theme-shape-mode">Shape grid mode</Label>
+                <select
+                  id="theme-shape-mode"
+                  value={form.shape_grid_mode}
+                  onChange={(e) => setField("shape_grid_mode", e.target.value as SiteThemeSettings["shape_grid_mode"])}
+                  className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="grid">Grid</option>
+                  <option value="carousel">Horizontal carousel</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="theme-shape-title">Shape grid title</Label>
+              <Input
+                id="theme-shape-title"
+                value={form.shape_grid_title}
+                onChange={(e) => setField("shape_grid_title", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-ticker-items">Ticker announcements</Label>
+              <Textarea
+                id="theme-ticker-items"
+                rows={4}
+                value={form.ticker_items.join("\n")}
+                onChange={(e) =>
+                  setField(
+                    "ticker_items",
+                    e.target.value
+                      .split("\n")
+                      .map((item) => item.trim())
+                      .filter(Boolean),
+                  )
+                }
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">One ticker item per line. Keep each item short.</p>
             </div>
           </div>
 
