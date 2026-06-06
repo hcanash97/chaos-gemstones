@@ -758,6 +758,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [checkingSaved, setCheckingSaved] = useState(false);
   const [themeLog, setThemeLog] = useState<Array<{ id: string; level: "info" | "success" | "warning" | "error"; message: string }>>([]);
+  const [databaseSetupMissing, setDatabaseSetupMissing] = useState(false);
 
   function addThemeLog(level: "info" | "success" | "warning" | "error", message: string) {
     setThemeLog((current) => [
@@ -784,8 +785,16 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         .maybeSingle();
       if (error) {
         addThemeLog("error", `Theme load failed: ${error.message}`);
-        toast.error(error.message);
+        if (isMissingSiteConfigurationsTableError(error)) {
+          setDatabaseSetupMissing(true);
+          toast.error("Theme database setup is missing", {
+            description: "Apply the site_configurations repair migration, then reload this page.",
+          });
+        } else {
+          toast.error(error.message);
+        }
       } else if (data) {
+        setDatabaseSetupMissing(false);
         setConfigId(data.id);
         const theme = normalizeSiteTheme(data.theme_data);
         setForm(theme);
@@ -841,7 +850,14 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     setCheckingSaved(false);
     if (error) {
       addThemeLog("error", `Reload failed: ${error.message}`);
-      toast.error(error.message);
+      if (isMissingSiteConfigurationsTableError(error)) {
+        setDatabaseSetupMissing(true);
+        toast.error("Theme database setup is missing", {
+          description: "Apply the site_configurations repair migration, then reload this page.",
+        });
+      } else {
+        toast.error(error.message);
+      }
       return;
     }
     if (!data) {
@@ -850,6 +866,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       return;
     }
     const theme = normalizeSiteTheme(data.theme_data);
+    setDatabaseSetupMissing(false);
     setConfigId(data.id);
     setForm(theme);
     setLastSavedTheme(theme);
@@ -897,10 +914,18 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         .single();
       if (error) {
         addThemeLog("error", `Database save failed: ${error.message}`);
-        toast.error("Theme save failed", { description: error.message });
+        if (isMissingSiteConfigurationsTableError(error)) {
+          setDatabaseSetupMissing(true);
+          toast.error("Theme database setup is missing", {
+            description: "The site_configurations table does not exist in Supabase yet. Apply the repair migration.",
+          });
+        } else {
+          toast.error("Theme save failed", { description: error.message });
+        }
         return false;
       }
       setConfigId(data.id);
+      setDatabaseSetupMissing(false);
       setForm(normalizedTheme);
       setLastSavedTheme(normalizedTheme);
       setLastSavedAt(new Date().toISOString());
@@ -1044,6 +1069,20 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
           </div>
         </div>
 
+        {databaseSetupMissing && (
+          <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm">
+            <div className="font-medium text-destructive">Theme database setup is missing</div>
+            <p className="mt-2 text-muted-foreground">
+              Supabase says <code>public.site_configurations</code> is not in the schema cache. The Theme editor cannot save
+              until the repair migration has been applied to the live Supabase project.
+            </p>
+            <p className="mt-2 text-muted-foreground">
+              Apply migration <code>20260606150000_repair_site_configurations.sql</code>, then refresh this page and press
+              Reload saved theme.
+            </p>
+          </div>
+        )}
+
         <div className="mt-6 space-y-5">
           {editorTab === "presets" && (
             <div className="grid gap-4 md:grid-cols-2">
@@ -1110,7 +1149,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                disabled={uploading}
+                disabled={uploading || databaseSetupMissing}
                 onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "logo_url")}
               />
             </label>
@@ -1192,7 +1231,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    disabled={uploading}
+                    disabled={uploading || databaseSetupMissing}
                     onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "hero_background_image_url")}
                   />
                 </label>
@@ -1202,7 +1241,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setField("hero_background_image_url", "")}
-                    disabled={saving || uploading}
+                    disabled={saving || uploading || databaseSetupMissing}
                   >
                     Remove background
                   </Button>
@@ -1295,7 +1334,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    disabled={uploading}
+                    disabled={uploading || databaseSetupMissing}
                     onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "seo_image_url")}
                   />
                 </label>
@@ -1305,7 +1344,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setField("seo_image_url", DEFAULT_SITE_THEME.seo_image_url)}
-                    disabled={saving || uploading}
+                    disabled={saving || uploading || databaseSetupMissing}
                   >
                     Use default image
                   </Button>
@@ -1712,7 +1751,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
           )}
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button onClick={save} disabled={saving || uploading || !hasUnsavedChanges} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+            <Button onClick={save} disabled={saving || uploading || databaseSetupMissing || !hasUnsavedChanges} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
               {saving ? "Saving..." : hasUnsavedChanges ? "Save changes" : "Saved"}
             </Button>
             <Button type="button" variant="outline" onClick={reloadSavedTheme} disabled={saving || uploading || checkingSaved}>
@@ -1874,6 +1913,17 @@ function labelForThemeImageTarget(target: "logo_url" | "hero_background_image_ur
   if (target === "logo_url") return "logo";
   if (target === "seo_image_url") return "social sharing";
   return "hero background";
+}
+
+function isMissingSiteConfigurationsTableError(error: unknown) {
+  const message =
+    typeof error === "object" && error && "message" in error
+      ? String((error as { message?: unknown }).message)
+      : String(error ?? "");
+  return (
+    message.includes("site_configurations") &&
+    (message.includes("schema cache") || message.includes("Could not find the table") || message.includes("does not exist"))
+  );
 }
 
 function ReferralsPanel() {
