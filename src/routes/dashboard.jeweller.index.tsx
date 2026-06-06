@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getJewellerSettings } from "@/lib/profile-settings.functions";
 import { Button } from "@/components/ui/button";
 import { ReferralNudge } from "@/components/dashboard/ReferralNudge";
 import { RoleSwitcher } from "@/components/dashboard/RoleSwitcher";
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/dashboard/jeweller/")({
 
 function JewellerOverview() {
   const { user, profile } = useAuth();
+  const fetchSettings = useServerFn(getJewellerSettings);
 
   const { data } = useQuery({
     queryKey: ["jeweller-overview", user?.id],
@@ -23,7 +26,7 @@ function JewellerOverview() {
       const [keys, selections, jp, shopify] = await Promise.all([
         supabase.from("api_keys").select("id, is_active").eq("jeweller_id", user!.id),
         supabase.from("feed_selections").select("selection_type, stone_id, dealer_id"),
-        supabase.from("jeweller_profiles").select("markup_global").eq("id", user!.id).maybeSingle(),
+        fetchSettings(),
         supabase.from("shopify_connections" as any).select("id").eq("jeweller_id", user!.id).maybeSingle(),
       ]);
       const activeKey = (keys.data ?? []).find((k) => k.is_active);
@@ -44,7 +47,7 @@ function JewellerOverview() {
         activeFeeds: dealerFollows.length,
         stoneCount,
         hasKey: !!activeKey,
-        hasMarkup: jp.data?.markup_global != null,
+        hasMarkup: jp?.markup_global != null,
         hasShopify: !!shopify.data,
       };
     },
