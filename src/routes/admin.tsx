@@ -643,13 +643,13 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     });
   }
 
-  async function uploadThemeImage(file: File, target: "logo_url" | "hero_background_image_url") {
+  async function uploadThemeImage(file: File, target: "logo_url" | "hero_background_image_url" | "seo_image_url") {
     if (!file.type.startsWith("image/")) {
       toast.error("Please choose an image file.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Logo images must be under 5MB.");
+      toast.error("Images must be under 5MB.");
       return;
     }
     setUploading(true);
@@ -667,7 +667,13 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     }
     const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
     setField(target, data.publicUrl);
-    toast.success(target === "logo_url" ? "Logo uploaded" : "Hero background uploaded");
+    toast.success(
+      target === "logo_url"
+        ? "Logo uploaded"
+        : target === "seo_image_url"
+        ? "Social sharing image uploaded"
+        : "Hero background uploaded",
+    );
   }
 
   async function save() {
@@ -825,6 +831,69 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               onChange={(e) => setField("hero_subtitle", e.target.value)}
               className="mt-1.5"
             />
+          </div>
+
+          <div className="grid gap-4 rounded-md border border-border p-4">
+            <div>
+              <Label>SEO &amp; sharing</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Control the default browser title, Google description and social preview image for the site.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="theme-seo-title">Default SEO title</Label>
+              <Input
+                id="theme-seo-title"
+                value={form.seo_title}
+                onChange={(e) => setField("seo_title", e.target.value)}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{form.seo_title.length} characters</p>
+            </div>
+            <div>
+              <Label htmlFor="theme-seo-description">Default meta description</Label>
+              <Textarea
+                id="theme-seo-description"
+                rows={3}
+                value={form.seo_description}
+                onChange={(e) => setField("seo_description", e.target.value)}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{form.seo_description.length} characters</p>
+            </div>
+            <div>
+              <Label htmlFor="theme-seo-image">Social sharing image URL</Label>
+              <Input
+                id="theme-seo-image"
+                value={form.seo_image_url}
+                onChange={(e) => setField("seo_image_url", e.target.value)}
+                placeholder="https://..."
+                className="mt-1.5"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
+                  {uploading ? "Uploading..." : "Upload sharing image"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => e.target.files?.[0] && uploadThemeImage(e.target.files[0], "seo_image_url")}
+                  />
+                </label>
+                {form.seo_image_url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setField("seo_image_url", DEFAULT_SITE_THEME.seo_image_url)}
+                    disabled={saving || uploading}
+                  >
+                    Use default image
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
@@ -1151,6 +1220,29 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
           This is now a lightweight Shopify-style customiser: editable brand controls plus a modular homepage section order.
         </p>
+        <div className="mt-5 rounded-md border border-border bg-background p-4">
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Search preview</div>
+          <div className="mt-3 text-[11px] text-green-700">chaosgemstones.com</div>
+          <div className="mt-1 line-clamp-2 text-sm font-medium text-blue-700">{form.seo_title}</div>
+          <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{form.seo_description}</p>
+        </div>
+        <div className="mt-4 overflow-hidden rounded-md border border-border bg-background">
+          {form.seo_image_url ? (
+            <img
+              src={form.seo_image_url}
+              alt=""
+              aria-hidden="true"
+              className="aspect-[1.91/1] w-full object-cover"
+            />
+          ) : (
+            <div className="aspect-[1.91/1] bg-muted" />
+          )}
+          <div className="p-3">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Social share</div>
+            <div className="mt-1 line-clamp-2 text-sm font-medium">{form.seo_title}</div>
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{form.seo_description}</p>
+          </div>
+        </div>
       </aside>
     </div>
   );

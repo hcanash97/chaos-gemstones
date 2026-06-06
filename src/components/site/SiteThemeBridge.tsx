@@ -16,7 +16,34 @@ export function SiteThemeBridge() {
     }
   }, [theme.accent_color]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.title = theme.seo_title;
+    setMeta("name", "description", theme.seo_description);
+    setMeta("property", "og:site_name", theme.site_name.toUpperCase());
+    setMeta("property", "og:title", theme.seo_title);
+    setMeta("property", "og:description", theme.seo_description);
+    setMeta("name", "twitter:title", theme.seo_title);
+    setMeta("name", "twitter:description", theme.seo_description);
+    if (theme.seo_image_url) {
+      setMeta("property", "og:image", theme.seo_image_url);
+      setMeta("name", "twitter:image", theme.seo_image_url);
+    }
+    setMeta("name", "theme-color", theme.accent_color);
+  }, [theme.accent_color, theme.seo_description, theme.seo_image_url, theme.seo_title, theme.site_name]);
+
   return null;
+}
+
+function setMeta(attribute: "name" | "property", key: string, content: string) {
+  const selector = `meta[${attribute}="${key}"]`;
+  let tag = document.head.querySelector<HTMLMetaElement>(selector);
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.setAttribute(attribute, key);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute("content", content);
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {

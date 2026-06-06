@@ -16,6 +16,9 @@ export interface SiteThemeSettings {
   instagram_url: string;
   footer_tagline: string;
   footer_notice: string;
+  seo_title: string;
+  seo_description: string;
+  seo_image_url: string;
   homepage_layout: HomepageLayoutBlock[];
   homepage_copy: HomepageSectionCopy;
 }
@@ -123,6 +126,9 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   instagram_url: "https://www.instagram.com/chaosgemstonemarket",
   footer_tagline: "The global marketplace for independent gemstone dealers.",
   footer_notice: "All prices shown are wholesale USD. CHAOS is a B2B platform for verified trade professionals only.",
+  seo_title: "CHAOS — Gemstone & Diamond Marketplace",
+  seo_description: "The global B2B marketplace for independent gemstone and diamond dealers.",
+  seo_image_url: "https://chaosgemstones.com/icons/icon-512.png",
   homepage_layout: DEFAULT_HOMEPAGE_LAYOUT,
   homepage_copy: DEFAULT_HOMEPAGE_COPY,
 };
@@ -151,6 +157,9 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
     instagram_url: stringOrDefault(raw.instagram_url, DEFAULT_SITE_THEME.instagram_url),
     footer_tagline: stringOrDefault(raw.footer_tagline, DEFAULT_SITE_THEME.footer_tagline),
     footer_notice: stringOrDefault(raw.footer_notice, DEFAULT_SITE_THEME.footer_notice),
+    seo_title: stringOrDefault(raw.seo_title, DEFAULT_SITE_THEME.seo_title),
+    seo_description: stringOrDefault(raw.seo_description, DEFAULT_SITE_THEME.seo_description),
+    seo_image_url: stringOrDefault(raw.seo_image_url, DEFAULT_SITE_THEME.seo_image_url),
     homepage_layout: normalizeHomepageLayout(raw.homepage_layout),
     homepage_copy: normalizeHomepageCopy(raw.homepage_copy),
   };
