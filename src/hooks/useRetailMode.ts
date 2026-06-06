@@ -7,7 +7,12 @@ export function useRetailMode() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setRetailModeState(window.localStorage.getItem(KEY) === "1");
+    const retailFromUrl = new URLSearchParams(window.location.search).get("retail") === "1";
+    const enabled = retailFromUrl || window.localStorage.getItem(KEY) === "1";
+    setRetailModeState(enabled);
+    if (retailFromUrl) {
+      window.localStorage.setItem(KEY, "1");
+    }
   }, []);
 
   function setRetailMode(next: boolean) {

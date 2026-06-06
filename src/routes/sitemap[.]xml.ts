@@ -8,6 +8,7 @@ const BASE_URL = "https://chaosgemstones.com";
 const STATIC_ROUTES: Array<{ path: string; priority: string; changefreq: string }> = [
   { path: "/", priority: "1.0", changefreq: "daily" },
   { path: "/marketplace", priority: "0.9", changefreq: "hourly" },
+  { path: "/retail", priority: "0.8", changefreq: "weekly" },
   ...SEO_MARKETPLACE_PAGES.map((page) => ({
     path: `/marketplace/${page.slug}`,
     priority: page.audience === "dealers" ? "0.8" : "0.75",

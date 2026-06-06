@@ -60,6 +60,7 @@ export function SiteHeader() {
   }, [menuOpen]);
   const navLinks: { to: string; label: string }[] = [
     { to: "/marketplace", label: "Marketplace" },
+    { to: "/retail", label: "Retail" },
     { to: "/requests", label: "Requests" },
     { to: "/vendors", label: "Vendors" },
     { to: "/jewellers", label: "Jewellers" },
@@ -244,6 +245,7 @@ export function SiteFooter() {
             <div className="text-xs uppercase tracking-[0.2em] opacity-60">Platform</div>
             <ul className="mt-3 space-y-2 text-sm">
               <li><Link to="/marketplace" className="opacity-80 hover:opacity-100">Marketplace</Link></li>
+              <li><Link to="/retail" className="opacity-80 hover:opacity-100">Retail showroom</Link></li>
               <li><Link to="/vendors" className="opacity-80 hover:opacity-100">Vendors</Link></li>
               <li><Link to="/about" className="opacity-80 hover:opacity-100">About</Link></li>
               <li><Link to="/faq" className="opacity-80 hover:opacity-100">FAQ</Link></li>

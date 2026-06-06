@@ -224,14 +224,29 @@ function slugify(s: string) {
 }
 
 async function uploadImage(file: File, userId: string, prefix: string): Promise<string | null> {
-  const ext = file.name.split(".").pop() || "jpg";
-  const path = `${prefix}/${userId}-${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from("stone-images").upload(path, file, { upsert: true, contentType: file.type });
+  if (!file.type.startsWith("image/")) {
+    toast.error("Please choose an image file.");
+    return null;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error("Profile images must be under 5MB.");
+    return null;
+  }
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const safePrefix = prefix.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  const path = `${userId}/${safePrefix}/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("stone-images").upload(path, file, {
+    upsert: true,
+    contentType: file.type,
+    cacheControl: "31536000",
+  });
   if (error) {
     toast.error(error.message);
     return null;
   }
   const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
+  toast.success("Image uploaded");
   return data.publicUrl;
 }
 
@@ -303,7 +318,7 @@ function JewellerPublicProfileForm({ userId }: { userId: string }) {
       <div className="mt-5 space-y-4">
         <div className="flex items-center gap-4">
           {form.logo_url ? (
-            <img src={form.logo_url} alt="" className="h-16 w-16 rounded-full border-2 border-[var(--color-gold)] object-cover" />
+            <img src={form.logo_url} alt="Jeweller profile logo" className="h-16 w-16 rounded-full border-2 border-[var(--color-gold)] object-cover" />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-border bg-muted text-xs text-muted-foreground">No logo</div>
           )}
@@ -439,7 +454,7 @@ function DealerPublicProfileForm({ userId }: { userId: string }) {
       <div className="mt-5 space-y-4">
         <div className="flex items-center gap-4">
           {form.logo_url ? (
-            <img src={form.logo_url} alt="" className="h-16 w-16 rounded-full border-2 border-[var(--color-gold)] object-cover" />
+            <img src={form.logo_url} alt="Dealer profile logo" className="h-16 w-16 rounded-full border-2 border-[var(--color-gold)] object-cover" />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-border bg-muted text-xs text-muted-foreground">No logo</div>
           )}
@@ -451,7 +466,7 @@ function DealerPublicProfileForm({ userId }: { userId: string }) {
         <div>
           <Label>Cover image</Label>
           {form.cover_image_url && (
-            <img src={form.cover_image_url} alt="" className="mt-2 h-32 w-full rounded-md border border-border object-cover" />
+            <img src={form.cover_image_url} alt="Dealer profile cover image" className="mt-2 h-32 w-full rounded-md border border-border object-cover" />
           )}
           <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
             <Upload className="h-4 w-4" /> {form.cover_image_url ? "Replace" : "Upload"} cover
