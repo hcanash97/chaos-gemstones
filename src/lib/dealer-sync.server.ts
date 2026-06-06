@@ -240,16 +240,33 @@ function withStoneDefaults(data: Record<string, unknown>): Record<string, unknow
   };
 }
 
+function isMissingImportIdentityColumn(error: unknown) {
+  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  const text = `${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`;
+  return err?.code === "42703" || /external_sync_key|source_stock_no|schema cache/i.test(text);
+}
+
 async function fetchAllExistingDealerStones(dealerId: string): Promise<ExistingStoneRef[]> {
   const rows: ExistingStoneRef[] = [];
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from("stones")
       .select("id, cert_number, external_sync_key, source_stock_no, updated_at, created_at")
       .eq("dealer_id", dealerId)
       .order("updated_at", { ascending: false, nullsFirst: false })
       .range(from, from + pageSize - 1);
+
+    if (error && isMissingImportIdentityColumn(error)) {
+      const fallback = await supabaseAdmin
+        .from("stones")
+        .select("id, cert_number, updated_at, created_at")
+        .eq("dealer_id", dealerId)
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .range(from, from + pageSize - 1);
+      data = fallback.data as typeof data;
+      error = fallback.error;
+    }
 
     if (error) throw new Error(`Could not load existing inventory for duplicate detection: ${error.message}`);
     const page = (data ?? []) as ExistingStoneRef[];

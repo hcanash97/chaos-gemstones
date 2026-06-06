@@ -5,6 +5,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateApiKey, sha256 } from "@/lib/api-keys";
 import { runDealerSyncForUser } from "@/lib/dealer-sync.server";
 
+function isMissingImportIdentityColumn(error: unknown) {
+  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  const text = `${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`;
+  return err?.code === "42703" || /external_sync_key|source_stock_no|schema cache/i.test(text);
+}
+
 async function ensureApprovedDealer(supabase: any, userId: string) {
   const { data: profile } = await supabase
     .from("profiles")
@@ -134,15 +140,25 @@ export const clearDealerImportedInventory = createServerFn({ method: "POST" })
 
     let deleted = 0;
     const batchSize = 200;
+    let useImportIdentityColumns = true;
 
     for (;;) {
-      const { data: rows, error: selectError } = await supabaseAdmin
+      let selectQuery = supabaseAdmin
         .from("stones")
         .select("id")
         .eq("dealer_id", userId)
-        .or("external_sync_key.not.is.null,notes_for_buyers.ilike.Stock ref:%")
         .limit(batchSize);
 
+      selectQuery = useImportIdentityColumns
+        ? selectQuery.or("external_sync_key.not.is.null,notes_for_buyers.ilike.Stock ref:%")
+        : selectQuery.ilike("notes_for_buyers", "Stock ref:%");
+
+      const { data: rows, error: selectError } = await selectQuery;
+
+      if (selectError && useImportIdentityColumns && isMissingImportIdentityColumn(selectError)) {
+        useImportIdentityColumns = false;
+        continue;
+      }
       if (selectError) throw new Error(selectError.message);
       const ids = (rows ?? []).map((row: any) => row.id).filter(Boolean);
       if (!ids.length) break;
@@ -151,7 +167,6 @@ export const clearDealerImportedInventory = createServerFn({ method: "POST" })
         .from("stones")
         .delete()
         .eq("dealer_id", userId)
-        .or("external_sync_key.not.is.null,notes_for_buyers.ilike.Stock ref:%")
         .in("id", ids);
 
       if (deleteError) throw new Error(deleteError.message);

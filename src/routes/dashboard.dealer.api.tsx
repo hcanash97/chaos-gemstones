@@ -356,11 +356,11 @@ function DealerApiPage() {
         </Link>
       </div>
 
-      <section className="rounded-md border border-border bg-card p-5">
-        <div className="flex items-center justify-between gap-3">
+      <section className="rounded-md border border-border bg-card p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Your write API key</div>
-            <div className="mt-1 break-all font-mono text-sm">
+            <div className="mt-2 max-w-full overflow-hidden break-all rounded-md bg-muted/30 px-2 py-1 font-mono text-xs sm:text-sm">
               {revealed ?? (activeKey ? `${activeKey.key_prefix ?? "chaos_"}${"•".repeat(40)}` : "No key yet")}
             </div>
             {activeKey?.last_used_at && (
@@ -369,20 +369,20 @@ function DealerApiPage() {
               </div>
             )}
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
             {revealed && (
               <>
-                <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(revealed); toast.success("Copied"); }}>
+                <Button className="flex-1 sm:flex-none" size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(revealed); toast.success("Copied"); }}>
                   <Copy className="mr-1 h-3 w-3" /> Copy
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setRevealed(null)}>
+                <Button className="flex-1 sm:flex-none" size="sm" variant="ghost" onClick={() => setRevealed(null)}>
                   <EyeOff className="mr-1 h-3 w-3" />
                 </Button>
               </>
             )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+                <Button size="sm" className="flex-1 bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90 sm:flex-none">
                   <RefreshCw className="mr-1 h-3 w-3" /> {activeKey ? "Regenerate" : "Generate"}
                 </Button>
               </AlertDialogTrigger>

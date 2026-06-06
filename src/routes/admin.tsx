@@ -264,9 +264,9 @@ function AdminPage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="mx-auto max-w-7xl overflow-hidden px-4 py-8 sm:px-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
             <h1 className="font-serif text-3xl text-foreground">Account approvals</h1>
             <p className="text-sm text-muted-foreground">
               Approve new dealers and jewellers so they can access their dashboards.
@@ -275,43 +275,45 @@ function AdminPage() {
               → CSV import sandbox (dry run)
             </Link>
           </div>
-          <div className="flex gap-1 rounded-md border border-border p-1 text-sm">
+          <div className="max-w-full overflow-x-auto rounded-md border border-border p-1 text-sm [-webkit-overflow-scrolling:touch]">
+            <div className="flex min-w-max gap-1">
             <button
               onClick={() => setTab("stats")}
-              className={`rounded px-3 py-1 ${tab === "stats" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "stats" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
               Stats
             </button>
             <button
               onClick={() => setTab("pending")}
-              className={`rounded px-3 py-1 ${tab === "pending" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "pending" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
               Pending{pendingCount !== null ? ` (${pendingCount})` : ""}
             </button>
             <button
               onClick={() => setTab("all")}
-              className={`rounded px-3 py-1 ${tab === "all" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "all" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
               All accounts
             </button>
             <button
               onClick={() => setTab("reports")}
-              className={`rounded px-3 py-1 ${tab === "reports" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "reports" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
               Reports
             </button>
             <button
               onClick={() => setTab("fees")}
-              className={`rounded px-3 py-1 ${tab === "fees" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "fees" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
               Fees
             </button>
             <button
               onClick={() => setTab("referrals")}
-              className={`rounded px-3 py-1 ${tab === "referrals" ? "bg-foreground text-background" : "text-muted-foreground"}`}
+              className={`shrink-0 rounded px-3 py-1 ${tab === "referrals" ? "bg-foreground text-background" : "text-muted-foreground"}`}
             >
               Referrals
             </button>
+            </div>
           </div>
         </div>
 
@@ -401,13 +403,13 @@ function AdminPage() {
             </div>
           )}
 
-        <div className="mt-3 overflow-hidden rounded-lg border border-border bg-card">
+        <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-card [-webkit-overflow-scrolling:touch]">
           {visibleRows.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               {tab === "pending" ? "No accounts awaiting approval." : "No accounts yet."}
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[980px] text-sm">
               <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-3 py-3 w-8">
@@ -622,12 +624,12 @@ function ReferralsPanel() {
         <Stat label="GBP credits issued" value={`£${totalGbp.toLocaleString()}`} />
       </div>
 
-      <div className="rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card [-webkit-overflow-scrolling:touch]">
         <div className="border-b border-border p-4 text-sm font-medium">Top referrers</div>
         {leaders.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">No referral credits yet.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-2">User</th>
@@ -662,11 +664,11 @@ function ReferralsPanel() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card [-webkit-overflow-scrolling:touch]">
         {filtered.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">No credits to show.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-2">Beneficiary</th>
@@ -888,14 +890,14 @@ function FeesPanel() {
         <SummaryCard label="Total all-time" value={fmt(sum(rows))} sub={`${rows.length} orders`} />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card [-webkit-overflow-scrolling:touch]">
         <div className="border-b border-border px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">
           By jeweller
         </div>
         {byJeweller.size === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">No fees recorded yet.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[680px] text-sm">
             <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Jeweller</th>
@@ -923,11 +925,11 @@ function FeesPanel() {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card [-webkit-overflow-scrolling:touch]">
         <div className="border-b border-border px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">
           All fee-bearing orders
         </div>
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[920px] text-sm">
           <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Received</th>
@@ -1058,7 +1060,7 @@ function ReportsPanel() {
 
   return (
     <div className="mt-6">
-      <div className="mb-3 flex gap-1 rounded-md border border-border p-1 text-xs w-fit">
+      <div className="mb-3 flex w-fit max-w-full gap-1 overflow-x-auto rounded-md border border-border p-1 text-xs [-webkit-overflow-scrolling:touch]">
         {(["open", "all"] as const).map((f) => (
           <button
             key={f}
@@ -1069,13 +1071,13 @@ function ReportsPanel() {
           </button>
         ))}
       </div>
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card [-webkit-overflow-scrolling:touch]">
         {loading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">No reports{filter === "open" ? " open" : ""}.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Stone</th>
