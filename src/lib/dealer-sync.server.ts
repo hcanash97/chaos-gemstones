@@ -7,7 +7,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
 import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
 import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
-import { safeFetch, assertSafeUrl } from "@/lib/safe-fetch.server";
 
 const SYNC_BATCH_SIZE = 200;
 const MAX_STORED_DIAGNOSTICS = 250;
@@ -38,7 +37,27 @@ type SyncCandidate = {
 };
 
 function assertSafeFeedUrl(urlStr: string): void {
-  assertSafeUrl(urlStr);
+  const target = new URL(urlStr);
+  if (target.protocol !== "https:" && target.protocol !== "http:") {
+    throw new Error("Only http(s) URLs are supported");
+  }
+  const host = target.hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host === "::1" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    host.startsWith("10.") ||
+    host.startsWith("192.168.") ||
+    /^169\.254\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+    /^fd[0-9a-f]{2}:/i.test(host) ||
+    /^fe80:/i.test(host)
+  ) {
+    throw new Error("Private or local hosts are not allowed");
+  }
 }
 
 function parseCsv(text: string): Array<Record<string, string>> {
@@ -89,6 +108,19 @@ function stockRef(raw: Record<string, unknown>): string | null {
     cleanString(raw.sku) ??
     cleanString(raw.ref) ??
     cleanString(raw.id)
+  );
+}
+
+function certRef(raw: Record<string, unknown>, payload: Record<string, unknown>): string | null {
+  return (
+    cleanString(payload.cert_number) ??
+    cleanString(raw.reportNo) ??
+    cleanString(raw.report_no) ??
+    cleanString(raw.reportNumber) ??
+    cleanString(raw.certNo) ??
+    cleanString(raw.certNumber) ??
+    cleanString(raw.certificateNo) ??
+    cleanString(raw.certificateNumber)
   );
 }
 
@@ -170,14 +202,13 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         "User-Agent": "Chaos-Feed-Importer/1.0",
         Accept: "application/json, text/csv, */*;q=0.5",
       },
+      redirect: "follow",
     };
     if (method === "POST" && dealerRow.external_feed_body) {
       (init.headers as Record<string, string>)["Content-Type"] = "application/json";
       init.body = dealerRow.external_feed_body;
     }
-    // safeFetch validates each redirect hop to prevent SSRF via attacker
-    // controlled Location headers (e.g. → 169.254.169.254 metadata).
-    const res = await safeFetch(dealerRow.external_feed_url, init);
+    const res = await fetch(dealerRow.external_feed_url, init);
     if (!res.ok) {
       throw new Error(
         `Source returned HTTP ${res.status} when Chaos tried ${method} ${dealerRow.external_feed_url}. HTTP 405 usually means the feed only accepts a different request method, for example POST instead of GET. Save the sync settings, then try again.`,
@@ -272,6 +303,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     const candidatesByCert = new Map<string, SyncCandidate>();
     const seenCerts = new Set<string>();
     let cityFromFeed: string | undefined;
+    let missingCertFallbackCount = 0;
 
     rows.forEach((raw, idx) => {
       const sourceRow = raw as Record<string, unknown>;
@@ -301,16 +333,19 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         payload[k] = coerced;
       }
 
-      const originalCert = cleanString(payload.cert_number);
+      const originalCert = certRef(sourceRow, payload);
       if (!originalCert) {
         const fallback = stockNo ? `stock:${stockNo}` : `feed-row:${rowNumber}`;
         payload.cert_number = fallback;
-        diagnostics.push(diagnostic("warning", `Missing report/cert number. Using "${fallback}" as the sync key so the row can still be safely upserted.`, {
-          row: rowNumber,
-          stockNo,
-          certNumber: fallback,
-          field: "cert_number",
-        }));
+        missingCertFallbackCount += 1;
+        if (missingCertFallbackCount <= 20) {
+          diagnostics.push(diagnostic("warning", `Nancy/Kodllin did not provide a value in its report number fields for this stone. Chaos used "${fallback}" as the private sync key. The stone can still import, but the public certificate/report number will be blank unless Nancy provides one.`, {
+            row: rowNumber,
+            stockNo,
+            certNumber: fallback,
+            field: "cert_number",
+          }));
+        }
       } else {
         payload.cert_number = originalCert;
       }
@@ -357,6 +392,11 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     });
 
     const candidates = Array.from(candidatesByCert.values());
+    if (missingCertFallbackCount > 20) {
+      diagnostics.push(diagnostic("warning", `${missingCertFallbackCount} stones had no Nancy/Kodllin report number, so Chaos used stock numbers as private sync keys. Showing the first 20 examples only to keep this log readable.`, {
+        field: "cert_number",
+      }));
+    }
     let created = 0;
     let updated = 0;
     const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];

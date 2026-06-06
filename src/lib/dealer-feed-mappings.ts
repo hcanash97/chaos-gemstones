@@ -5,8 +5,6 @@
 // plus a preset name we can show in the UI ("Kodllin / Nancy Diamond format",
 // "Custom mapping", etc.).
 
-import { FIELD_MAP, resolveFieldKey } from "@/lib/import-fields";
-
 export type MappedRow = {
   stone: Record<string, unknown>;
   image_url?: string;
@@ -37,87 +35,6 @@ function titleCase(str: string): string {
     .join(" ");
 }
 
-function normaliseGrade(value: unknown): string | undefined {
-  const raw = s(value);
-  if (!raw) return undefined;
-  const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const map: Record<string, string> = {
-    EX: "Excellent",
-    EXC: "Excellent",
-    EXCELLENT: "Excellent",
-    VG: "Very Good",
-    VGOOD: "Very Good",
-    VERYGOOD: "Very Good",
-    G: "Good",
-    GD: "Good",
-    GOOD: "Good",
-    F: "Fair",
-    FAIR: "Fair",
-    P: "Poor",
-    POOR: "Poor",
-    N: "None",
-    NON: "None",
-    NONE: "None",
-    NIL: "None",
-    MED: "Medium",
-    MEDIUM: "Medium",
-    STG: "Strong",
-    STRONG: "Strong",
-    VST: "Very Strong",
-    VERYSTRONG: "Very Strong",
-  };
-  return map[compact] ?? raw;
-}
-
-function fancyHueFromColour(value: unknown): string | undefined {
-  const raw = s(value);
-  if (!raw) return undefined;
-  const compact = raw.toUpperCase().replace(/[^A-Z]/g, "");
-  if (/^[DEFGHIJKLMN]$/.test(compact) || compact === "OP" || compact === "N" || compact === "NZ") return undefined;
-  const hues = [
-    "YELLOW",
-    "ORANGE",
-    "PINK",
-    "BLUE",
-    "GREEN",
-    "RED",
-    "BROWN",
-    "GREY",
-    "GRAY",
-    "BLACK",
-    "CHAMPAGNE",
-    "COGNAC",
-    "CHAMELEON",
-    "VIOLET",
-    "PURPLE",
-  ];
-  const found = hues.find((hue) => compact.includes(hue));
-  if (!found) return undefined;
-  return titleCase(found === "GRAY" ? "Grey" : found);
-}
-
-function normaliseLab(value: unknown): string | undefined {
-  const raw = s(value);
-  if (!raw) return undefined;
-  const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (["NA", "NONE", "NO", "NULL", "NIL", "NON", "UNCERTIFIED", "NONCERTIFIED", "NOCERT", "NOCERTIFICATE"].includes(compact)) {
-    return undefined;
-  }
-  if (compact.includes("IGI")) return "IGI";
-  if (compact.includes("GIA")) return "GIA";
-  if (compact.includes("HRD")) return "HRD";
-  if (compact.includes("GCAL")) return "GCAL";
-  if (compact.includes("AGS")) return "AGS";
-  if (compact.includes("EGL")) return "EGL";
-  if (compact.includes("GRS")) return "GRS";
-  if (compact.includes("SSEF")) return "SSEF";
-  if (compact.includes("GUBELIN") || compact.includes("GUEBELIN")) return "Gübelin";
-  if (compact.includes("AGL")) return "AGL";
-  if (compact.includes("LOTUS")) return "Lotus";
-  if (compact.includes("GIT")) return "GIT";
-  return raw;
-}
-
 function parseMeasurements(value: unknown): {
   measurements_length?: number;
   measurements_width?: number;
@@ -142,7 +59,7 @@ const KODLLIN: FeedPreset = {
     const stone: Record<string, unknown> = {};
 
     // Nancy Diamond / Kodllin only returns lab-grown diamonds.
-    stone.stone_type = "diamond";
+    stone.stone_type = "Diamond";
     // Kodllin feeds are quoted in USD.
     stone.price_currency = "USD";
 
@@ -166,59 +83,34 @@ const KODLLIN: FeedPreset = {
     const map: Array<[string, string]> = [
       ["color", "colour_grade"],
       ["clarity", "clarity_grade"],
+      ["cut", "cut_grade"],
+      ["polish", "polish"],
+      ["symmetry", "symmetry"],
+      ["fluorescenceIntensity", "fluorescence"],
       ["fluorescenceColor", "fluorescence_colour"],
       ["shade", "shade"],
       ["milky", "milky"],
+      ["lab", "cert_lab"],
       ["reportNo", "cert_number"],
       ["report_no", "cert_number"],
       ["reportNumber", "cert_number"],
-      ["report_number", "cert_number"],
       ["certNo", "cert_number"],
       ["certNumber", "cert_number"],
-      ["cert_no", "cert_number"],
-      ["cert_number", "cert_number"],
       ["certificateNo", "cert_number"],
       ["certificateNumber", "cert_number"],
-      ["certificate_no", "cert_number"],
-      ["certificate_number", "cert_number"],
       ["treatment", "treatment"],
       ["culetSize", "culet_size"],
       ["culetCondition", "culet_condition"],
       ["blackInclusion", "black_inclusion"],
+      ["fancyColor", "colour_hue"],
+      ["fancyColorIntensity", "colour_saturation"],
+      ["fancyColorOvertone", "colour_tone"],
       ["country", "country_of_origin"],
     ];
     for (const [src, dst] of map) {
       const v = s(row[src]);
       if (v) stone[dst] = v;
     }
-
-    const cut = normaliseGrade(row.cut);
-    if (cut) stone.cut_grade = cut;
-    const polish = normaliseGrade(row.polish);
-    if (polish) stone.polish = polish;
-    const symmetry = normaliseGrade(row.symmetry);
-    if (symmetry) stone.symmetry = symmetry;
-    const fluorescence = normaliseGrade(row.fluorescenceIntensity);
-    if (fluorescence) stone.fluorescence = fluorescence;
-
-    const hueFromColour = fancyHueFromColour(row.color);
-    if (hueFromColour) stone.colour_hue = hueFromColour;
-
-    const lab =
-      normaliseLab(row.lab) ??
-      normaliseLab(row.certLab) ??
-      normaliseLab(row.certificateLab) ??
-      normaliseLab(row.gradingLab) ??
-      normaliseLab(row.grading_lab);
-    if (lab) stone.cert_lab = lab;
-    else if (s(stone.cert_number).toUpperCase().startsWith("LG")) stone.cert_lab = "IGI";
-
-    const fancyColor = s(row.fancyColor);
-    if (fancyColor) stone.colour_hue = titleCase(fancyColor);
-    const fancyIntensity = s(row.fancyColorIntensity);
-    if (fancyIntensity) stone.colour_saturation = titleCase(fancyIntensity);
-    const fancyOvertone = s(row.fancyColorOvertone);
-    if (fancyOvertone) stone.colour_tone = titleCase(fancyOvertone);
 
     const eye = s(row.eyeClean);
     if (eye) stone.eye_clean = eye.toUpperCase() === "EC" ? "Yes" : eye;
@@ -230,8 +122,8 @@ const KODLLIN: FeedPreset = {
     if (ratio !== undefined) stone.lw_ratio = ratio;
 
     const growth = s(row.growthType).toUpperCase();
-    if (growth === "CVD" || growth === "HPHT") stone.origin = "lab-grown";
-    else if ("growthType" in row) stone.origin = "natural";
+    if (growth === "CVD" || growth === "HPHT") stone.origin = "Lab-grown";
+    else if ("growthType" in row) stone.origin = "Natural";
 
     const depth = n(row.depth);
     if (depth !== undefined) stone.depth_pct = depth;
@@ -310,17 +202,6 @@ export function detectPreset(rows: Array<Record<string, unknown>>): FeedPreset |
  */
 export function mapRow(row: Record<string, unknown>, preset: FeedPreset | null): MappedRow {
   if (preset) return preset.map(row);
-  const stone: Record<string, unknown> = {};
-  let image_url: string | undefined;
-  for (const [sourceKey, value] of Object.entries(row)) {
-    const targetKey = resolveFieldKey(sourceKey);
-    if (targetKey === "__skip__") continue;
-    const field = FIELD_MAP[targetKey];
-    if (field?.virtual && targetKey === "image_url") {
-      image_url = value === undefined || value === null ? undefined : String(value).trim() || undefined;
-      continue;
-    }
-    stone[targetKey] = value;
-  }
-  return { stone, image_url };
+  // Identity passthrough — assume already-Chaos shape.
+  return { stone: row };
 }
