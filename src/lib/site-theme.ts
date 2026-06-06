@@ -1,4 +1,5 @@
 export interface SiteThemeSettings {
+  site_name: string;
   logo_url: string;
   accent_color: string;
   hero_title: string;
@@ -6,7 +7,15 @@ export interface SiteThemeSettings {
   hero_badge_label: string;
   hero_background_image_url: string;
   hero_overlay_opacity: number;
+  hero_primary_cta_label: string;
+  hero_primary_cta_url: string;
+  hero_secondary_cta_label: string;
+  hero_secondary_cta_url: string;
   contact_whatsapp: string;
+  contact_email: string;
+  instagram_url: string;
+  footer_tagline: string;
+  footer_notice: string;
   homepage_layout: HomepageLayoutBlock[];
   homepage_copy: HomepageSectionCopy;
 }
@@ -96,6 +105,7 @@ export const DEFAULT_HOMEPAGE_COPY: HomepageSectionCopy = {
 };
 
 export const DEFAULT_SITE_THEME: SiteThemeSettings = {
+  site_name: "Chaos",
   logo_url: "",
   accent_color: "#E8C97A",
   hero_title: "Verified diamonds & coloured stones, sourced direct from the world's dealers.",
@@ -104,7 +114,15 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   hero_badge_label: "B2B · For the trade",
   hero_background_image_url: "",
   hero_overlay_opacity: 0.62,
+  hero_primary_cta_label: "Browse marketplace",
+  hero_primary_cta_url: "/marketplace",
+  hero_secondary_cta_label: "Sign up",
+  hero_secondary_cta_url: "/sign-up",
   contact_whatsapp: "",
+  contact_email: "",
+  instagram_url: "https://www.instagram.com/chaosgemstonemarket",
+  footer_tagline: "The global marketplace for independent gemstone dealers.",
+  footer_notice: "All prices shown are wholesale USD. CHAOS is a B2B platform for verified trade professionals only.",
   homepage_layout: DEFAULT_HOMEPAGE_LAYOUT,
   homepage_copy: DEFAULT_HOMEPAGE_COPY,
 };
@@ -112,6 +130,7 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
 export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
   const raw = typeof value === "object" && value !== null ? (value as Partial<SiteThemeSettings>) : {};
   return {
+    site_name: stringOrDefault(raw.site_name, DEFAULT_SITE_THEME.site_name),
     logo_url: typeof raw.logo_url === "string" ? raw.logo_url : DEFAULT_SITE_THEME.logo_url,
     accent_color: isHexColor(raw.accent_color) ? raw.accent_color : DEFAULT_SITE_THEME.accent_color,
     hero_title: typeof raw.hero_title === "string" && raw.hero_title.trim() ? raw.hero_title : DEFAULT_SITE_THEME.hero_title,
@@ -123,7 +142,15 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
     hero_background_image_url:
       typeof raw.hero_background_image_url === "string" ? raw.hero_background_image_url : DEFAULT_SITE_THEME.hero_background_image_url,
     hero_overlay_opacity: normalizeOverlayOpacity(raw.hero_overlay_opacity),
+    hero_primary_cta_label: stringOrDefault(raw.hero_primary_cta_label, DEFAULT_SITE_THEME.hero_primary_cta_label),
+    hero_primary_cta_url: stringOrDefault(raw.hero_primary_cta_url, DEFAULT_SITE_THEME.hero_primary_cta_url),
+    hero_secondary_cta_label: stringOrDefault(raw.hero_secondary_cta_label, DEFAULT_SITE_THEME.hero_secondary_cta_label),
+    hero_secondary_cta_url: stringOrDefault(raw.hero_secondary_cta_url, DEFAULT_SITE_THEME.hero_secondary_cta_url),
     contact_whatsapp: typeof raw.contact_whatsapp === "string" ? raw.contact_whatsapp : DEFAULT_SITE_THEME.contact_whatsapp,
+    contact_email: typeof raw.contact_email === "string" ? raw.contact_email : DEFAULT_SITE_THEME.contact_email,
+    instagram_url: stringOrDefault(raw.instagram_url, DEFAULT_SITE_THEME.instagram_url),
+    footer_tagline: stringOrDefault(raw.footer_tagline, DEFAULT_SITE_THEME.footer_tagline),
+    footer_notice: stringOrDefault(raw.footer_notice, DEFAULT_SITE_THEME.footer_notice),
     homepage_layout: normalizeHomepageLayout(raw.homepage_layout),
     homepage_copy: normalizeHomepageCopy(raw.homepage_copy),
   };

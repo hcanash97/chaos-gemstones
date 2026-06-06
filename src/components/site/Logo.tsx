@@ -24,12 +24,14 @@ export function Logo({
   to = "/",
   tone = "default",
   imageUrl = "",
+  brandName = "CHAOS",
 }: {
   size?: "sm" | "md" | "lg";
   withTagline?: boolean;
   to?: string;
   tone?: "default" | "inverted";
   imageUrl?: string;
+  brandName?: string;
 }) {
   const text =
     size === "lg"
@@ -58,7 +60,7 @@ export function Logo({
         )}
       </span>
       <span className={`font-serif italic font-medium tracking-tight ${text} ${color}`}>
-        CHAOS
+        {brandName}
       </span>
       {withTagline && (
         <span className="hidden text-[10px] uppercase tracking-[0.2em] text-muted-foreground sm:inline">

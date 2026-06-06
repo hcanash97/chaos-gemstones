@@ -712,6 +712,17 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
 
         <div className="mt-6 space-y-5">
           <div>
+            <Label htmlFor="theme-site-name">Site name</Label>
+            <Input
+              id="theme-site-name"
+              value={form.site_name}
+              onChange={(e) => setField("site_name", e.target.value)}
+              placeholder="Chaos"
+              className="mt-1.5"
+            />
+          </div>
+
+          <div>
             <Label htmlFor="theme-logo">Logo URL</Label>
             <Input
               id="theme-logo"
@@ -816,6 +827,53 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
             />
           </div>
 
+          <div className="grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label>Hero buttons</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Control the main calls to action in the homepage hero.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="theme-primary-cta-label">Primary button label</Label>
+              <Input
+                id="theme-primary-cta-label"
+                value={form.hero_primary_cta_label}
+                onChange={(e) => setField("hero_primary_cta_label", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-primary-cta-url">Primary button URL</Label>
+              <Input
+                id="theme-primary-cta-url"
+                value={form.hero_primary_cta_url}
+                onChange={(e) => setField("hero_primary_cta_url", e.target.value)}
+                placeholder="/marketplace"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-secondary-cta-label">Secondary button label</Label>
+              <Input
+                id="theme-secondary-cta-label"
+                value={form.hero_secondary_cta_label}
+                onChange={(e) => setField("hero_secondary_cta_label", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-secondary-cta-url">Secondary button URL</Label>
+              <Input
+                id="theme-secondary-cta-url"
+                value={form.hero_secondary_cta_url}
+                onChange={(e) => setField("hero_secondary_cta_url", e.target.value)}
+                placeholder="/sign-up"
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="theme-accent">Accent colour</Label>
@@ -842,6 +900,49 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                 value={form.contact_whatsapp}
                 onChange={(e) => setField("contact_whatsapp", e.target.value)}
                 placeholder="+44..."
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-email">Contact email</Label>
+              <Input
+                id="theme-email"
+                value={form.contact_email}
+                onChange={(e) => setField("contact_email", e.target.value)}
+                placeholder="hello@chaosgemstones.com"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-instagram">Instagram URL or handle</Label>
+              <Input
+                id="theme-instagram"
+                value={form.instagram_url}
+                onChange={(e) => setField("instagram_url", e.target.value)}
+                placeholder="https://www.instagram.com/chaosgemstonemarket"
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 rounded-md border border-border p-4">
+            <div>
+              <Label htmlFor="theme-footer-tagline">Footer tagline</Label>
+              <Textarea
+                id="theme-footer-tagline"
+                rows={2}
+                value={form.footer_tagline}
+                onChange={(e) => setField("footer_tagline", e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="theme-footer-notice">Footer notice</Label>
+              <Textarea
+                id="theme-footer-notice"
+                rows={2}
+                value={form.footer_notice}
+                onChange={(e) => setField("footer_notice", e.target.value)}
                 className="mt-1.5"
               />
             </div>
@@ -1029,9 +1130,10 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
             ) : (
               <div className="mb-4 h-10 w-10 rounded bg-white/10" />
             )}
+            <div className="mb-4 font-serif text-xl italic tracking-tight">{form.site_name.toUpperCase()}</div>
             <span
               className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
-              style={{ backgroundColor: form.accent_color, color: "#081236" }}
+              style={{ backgroundColor: form.accent_color, color: readableAccentText(form.accent_color) }}
             >
               {form.hero_badge_label}
             </span>
@@ -1040,9 +1142,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
             <button
               type="button"
               className="mt-5 rounded-md px-4 py-2 text-sm font-medium"
-              style={{ backgroundColor: form.accent_color, color: "#081236" }}
+              style={{ backgroundColor: form.accent_color, color: readableAccentText(form.accent_color) }}
             >
-              Browse marketplace
+              {form.hero_primary_cta_label}
             </button>
           </div>
         </div>
@@ -1052,6 +1154,16 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       </aside>
     </div>
   );
+}
+
+function readableAccentText(hex: string): "#081236" | "#FFFFFF" {
+  const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!match) return "#081236";
+  const r = parseInt(match[1], 16);
+  const g = parseInt(match[2], 16);
+  const b = parseInt(match[3], 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.58 ? "#081236" : "#FFFFFF";
 }
 
 function ReferralsPanel() {

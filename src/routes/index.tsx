@@ -262,7 +262,7 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           )}
           <Badge
             className="border-0"
-            style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+            style={{ backgroundColor: siteTheme.accent_color, color: "var(--color-gold-foreground)" }}
           >
             {siteTheme.hero_badge_label}
           </Badge>
@@ -284,26 +284,26 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.9 }}
         >
-          <Link to="/marketplace">
+          <a href={siteTheme.hero_primary_cta_url}>
             <Button
               size="lg"
               className="group relative overflow-hidden border-0 gold-glow transition-shadow hover:opacity-95"
-              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+              style={{ backgroundColor: siteTheme.accent_color, color: "var(--color-gold-foreground)" }}
             >
-              Browse marketplace <ArrowRight className="ml-2 h-4 w-4" />
+              {siteTheme.hero_primary_cta_label} <ArrowRight className="ml-2 h-4 w-4" />
               <span className="shimmer-overlay" aria-hidden />
             </Button>
-          </Link>
-          <Link to="/sign-up">
+          </a>
+          <a href={siteTheme.hero_secondary_cta_url}>
             <Button
               size="lg"
               variant="outline"
               className="bg-transparent transition-colors hover:bg-white/10"
               style={{ borderColor: siteTheme.accent_color, color: siteTheme.accent_color }}
             >
-              Sign up
+              {siteTheme.hero_secondary_cta_label}
             </Button>
-          </Link>
+          </a>
           {siteTheme.contact_whatsapp && (
             <a
               href={`https://wa.me/${siteTheme.contact_whatsapp.replace(/[^0-9]/g, "")}`}
@@ -417,7 +417,7 @@ function WhatsAppCtaSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEM
             <Button
               size="lg"
               className="w-full border-0 md:w-auto"
-              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+              style={{ backgroundColor: siteTheme.accent_color, color: "var(--color-gold-foreground)" }}
             >
               {siteTheme.homepage_copy.whatsapp_cta_button_label}
             </Button>

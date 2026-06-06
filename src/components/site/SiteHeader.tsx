@@ -81,7 +81,9 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <span className="logo-glow"><Logo imageUrl={theme.logo_url} /></span>
+        <span className="logo-glow">
+          <Logo imageUrl={theme.logo_url} brandName={theme.site_name.toUpperCase()} />
+        </span>
         <nav aria-label="Main navigation" className="hidden items-center gap-7 text-sm md:flex">
           {navLinks.map((l) => {
             const active = isActive(l.to);
@@ -153,7 +155,7 @@ export function SiteHeader() {
         <div className="absolute inset-0 bg-primary/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
         <aside id="mobile-nav-drawer" ref={drawerRef} className="absolute right-0 top-0 h-full w-80 max-w-[85%] bg-card shadow-2xl">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <span className="font-serif text-xl italic">CHAOS</span>
+            <span className="font-serif text-xl italic">{theme.site_name.toUpperCase()}</span>
             <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="inline-flex h-9 w-9 items-center justify-center">
               <X className="h-4 w-4" />
             </button>
@@ -248,12 +250,12 @@ export function SiteFooter() {
             ) : (
               <GemMark size={26} className="invert brightness-0 contrast-100" style={{ filter: "brightness(0) invert(1)" }} />
             )}
-            <span className="font-serif text-2xl italic font-medium tracking-tight">CHAOS</span>
+            <span className="font-serif text-2xl italic font-medium tracking-tight">{theme.site_name.toUpperCase()}</span>
           </div>
           <p className="mt-3 max-w-xs text-sm opacity-75">
-            The global marketplace for independent gemstone dealers.
+            {theme.footer_tagline}
           </p>
-          <p className="mt-5 text-xs opacity-60">© 2026 CHAOS. All rights reserved.</p>
+          <p className="mt-5 text-xs opacity-60">© 2026 {theme.site_name.toUpperCase()}. All rights reserved.</p>
         </div>
         <div className="grid grid-cols-2 gap-8 md:gap-12">
           <div>
@@ -290,20 +292,50 @@ export function SiteFooter() {
           <p className="mt-3 text-sm opacity-80">
             Jaipur · Surat · Bangkok · Colombo · Antwerp · New York
           </p>
-          <a
-            href="https://www.instagram.com/chaosgemstonemarket"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mt-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"
-          >
-            <Instagram className="h-4 w-4" />
-            @chaosgemstonemarket
-          </a>
+          {theme.instagram_url && (
+            <a
+              href={getInstagramHref(theme.instagram_url)}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-5 inline-flex items-center gap-2 text-sm opacity-80 hover:opacity-100"
+            >
+              <Instagram className="h-4 w-4" />
+              {formatInstagramLabel(theme.instagram_url)}
+            </a>
+          )}
+          {theme.contact_email && (
+            <a href={`mailto:${theme.contact_email}`} className="mt-3 block text-sm opacity-80 hover:opacity-100">
+              {theme.contact_email}
+            </a>
+          )}
         </div>
       </div>
       <div className="border-t border-[var(--gold-border)] py-4 text-center text-[11px] opacity-70 px-6">
-        All prices shown are wholesale USD. CHAOS is a B2B platform for verified trade professionals only.
+        {theme.footer_notice}
       </div>
     </footer>
   );
+}
+
+function formatInstagramLabel(url: string) {
+  const fallback = "@chaosgemstonemarket";
+  if (url.startsWith("@")) return url;
+  if (!url.includes("/") && !url.includes(".")) return `@${url}`;
+  try {
+    const parsed = new URL(url);
+    const handle = parsed.pathname.split("/").filter(Boolean)[0];
+    return handle ? `@${handle}` : fallback;
+  } catch {
+    return url.startsWith("@") ? url : fallback;
+  }
+}
+
+function getInstagramHref(value: string) {
+  if (value.startsWith("@")) {
+    return `https://www.instagram.com/${value.slice(1)}`;
+  }
+  if (!value.includes("/") && !value.includes(".")) {
+    return `https://www.instagram.com/${value}`;
+  }
+  return value;
 }
