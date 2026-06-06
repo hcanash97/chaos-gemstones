@@ -58,24 +58,6 @@ export type Database = {
           },
         ]
       }
-      site_configurations: {
-        Row: {
-          id: string
-          is_active: boolean
-          theme_data: Json
-        }
-        Insert: {
-          id?: string
-          is_active?: boolean
-          theme_data?: Json
-        }
-        Update: {
-          id?: string
-          is_active?: boolean
-          theme_data?: Json
-        }
-        Relationships: []
-      }
       dealer_follows: {
         Row: {
           created_at: string
@@ -1331,6 +1313,24 @@ export type Database = {
           stones_added?: number
           stones_marked_inactive?: number
           stones_updated?: number
+        }
+        Relationships: []
+      }
+      system_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }
