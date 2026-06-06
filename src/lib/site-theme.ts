@@ -5,6 +5,7 @@ export interface SiteThemeSettings {
   hero_subtitle: string;
   contact_whatsapp: string;
   homepage_layout: HomepageLayoutBlock[];
+  homepage_copy: HomepageSectionCopy;
 }
 
 export type HomepageBlockType =
@@ -12,6 +13,7 @@ export type HomepageBlockType =
   | "cert_labs"
   | "trust_strip"
   | "audience_cards"
+  | "whatsapp_cta"
   | "featured_stones"
   | "matched_pairs"
   | "featured_vendors"
@@ -22,6 +24,22 @@ export type HomepageLayoutBlock = {
   id: string;
   type: HomepageBlockType;
   enabled: boolean;
+};
+
+export type HomepageSectionCopy = {
+  featured_stones_eyebrow: string;
+  featured_stones_title: string;
+  featured_stones_link_label: string;
+  matched_pairs_eyebrow: string;
+  matched_pairs_title: string;
+  matched_pairs_body: string;
+  matched_pairs_link_label: string;
+  featured_vendors_eyebrow: string;
+  featured_vendors_title: string;
+  featured_vendors_link_label: string;
+  whatsapp_cta_title: string;
+  whatsapp_cta_body: string;
+  whatsapp_cta_button_label: string;
 };
 
 export type SiteConfigurationRow = {
@@ -35,6 +53,7 @@ export const HOMEPAGE_BLOCK_LABELS: Record<HomepageBlockType, string> = {
   cert_labs: "Certification lab bar",
   trust_strip: "Sourcing countries strip",
   audience_cards: "Dealer/Jeweller explainer",
+  whatsapp_cta: "WhatsApp CTA",
   featured_stones: "Featured stones",
   matched_pairs: "Matched pairs CTA",
   featured_vendors: "Featured vendors",
@@ -47,12 +66,31 @@ export const DEFAULT_HOMEPAGE_LAYOUT: HomepageLayoutBlock[] = [
   { id: "cert_labs", type: "cert_labs", enabled: true },
   { id: "trust_strip", type: "trust_strip", enabled: true },
   { id: "audience_cards", type: "audience_cards", enabled: true },
+  { id: "whatsapp_cta", type: "whatsapp_cta", enabled: false },
   { id: "featured_stones", type: "featured_stones", enabled: true },
   { id: "matched_pairs", type: "matched_pairs", enabled: true },
   { id: "featured_vendors", type: "featured_vendors", enabled: true },
   { id: "founder_quote", type: "founder_quote", enabled: true },
   { id: "stats", type: "stats", enabled: true },
 ];
+
+export const DEFAULT_HOMEPAGE_COPY: HomepageSectionCopy = {
+  featured_stones_eyebrow: "Featured Inventory",
+  featured_stones_title: "Hand-picked stones",
+  featured_stones_link_label: "View all",
+  matched_pairs_eyebrow: "Matched Pairs",
+  matched_pairs_title: "Matched pairs — ideal for earrings and symmetric settings",
+  matched_pairs_body:
+    "Browse colour-, cut- and weight-matched pairs from verified dealers. Save hours of back-and-forth sourcing for symmetrical commissions.",
+  matched_pairs_link_label: "Browse matched pairs",
+  featured_vendors_eyebrow: "Trusted Suppliers",
+  featured_vendors_title: "Featured vendors",
+  featured_vendors_link_label: "View all",
+  whatsapp_cta_title: "Want help sourcing a specific stone?",
+  whatsapp_cta_body:
+    "Send Chaos the brief by WhatsApp. We can help turn a client request into a focused search across verified dealer inventory.",
+  whatsapp_cta_button_label: "Message Chaos on WhatsApp",
+};
 
 export const DEFAULT_SITE_THEME: SiteThemeSettings = {
   logo_url: "",
@@ -62,6 +100,7 @@ export const DEFAULT_SITE_THEME: SiteThemeSettings = {
     "The global marketplace for independent gemstone dealers. Chaos connects dealers in Jaipur, Surat, Bangkok and Colombo with jewellers across the UK, US, Europe and Australia — browse, follow vendors, pull live inventory into your own site.",
   contact_whatsapp: "",
   homepage_layout: DEFAULT_HOMEPAGE_LAYOUT,
+  homepage_copy: DEFAULT_HOMEPAGE_COPY,
 };
 
 export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
@@ -76,6 +115,7 @@ export function normalizeSiteTheme(value: unknown): SiteThemeSettings {
         : DEFAULT_SITE_THEME.hero_subtitle,
     contact_whatsapp: typeof raw.contact_whatsapp === "string" ? raw.contact_whatsapp : DEFAULT_SITE_THEME.contact_whatsapp,
     homepage_layout: normalizeHomepageLayout(raw.homepage_layout),
+    homepage_copy: normalizeHomepageCopy(raw.homepage_copy),
   };
 }
 
@@ -111,10 +151,34 @@ export function isHomepageBlockType(value: unknown): value is HomepageBlockType 
     value === "cert_labs" ||
     value === "trust_strip" ||
     value === "audience_cards" ||
+    value === "whatsapp_cta" ||
     value === "featured_stones" ||
     value === "matched_pairs" ||
     value === "featured_vendors" ||
     value === "founder_quote" ||
     value === "stats"
   );
+}
+
+export function normalizeHomepageCopy(value: unknown): HomepageSectionCopy {
+  const raw = typeof value === "object" && value !== null ? (value as Partial<HomepageSectionCopy>) : {};
+  return {
+    featured_stones_eyebrow: stringOrDefault(raw.featured_stones_eyebrow, DEFAULT_HOMEPAGE_COPY.featured_stones_eyebrow),
+    featured_stones_title: stringOrDefault(raw.featured_stones_title, DEFAULT_HOMEPAGE_COPY.featured_stones_title),
+    featured_stones_link_label: stringOrDefault(raw.featured_stones_link_label, DEFAULT_HOMEPAGE_COPY.featured_stones_link_label),
+    matched_pairs_eyebrow: stringOrDefault(raw.matched_pairs_eyebrow, DEFAULT_HOMEPAGE_COPY.matched_pairs_eyebrow),
+    matched_pairs_title: stringOrDefault(raw.matched_pairs_title, DEFAULT_HOMEPAGE_COPY.matched_pairs_title),
+    matched_pairs_body: stringOrDefault(raw.matched_pairs_body, DEFAULT_HOMEPAGE_COPY.matched_pairs_body),
+    matched_pairs_link_label: stringOrDefault(raw.matched_pairs_link_label, DEFAULT_HOMEPAGE_COPY.matched_pairs_link_label),
+    featured_vendors_eyebrow: stringOrDefault(raw.featured_vendors_eyebrow, DEFAULT_HOMEPAGE_COPY.featured_vendors_eyebrow),
+    featured_vendors_title: stringOrDefault(raw.featured_vendors_title, DEFAULT_HOMEPAGE_COPY.featured_vendors_title),
+    featured_vendors_link_label: stringOrDefault(raw.featured_vendors_link_label, DEFAULT_HOMEPAGE_COPY.featured_vendors_link_label),
+    whatsapp_cta_title: stringOrDefault(raw.whatsapp_cta_title, DEFAULT_HOMEPAGE_COPY.whatsapp_cta_title),
+    whatsapp_cta_body: stringOrDefault(raw.whatsapp_cta_body, DEFAULT_HOMEPAGE_COPY.whatsapp_cta_body),
+    whatsapp_cta_button_label: stringOrDefault(raw.whatsapp_cta_button_label, DEFAULT_HOMEPAGE_COPY.whatsapp_cta_button_label),
+  };
+}
+
+function stringOrDefault(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value : fallback;
 }

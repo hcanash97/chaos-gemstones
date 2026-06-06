@@ -19,7 +19,7 @@ import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/ad
 import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
-import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type SiteThemeSettings } from "@/lib/site-theme";
+import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type HomepageSectionCopy, type SiteThemeSettings } from "@/lib/site-theme";
 
 type ProfileRow = {
   id: string;
@@ -616,6 +616,13 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function setCopyField<K extends keyof HomepageSectionCopy>(key: K, value: HomepageSectionCopy[K]) {
+    setForm((current) => ({
+      ...current,
+      homepage_copy: { ...current.homepage_copy, [key]: value },
+    }));
+  }
+
   function toggleBlock(index: number) {
     setForm((current) => ({
       ...current,
@@ -825,6 +832,104 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <Label>Section copy</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Edit the headings and CTA text for the homepage blocks.
+            </p>
+            <div className="mt-3 grid gap-4 rounded-md border border-border p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="copy-featured-stones-eyebrow">Featured stones eyebrow</Label>
+                  <Input
+                    id="copy-featured-stones-eyebrow"
+                    value={form.homepage_copy.featured_stones_eyebrow}
+                    onChange={(e) => setCopyField("featured_stones_eyebrow", e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="copy-featured-stones-title">Featured stones title</Label>
+                  <Input
+                    id="copy-featured-stones-title"
+                    value={form.homepage_copy.featured_stones_title}
+                    onChange={(e) => setCopyField("featured_stones_title", e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="copy-vendors-eyebrow">Vendors eyebrow</Label>
+                  <Input
+                    id="copy-vendors-eyebrow"
+                    value={form.homepage_copy.featured_vendors_eyebrow}
+                    onChange={(e) => setCopyField("featured_vendors_eyebrow", e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="copy-vendors-title">Vendors title</Label>
+                  <Input
+                    id="copy-vendors-title"
+                    value={form.homepage_copy.featured_vendors_title}
+                    onChange={(e) => setCopyField("featured_vendors_title", e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="copy-matched-title">Matched pairs title</Label>
+                <Input
+                  id="copy-matched-title"
+                  value={form.homepage_copy.matched_pairs_title}
+                  onChange={(e) => setCopyField("matched_pairs_title", e.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
+              <div>
+                <Label htmlFor="copy-matched-body">Matched pairs body</Label>
+                <Textarea
+                  id="copy-matched-body"
+                  rows={3}
+                  value={form.homepage_copy.matched_pairs_body}
+                  onChange={(e) => setCopyField("matched_pairs_body", e.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="copy-whatsapp-title">WhatsApp CTA title</Label>
+                  <Input
+                    id="copy-whatsapp-title"
+                    value={form.homepage_copy.whatsapp_cta_title}
+                    onChange={(e) => setCopyField("whatsapp_cta_title", e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="copy-whatsapp-button">WhatsApp button label</Label>
+                  <Input
+                    id="copy-whatsapp-button"
+                    value={form.homepage_copy.whatsapp_cta_button_label}
+                    onChange={(e) => setCopyField("whatsapp_cta_button_label", e.target.value)}
+                    className="mt-1.5"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="copy-whatsapp-body">WhatsApp CTA body</Label>
+                <Textarea
+                  id="copy-whatsapp-body"
+                  rows={3}
+                  value={form.homepage_copy.whatsapp_cta_body}
+                  onChange={(e) => setCopyField("whatsapp_cta_body", e.target.value)}
+                  className="mt-1.5"
+                />
+              </div>
             </div>
           </div>
 

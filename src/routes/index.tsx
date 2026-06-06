@@ -209,12 +209,14 @@ function Home() {
         return <TrustStrip />;
       case "audience_cards":
         return <AudienceCardsSection />;
+      case "whatsapp_cta":
+        return <WhatsAppCtaSection siteTheme={siteTheme} />;
       case "featured_stones":
-        return <FeaturedStonesSection featuredStones={featuredStones ?? []} wishlistIds={wishlistIds} />;
+        return <FeaturedStonesSection featuredStones={featuredStones ?? []} wishlistIds={wishlistIds} siteTheme={siteTheme} />;
       case "matched_pairs":
-        return <MatchedPairsSection />;
+        return <MatchedPairsSection siteTheme={siteTheme} />;
       case "featured_vendors":
-        return <FeaturedVendorsSection featuredVendors={featuredVendors ?? []} />;
+        return <FeaturedVendorsSection featuredVendors={featuredVendors ?? []} siteTheme={siteTheme} />;
       case "founder_quote":
         return <FounderQuote />;
       case "stats":
@@ -363,20 +365,22 @@ function AudienceCardsSection() {
 function FeaturedStonesSection({
   featuredStones,
   wishlistIds,
+  siteTheme,
 }: {
   featuredStones: any[];
   wishlistIds: Set<string> | undefined;
+  siteTheme: typeof DEFAULT_SITE_THEME;
 }) {
   return (
     <section className="bg-secondary/30 py-20">
       <div className="mx-auto max-w-7xl px-6">
         <FadeUp className="flex items-end justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Featured Inventory</div>
-            <h2 className="mt-2 font-serif text-4xl">Hand-picked stones</h2>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{siteTheme.homepage_copy.featured_stones_eyebrow}</div>
+            <h2 className="mt-2 font-serif text-4xl">{siteTheme.homepage_copy.featured_stones_title}</h2>
           </div>
           <Link to="/marketplace" className="text-sm text-foreground hover:text-[var(--color-gold)]">
-            View all →
+            {siteTheme.homepage_copy.featured_stones_link_label} →
           </Link>
         </FadeUp>
         <StaggerGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" delay={0.08}>
@@ -389,27 +393,56 @@ function FeaturedStonesSection({
   );
 }
 
-function MatchedPairsSection() {
+function WhatsAppCtaSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
+  const href = siteTheme.contact_whatsapp
+    ? `https://wa.me/${siteTheme.contact_whatsapp.replace(/[^0-9]/g, "")}`
+    : "/requests";
+  return (
+    <section className="border-y border-border bg-card/40 py-14">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="grid gap-6 rounded-md border border-[var(--gold-border)] bg-background p-7 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Concierge sourcing</div>
+            <h2 className="mt-2 font-serif text-3xl">{siteTheme.homepage_copy.whatsapp_cta_title}</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+              {siteTheme.homepage_copy.whatsapp_cta_body}
+            </p>
+          </div>
+          <a href={href} target={siteTheme.contact_whatsapp ? "_blank" : undefined} rel={siteTheme.contact_whatsapp ? "noreferrer noopener" : undefined}>
+            <Button
+              size="lg"
+              className="w-full border-0 md:w-auto"
+              style={{ backgroundColor: siteTheme.accent_color, color: "#081236" }}
+            >
+              {siteTheme.homepage_copy.whatsapp_cta_button_label}
+            </Button>
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MatchedPairsSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }) {
   return (
     <section className="border-t border-border bg-background py-16">
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid items-center gap-8 rounded-lg border border-[var(--gold-border)] bg-card p-8 md:grid-cols-[1.4fr_1fr]">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">
-              Matched Pairs
+              {siteTheme.homepage_copy.matched_pairs_eyebrow}
             </div>
             <h2 className="mt-2 font-serif text-3xl md:text-4xl">
-              Matched pairs &mdash; ideal for earrings and symmetric settings
+              {siteTheme.homepage_copy.matched_pairs_title}
             </h2>
             <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-              Browse colour-, cut- and weight-matched pairs from verified dealers.
-              Save hours of back-and-forth sourcing for symmetrical commissions.
+              {siteTheme.homepage_copy.matched_pairs_body}
             </p>
             <Link
               to="/marketplace"
               className="mt-5 inline-flex items-center text-sm font-medium text-[var(--color-gold)] hover:opacity-90"
             >
-              Browse matched pairs <ArrowRight className="ml-1 h-4 w-4" />
+              {siteTheme.homepage_copy.matched_pairs_link_label} <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
           <div
@@ -428,16 +461,16 @@ function MatchedPairsSection() {
   );
 }
 
-function FeaturedVendorsSection({ featuredVendors }: { featuredVendors: any[] }) {
+function FeaturedVendorsSection({ featuredVendors, siteTheme }: { featuredVendors: any[]; siteTheme: typeof DEFAULT_SITE_THEME }) {
   return (
     <section className="mx-auto max-w-7xl px-6 py-20">
       <FadeUp className="flex items-end justify-between">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Trusted Suppliers</div>
-          <h2 className="mt-2 font-serif text-4xl">Featured vendors</h2>
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{siteTheme.homepage_copy.featured_vendors_eyebrow}</div>
+          <h2 className="mt-2 font-serif text-4xl">{siteTheme.homepage_copy.featured_vendors_title}</h2>
         </div>
         <Link to="/vendors" className="text-sm text-foreground hover:text-[var(--color-gold)]">
-          View all →
+          {siteTheme.homepage_copy.featured_vendors_link_label} →
         </Link>
       </FadeUp>
       <StaggerGroup className="mt-8 grid gap-5 md:grid-cols-3">
