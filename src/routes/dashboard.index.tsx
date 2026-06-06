@@ -25,7 +25,7 @@ function DashboardOverview() {
         supabase.from("stones").select("status, featured, view_count").eq("dealer_id", user.id),
         supabase.from("stones").select("view_count").eq("dealer_id", user.id),
         supabase.from("enquiries").select("id", { count: "exact", head: true }).eq("to_dealer_id", user.id),
-        supabase.from("dealer_profiles").select("bio, specialities, logo_url, slug, external_feed_url").eq("id", user.id).maybeSingle(),
+        supabase.from("dealer_profiles").select("bio, specialities, logo_url, slug").eq("id", user.id).maybeSingle(),
       ]);
       const rows = data ?? [];
       const views = (viewRes.data ?? []).reduce((t: number, r: any) => t + (Number(r.view_count) || 0), 0);
