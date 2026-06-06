@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useReducer, useState, type FormEvent } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -24,6 +24,7 @@ import { Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { useRetailMode } from "@/hooks/useRetailMode";
+import { SEO_MARKETPLACE_PAGES } from "@/lib/seo-marketplace";
 import {
   defaultFilters,
   activeFilterCount,
@@ -985,6 +986,26 @@ function Marketplace() {
           </div>
         </div>
       </div>
+      <section className="border-t border-border bg-card/40">
+        <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+          <h2 className="font-serif text-2xl text-foreground">Popular marketplace searches</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Browse focused Chaos collections for common jeweller sourcing requests and dealer inventory workflows.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {SEO_MARKETPLACE_PAGES.slice(0, 10).map((page) => (
+              <Link
+                key={page.slug}
+                to="/marketplace/$slug"
+                params={{ slug: page.slug }}
+                className="rounded-full border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground transition hover:border-[var(--color-gold)] hover:text-foreground"
+              >
+                {page.h1}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
       <SiteFooter />
     </div>
   );

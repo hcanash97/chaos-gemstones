@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { CheckCircle2, Copy, MessageCircle, Plus, Sparkles } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { CheckCircle2, ClipboardList, Copy, MessageCircle, Plus, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,32 @@ type DraftStone = {
 const SAMPLE = `Blue Sapphire oval 2.30ct unheated GIA 74839211
 Sri Lanka origin
 Price USD 4200
+Video available`;
+const DEALER_REQUEST_TEMPLATE = `Please send one stone per message using this format:
+
+Stone:
+Shape:
+Carat:
+Colour:
+Clarity:
+Treatment:
+Certificate lab:
+Certificate number:
+Origin:
+Price:
+Photo/video link:
+
+Example:
+Blue Sapphire
+Oval
+2.30ct
+Royal blue
+Eye clean
+Unheated
+GIA
+74839211
+Sri Lanka
+USD 4200
 Video available`;
 const DRAFT_FIELDS: Array<keyof Omit<DraftStone, "notes">> = [
   "stone_type",
@@ -52,6 +78,11 @@ function WhatsAppIntakePage() {
     toast.success("Draft fields copied");
   }
 
+  async function copyRequestTemplate() {
+    await navigator.clipboard.writeText(DEALER_REQUEST_TEMPLATE);
+    toast.success("WhatsApp request template copied");
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -69,11 +100,35 @@ function WhatsAppIntakePage() {
         </Link>
       </div>
 
+      <section className="grid gap-3 md:grid-cols-3">
+        <WorkflowCard
+          icon={<Send className="h-4 w-4" />}
+          title="1. Request stock"
+          text="Send dealers a simple WhatsApp format so each message contains one stone and the key trade fields."
+        />
+        <WorkflowCard
+          icon={<Sparkles className="h-4 w-4" />}
+          title="2. Parse draft"
+          text="Paste the message into Chaos. The parser extracts obvious fields while leaving uncertain values for review."
+        />
+        <WorkflowCard
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          title="3. Review and publish"
+          text="Check certificate, treatment, price and media, then create the proper listing or API import record."
+        />
+      </section>
+
       <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
         <section className="rounded-md border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <MessageCircle className="h-4 w-4 text-[var(--color-gold)]" />
-            Incoming message
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <MessageCircle className="h-4 w-4 text-[var(--color-gold)]" />
+              Incoming message
+            </div>
+            <Button variant="outline" size="sm" onClick={copyRequestTemplate}>
+              <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
+              Copy dealer template
+            </Button>
           </div>
           <Textarea
             value={message}
@@ -132,6 +187,38 @@ function WhatsAppIntakePage() {
           </div>
         </section>
       </div>
+
+      <section className="rounded-md border border-border bg-card p-5">
+        <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Automation path</div>
+        <h2 className="mt-2 font-serif text-2xl">How this becomes full WhatsApp intake</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <FutureStep label="Inbox" text="Connect a WhatsApp Business number through Twilio or Meta." />
+          <FutureStep label="Media" text="Store incoming photos, videos and certificate images against a draft." />
+          <FutureStep label="AI review" text="Use OCR and extraction to identify cert number, carat, lab, price and treatment." />
+          <FutureStep label="Approval" text="Dealer or admin approves the draft before it reaches the public marketplace." />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function WorkflowCard({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
+  return (
+    <div className="rounded-md border border-border bg-card p-4">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-gold)]/15 text-[var(--color-gold)]">
+        {icon}
+      </div>
+      <h2 className="mt-3 text-sm font-medium">{title}</h2>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+function FutureStep({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="rounded-md border border-dashed border-border p-3">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-gold)]">{label}</div>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{text}</p>
     </div>
   );
 }

@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { SEO_MARKETPLACE_PAGES } from "@/lib/seo-marketplace";
 
 const BASE_URL = "https://chaosgemstones.com";
 
 const STATIC_ROUTES: Array<{ path: string; priority: string; changefreq: string }> = [
   { path: "/", priority: "1.0", changefreq: "daily" },
   { path: "/marketplace", priority: "0.9", changefreq: "hourly" },
+  ...SEO_MARKETPLACE_PAGES.map((page) => ({
+    path: `/marketplace/${page.slug}`,
+    priority: page.audience === "dealers" ? "0.8" : "0.75",
+    changefreq: "daily",
+  })),
   { path: "/vendors", priority: "0.8", changefreq: "daily" },
   { path: "/about", priority: "0.6", changefreq: "monthly" },
   { path: "/how-it-works/payments", priority: "0.5", changefreq: "monthly" },
