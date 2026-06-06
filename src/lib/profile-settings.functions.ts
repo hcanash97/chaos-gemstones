@@ -38,7 +38,7 @@ export const upsertJewellerSettings = createServerFn({ method: "POST" })
     if (data.display_currency !== undefined) patch.display_currency = data.display_currency;
     if (data.feed_currency !== undefined) patch.feed_currency = data.feed_currency;
     if (data.sourcing_method !== undefined) patch.sourcing_method = data.sourcing_method;
-    const { error } = await supabaseAdmin
+    const { error } = await (supabaseAdmin as any)
       .from("jeweller_profiles")
       .upsert(patch, { onConflict: "id" });
     if (error) throw new Error(error.message);
@@ -73,7 +73,7 @@ export const updateDealerFeedConfig = createServerFn({ method: "POST" })
     if (data.external_feed_url !== undefined) patch.external_feed_url = data.external_feed_url;
     if (data.external_feed_method !== undefined) patch.external_feed_method = data.external_feed_method;
     if (data.external_feed_body !== undefined) patch.external_feed_body = data.external_feed_body;
-    const { error } = await supabaseAdmin
+    const { error } = await (supabaseAdmin as any)
       .from("dealer_profiles")
       .update(patch)
       .eq("id", context.userId);
