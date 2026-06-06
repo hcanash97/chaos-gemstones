@@ -941,6 +941,30 @@ export type Database = {
           },
         ]
       }
+      site_configurations: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          theme_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          theme_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          theme_data?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stone_images: {
         Row: {
           external_image_url: string | null
