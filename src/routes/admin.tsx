@@ -757,6 +757,21 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
   const [uploading, setUploading] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [checkingSaved, setCheckingSaved] = useState(false);
+  const [themeLog, setThemeLog] = useState<Array<{ id: string; level: "info" | "success" | "warning" | "error"; message: string }>>([]);
+
+  function addThemeLog(level: "info" | "success" | "warning" | "error", message: string) {
+    setThemeLog((current) => [
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, level, message },
+      ...current,
+    ].slice(0, 12));
+  }
+
+  function describeError(error: unknown) {
+    if (!error) return "Unknown error";
+    if (error instanceof Error) return error.message;
+    if (typeof error === "object" && "message" in error) return String((error as { message?: unknown }).message);
+    return String(error);
+  }
 
   useEffect(() => {
     (async () => {
@@ -768,6 +783,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         .limit(1)
         .maybeSingle();
       if (error) {
+        addThemeLog("error", `Theme load failed: ${error.message}`);
         toast.error(error.message);
       } else if (data) {
         setConfigId(data.id);
@@ -775,6 +791,9 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
         setForm(theme);
         setLastSavedTheme(theme);
         setLastSavedAt(new Date().toISOString());
+        addThemeLog("success", "Loaded active theme settings from Supabase.");
+      } else {
+        addThemeLog("warning", "No active theme settings row was found. Defaults are shown until saved.");
       }
       setLoading(false);
     })();
@@ -812,6 +831,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
 
   async function reloadSavedTheme() {
     setCheckingSaved(true);
+    addThemeLog("info", "Checking the active saved theme in Supabase...");
     const { data, error } = await supabase
       .from("site_configurations")
       .select("id, theme_data, is_active")
@@ -820,10 +840,12 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
       .maybeSingle();
     setCheckingSaved(false);
     if (error) {
+      addThemeLog("error", `Reload failed: ${error.message}`);
       toast.error(error.message);
       return;
     }
     if (!data) {
+      addThemeLog("error", "Reload failed: no active site configuration row exists.");
       toast.error("No active site configuration was found.");
       return;
     }
@@ -834,6 +856,7 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
     setLastSavedAt(new Date().toISOString());
     queryClient.setQueryData(["site-theme"], theme);
     await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
+    addThemeLog("success", "Reloaded saved theme from Supabase and refreshed the public theme cache.");
     toast.success("Reloaded the saved theme from Supabase");
   }
 
@@ -859,66 +882,95 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
 
   async function persistTheme(nextTheme: SiteThemeSettings, options?: { silent?: boolean }) {
     setSaving(true);
-    const normalizedTheme = normalizeSiteTheme(nextTheme);
-    const payload = {
-      ...(configId ? { id: configId } : {}),
-      is_active: true,
-      theme_data: normalizedTheme as any,
-    };
-    const { data, error } = await supabase
-      .from("site_configurations")
-      .upsert(payload)
-      .select("id")
-      .single();
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
+    addThemeLog("info", configId ? "Saving theme settings to Supabase..." : "Creating active theme settings row in Supabase...");
+    try {
+      const normalizedTheme = normalizeSiteTheme(nextTheme);
+      const payload = {
+        ...(configId ? { id: configId } : {}),
+        is_active: true,
+        theme_data: normalizedTheme as any,
+      };
+      const { data, error } = await supabase
+        .from("site_configurations")
+        .upsert(payload)
+        .select("id")
+        .single();
+      if (error) {
+        addThemeLog("error", `Database save failed: ${error.message}`);
+        toast.error("Theme save failed", { description: error.message });
+        return false;
+      }
+      setConfigId(data.id);
+      setForm(normalizedTheme);
+      setLastSavedTheme(normalizedTheme);
+      setLastSavedAt(new Date().toISOString());
+      queryClient.setQueryData(["site-theme"], normalizedTheme);
+      await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
+      addThemeLog("success", "Theme saved to Supabase and public theme cache refreshed.");
+      if (!options?.silent) toast.success("Theme settings saved and applied");
+      return true;
+    } catch (error) {
+      const message = describeError(error);
+      addThemeLog("error", `Unexpected save failure: ${message}`);
+      toast.error("Theme save failed unexpectedly", { description: message });
       return false;
+    } finally {
+      setSaving(false);
     }
-    setConfigId(data.id);
-    setForm(normalizedTheme);
-    setLastSavedTheme(normalizedTheme);
-    setLastSavedAt(new Date().toISOString());
-    queryClient.setQueryData(["site-theme"], normalizedTheme);
-    await queryClient.invalidateQueries({ queryKey: ["site-theme"] });
-    if (!options?.silent) toast.success("Theme settings saved and applied");
-    return true;
   }
 
   async function uploadThemeImage(file: File, target: "logo_url" | "hero_background_image_url" | "seo_image_url") {
     if (!file.type.startsWith("image/")) {
+      addThemeLog("error", `Upload blocked: ${file.name} is not an image file.`);
       toast.error("Please choose an image file.");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
+      addThemeLog("error", `Upload blocked: ${file.name} is larger than 5MB.`);
       toast.error("Images must be under 5MB.");
       return;
     }
     setUploading(true);
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-    const path = `${userId}/site-config/${target}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("stone-images").upload(path, file, {
-      upsert: true,
-      contentType: file.type,
-      cacheControl: "31536000",
-    });
-    setUploading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    addThemeLog("info", `Uploading ${labelForThemeImageTarget(target)} image "${file.name}" to Supabase storage...`);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = `${userId}/site-config/${target}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("stone-images").upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: "31536000",
+      });
+      if (error) {
+        addThemeLog("error", `Storage upload failed for ${file.name}: ${error.message}`);
+        toast.error("Image upload failed", { description: error.message });
+        return;
+      }
+      const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
+      if (!data.publicUrl) {
+        addThemeLog("error", `Upload completed but Supabase did not return a public URL for ${path}.`);
+        toast.error("Image upload failed", { description: "Supabase did not return a public URL." });
+        return;
+      }
+      addThemeLog("success", `Image uploaded to storage: ${path}`);
+      const nextTheme = normalizeSiteTheme({ ...form, [target]: data.publicUrl });
+      setForm(nextTheme);
+      addThemeLog("info", `Applying uploaded ${labelForThemeImageTarget(target)} image to the active theme...`);
+      const saved = await persistTheme(nextTheme, { silent: true });
+      if (!saved) return;
+      toast.success(
+        target === "logo_url"
+          ? "Logo uploaded and applied"
+          : target === "seo_image_url"
+          ? "Social sharing image uploaded and applied"
+          : "Hero background uploaded and applied",
+      );
+    } catch (error) {
+      const message = describeError(error);
+      addThemeLog("error", `Unexpected upload failure for ${file.name}: ${message}`);
+      toast.error("Image upload failed unexpectedly", { description: message });
+    } finally {
+      setUploading(false);
     }
-    const { data } = supabase.storage.from("stone-images").getPublicUrl(path);
-    const nextTheme = normalizeSiteTheme({ ...form, [target]: data.publicUrl });
-    setForm(nextTheme);
-    const saved = await persistTheme(nextTheme, { silent: true });
-    if (!saved) return;
-    toast.success(
-      target === "logo_url"
-        ? "Logo uploaded and applied"
-        : target === "seo_image_url"
-        ? "Social sharing image uploaded and applied"
-        : "Hero background uploaded and applied",
-    );
   }
 
   async function save() {
@@ -1675,6 +1727,43 @@ function ThemeSettingsPanel({ userId }: { userId: string }) {
               These edits are only in this editor until you press Save changes. Uploaded images save automatically.
             </p>
           )}
+          <div className="rounded-md border border-border bg-background">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
+              <div>
+                <div className="text-sm font-medium">Theme Diagnostics</div>
+                <p className="text-xs text-muted-foreground">Save, upload and Supabase cache events for this admin editor.</p>
+              </div>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setThemeLog([])} disabled={themeLog.length === 0}>
+                Clear
+              </Button>
+            </div>
+            <div className="max-h-56 overflow-y-auto p-3 text-xs">
+              {themeLog.length === 0 ? (
+                <p className="text-muted-foreground">No theme editor events yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {themeLog.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={`rounded border px-3 py-2 ${
+                        entry.level === "error"
+                          ? "border-destructive/40 bg-destructive/10 text-destructive"
+                          : entry.level === "success"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : entry.level === "warning"
+                          ? "border-amber-200 bg-amber-50 text-amber-800"
+                          : "border-border bg-muted/30 text-muted-foreground"
+                      }`}
+                    >
+                      <span className="font-medium uppercase tracking-wider">{entry.level}</span>
+                      <span className="mx-2">·</span>
+                      <span>{entry.message}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1779,6 +1868,12 @@ function readableAccentText(hex: string): "#081236" | "#FFFFFF" {
   const b = parseInt(match[3], 16);
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.58 ? "#081236" : "#FFFFFF";
+}
+
+function labelForThemeImageTarget(target: "logo_url" | "hero_background_image_url" | "seo_image_url") {
+  if (target === "logo_url") return "logo";
+  if (target === "seo_image_url") return "social sharing";
+  return "hero background";
 }
 
 function ReferralsPanel() {
