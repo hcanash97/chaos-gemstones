@@ -275,10 +275,10 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       if (priceMinActive) q = q.gte("wholesale_price_usd", f.priceMin);
       if (priceMaxActive) q = q.lte("wholesale_price_usd", f.priceMax);
     } else if (priceMinActive || priceMaxActive) {
-      // PostgREST cannot easily filter calculated price-per-carat here without
-      // an RPC, so fetch candidates server-side without pretending the current
-      // page is the complete matching set.
-      if (priceMinActive) q = q.gte("wholesale_price_usd", 0);
+      // Uses generated DB column from 20260607190000_marketplace_price_per_carat_column.sql.
+      // This keeps pagination and counts accurate for /ct filtering.
+      if (priceMinActive) q = q.gte("wholesale_price_per_carat", f.priceMin);
+      if (priceMaxActive) q = q.lte("wholesale_price_per_carat", f.priceMax);
     }
 
     // Search (or across fields)
@@ -347,10 +347,16 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     // Sort
     switch (f.sort) {
       case "price-asc":
-        q = q.order("wholesale_price_usd", { ascending: true, nullsFirst: false });
+        q = q.order((f.priceMode ?? "per_stone") === "per_carat" ? "wholesale_price_per_carat" : "wholesale_price_usd", {
+          ascending: true,
+          nullsFirst: false,
+        });
         break;
       case "price-desc":
-        q = q.order("wholesale_price_usd", { ascending: false, nullsFirst: false });
+        q = q.order((f.priceMode ?? "per_stone") === "per_carat" ? "wholesale_price_per_carat" : "wholesale_price_usd", {
+          ascending: false,
+          nullsFirst: false,
+        });
         break;
       case "carat":
         q = q.order("carat_weight", { ascending: false, nullsFirst: false });

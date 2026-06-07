@@ -231,19 +231,12 @@ function Marketplace() {
     },
   });
 
-  // Per-carat price mode: server filters per_stone; refine current page client-side.
+  // Price filtering is handled server-side. In per-carat mode this uses the
+  // generated `wholesale_price_per_carat` DB column so counts and pagination stay accurate.
   const visible = useMemo(() => {
-    const list = debouncedF.priceMode !== "per_carat"
-      ? rawStones
-      : rawStones.filter((s: any) => {
-      const price = Number(s.wholesale_price_usd ?? 0);
-      const c = Number(s.carat_weight ?? 1) || 1;
-      const v = price / c;
-      return v >= debouncedF.priceMin && v <= debouncedF.priceMax;
-    });
-    if (!wishlistIds) return list;
-    return list.map((s: any) => ({ ...s, isWishlisted: wishlistIds.has(s.id) }));
-  }, [rawStones, debouncedF.priceMode, debouncedF.priceMin, debouncedF.priceMax, wishlistIds]);
+    if (!wishlistIds) return rawStones;
+    return rawStones.map((s: any) => ({ ...s, isWishlisted: wishlistIds.has(s.id) }));
+  }, [rawStones, wishlistIds]);
 
   const { data: dealers } = useQuery({
     queryKey: ["marketplace-dealers"],
