@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Logo, GemMark } from "@/components/site/Logo";
 import { CurrencySelector } from "@/components/site/CurrencySelector";
 import {
+  ChevronDown,
   Menu,
   X,
   Home as HomeIcon,
@@ -16,6 +17,14 @@ import {
 } from "lucide-react";
 import { defaultDashboardPath, isDealer, isJeweller } from "@/lib/auth.utils";
 import { useSiteTheme } from "@/hooks/useSiteTheme";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
@@ -60,17 +69,27 @@ export function SiteHeader() {
     }, 50);
     return () => document.removeEventListener("keydown", onKey);
   }, [menuOpen]);
-  const navLinks: { to: string; label: string }[] = [
+  const primaryNavLinks: { to: string; label: string }[] = [
     { to: "/marketplace", label: "Marketplace" },
-    { to: "/retail", label: "Retail" },
     { to: "/requests", label: "Requests" },
     { to: "/vendors", label: "Vendors" },
-    { to: "/jewellers", label: "Jewellers" },
-    { to: "/learn", label: "Learn" },
-    { to: "/faq", label: "FAQ" },
-    { to: "/about", label: "About" },
+    { to: "/retail", label: "Retail" },
+  ];
+  const secondaryNavLinks: { to: string; label: string; group: "Trade" | "Learn" | "Support" }[] = [
+    { to: "/jewellers", label: "Jewellers", group: "Trade" },
+    { to: "/learn", label: "Learning hub", group: "Learn" },
+    { to: "/faq", label: "FAQ", group: "Support" },
+    { to: "/about", label: "About Chaos", group: "Support" },
+    { to: "/docs/api", label: "API & embeds", group: "Trade" },
+    { to: "/how-it-works/payments", label: "Payments", group: "Support" },
+    { to: "/how-it-works/shipping", label: "Shipping", group: "Support" },
+  ];
+  const mobileGroups = [
+    { label: "Marketplace", links: primaryNavLinks },
+    { label: "More", links: secondaryNavLinks },
   ];
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
+  const moreActive = secondaryNavLinks.some((l) => isActive(l.to));
   return (
     <>
     <header
@@ -89,7 +108,7 @@ export function SiteHeader() {
           />
         </span>
         <nav aria-label="Main navigation" className="hidden items-center gap-7 text-sm md:flex">
-          {navLinks.map((l) => {
+          {primaryNavLinks.map((l) => {
             const active = isActive(l.to);
             return (
               <Link
@@ -102,6 +121,51 @@ export function SiteHeader() {
               </Link>
             );
           })}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={`inline-flex items-center gap-1 text-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                moreActive ? "font-medium text-foreground" : "text-foreground/80"
+              }`}
+              aria-label="More navigation"
+            >
+              More
+              <ChevronDown className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Trade
+              </DropdownMenuLabel>
+              {secondaryNavLinks.filter((l) => l.group === "Trade").map((l) => (
+                <DropdownMenuItem key={l.to} asChild>
+                  <Link to={l.to} aria-current={isActive(l.to) ? "page" : undefined}>
+                    {l.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Learn
+              </DropdownMenuLabel>
+              {secondaryNavLinks.filter((l) => l.group === "Learn").map((l) => (
+                <DropdownMenuItem key={l.to} asChild>
+                  <Link to={l.to} aria-current={isActive(l.to) ? "page" : undefined}>
+                    {l.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Support
+              </DropdownMenuLabel>
+              {secondaryNavLinks.filter((l) => l.group === "Support").map((l) => (
+                <DropdownMenuItem key={l.to} asChild>
+                  <Link to={l.to} aria-current={isActive(l.to) ? "page" : undefined}>
+                    {l.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
         <div className="hidden items-center gap-2 md:flex">
           <CurrencySelector />
@@ -164,11 +228,26 @@ export function SiteHeader() {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <nav aria-label="Mobile navigation" className="flex flex-col gap-1 p-3 text-sm">
-            {navLinks.map((l) => (
-              <Link key={l.to} to={l.to} onClick={() => setMenuOpen(false)} aria-current={isActive(l.to) ? "page" : undefined} className="rounded-md px-3 py-3 text-foreground/90 hover:bg-muted">
-                {l.label}
-              </Link>
+          <nav aria-label="Mobile navigation" className="flex flex-col gap-4 p-3 text-sm">
+            {mobileGroups.map((group) => (
+              <div key={group.label}>
+                <div className="px-3 pb-1.5 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  {group.label}
+                </div>
+                <div className="flex flex-col gap-1">
+                  {group.links.map((l) => (
+                    <Link
+                      key={l.to}
+                      to={l.to}
+                      onClick={() => setMenuOpen(false)}
+                      aria-current={isActive(l.to) ? "page" : undefined}
+                      className="rounded-md px-3 py-3 text-foreground/90 hover:bg-muted"
+                    >
+                      {l.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
             <div className="my-3 border-t border-border" />
             {user ? (
