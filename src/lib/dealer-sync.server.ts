@@ -572,11 +572,12 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         }));
 
         for (const candidate of chunk) {
-          const { data: singleData, error: singleError } = await supabaseAdmin
+          const { data: singleDataRaw, error: singleError } = await supabaseAdmin
             .from("stones")
             .upsert(candidate.data as never, { onConflict: upsertConflict })
             .select(selectColumns)
             .single();
+          const singleData = singleDataRaw as { id: string } | null;
 
           if (singleError) {
             errors.push(postgresDiagnostic("Row failed during isolated retry", singleError, {
