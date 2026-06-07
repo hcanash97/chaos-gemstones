@@ -511,10 +511,15 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         .select(selectColumns);
 
       if (error) {
-        if (useImportIdentityColumns && isMissingConflictTarget(error)) {
-          diagnostics.push(diagnostic("warning", "The live database has private API sync columns but is missing the unique index for dealer_id + external_sync_key. Chaos is using a slower manual update/insert fallback for this sync. Apply migration 20260607090000_repair_dealer_api_private_sync_key.sql for the normal fast path.", {
+        if (isMissingConflictTarget(error)) {
+          const attemptedConflict = upsertConflict;
+          const conflictHelp = useImportIdentityColumns
+            ? "The live database has private API sync columns but is missing the unique index for dealer_id + external_sync_key. Apply migration 20260607090000_repair_dealer_api_private_sync_key.sql for the normal fast path."
+            : "The sync is in legacy cert-number fallback mode and the live database is missing the unique index for dealer_id + cert_number. Apply migration 20260607100000_repair_legacy_cert_conflict_target.sql, then apply 20260607093000_repair_api_identity_schema_cache.sql for the safer private-key path.";
+          diagnostics.push(diagnostic("warning", `${conflictHelp} Chaos is using a slower manual update/insert fallback for this sync.`, {
             batch: batchNumber,
-            field: "external_sync_key",
+            field: useImportIdentityColumns ? "external_sync_key" : "cert_number",
+            details: `Attempted onConflict target: ${attemptedConflict}`,
           }));
 
           for (const candidate of chunk) {
