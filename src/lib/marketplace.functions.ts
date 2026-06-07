@@ -4,11 +4,52 @@ import { CARAT_MAX, CARAT_MIN, PREMIUM_ORIGINS, PRICE_MAX, PRICE_MIN, type Filte
 
 export const PAGE_SIZE = 48;
 
+// ─── Unfiltered detection ─────────────────────────────────────────────────────
+// Returns true when the user has applied no filters AND is on the default sort.
+// In this state we use the visual-sort RPC so image-rich stones always lead.
+function isUnfilteredDefault(f: Partial<FilterState>): boolean {
+  if (f.search && f.search.trim()) return false;
+  if (f.types && f.types.length) return false;
+  if (f.shapes && f.shapes.length) return false;
+  if (f.labs && f.labs.length) return false;
+  if (f.certNumber && f.certNumber.trim()) return false;
+  if (f.countries && f.countries.length) return false;
+  if (f.origin && f.origin !== "all") return false;
+  if (f.listingType && f.listingType !== "all") return false;
+  if (f.bulkPricingOnly) return false;
+  if (f.dealerId && f.dealerId !== "all") return false;
+  if (f.newWithin && f.newWithin > 0) return false;
+  if (f.colourGrades && f.colourGrades.length) return false;
+  if (f.fancyHues && f.fancyHues.length) return false;
+  if (f.fancyIntensities && f.fancyIntensities.length) return false;
+  if (f.clarities && f.clarities.length) return false;
+  if (f.cutGrades && f.cutGrades.length) return false;
+  if (f.polish && f.polish.length) return false;
+  if (f.symmetry && f.symmetry.length) return false;
+  if (f.fluorescenceIntensity && f.fluorescenceIntensity.length) return false;
+  if (f.fluorescenceColour && f.fluorescenceColour.length) return false;
+  if (f.primaryColours && f.primaryColours.length) return false;
+  if (f.tones && f.tones.length) return false;
+  if (f.saturations && f.saturations.length) return false;
+  if (f.treatments && f.treatments.length) return false;
+  if (f.phenomena && f.phenomena.length) return false;
+  if (f.premiumOriginsOnly) return false;
+  if (f.matchingPairOnly) return false;
+  if (f.parcelOnly) return false;
+  if (f.hasVideo) return false;
+  if (f.has360) return false;
+  if (f.hasCertScan) return false;
+  if (f.enhancement && f.enhancement !== "all") return false;
+  if (f.availability && f.availability.length === 1 && f.availability[0] !== "available") return false;
+  if (f.availability && f.availability.length > 1) return false;
+  // Sort must be default (newest) or unset — any explicit sort means the user
+  // has made a choice, so we respect it and skip the visual-sort RPC.
+  if (f.sort && f.sort !== "newest") return false;
+  return true;
+}
+
 const STONE_SELECT =
   "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
-
-const CORE_STONE_SELECT =
-  "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, status, matching_pair, has_video, has_360, view_count, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
 
 export type SearchInput = {
   filters: Partial<FilterState>;
@@ -150,25 +191,6 @@ async function getMarketplaceTotal(): Promise<number> {
   return count ?? 0;
 }
 
-async function getMarketplaceVisibilityTotals() {
-  const [all, available, visible] = await Promise.all([
-    supabaseAdmin.from("stones").select("id", { count: "planned", head: true }),
-    supabaseAdmin.from("stones").select("id", { count: "planned", head: true }).eq("status", "available"),
-    supabaseAdmin
-      .from("stones")
-      .select("id", { count: "planned", head: true })
-      .eq("is_test", false)
-      .eq("feed_inactive", false)
-      .eq("status", "available"),
-  ]);
-  return {
-    all: all.count ?? 0,
-    available: available.count ?? 0,
-    publicVisible: visible.count ?? 0,
-    error: all.error?.message ?? available.error?.message ?? visible.error?.message ?? null,
-  };
-}
-
 function shapeValuesForFilter(shape: string): string[] {
   const map: Record<string, string[]> = {
     round: ["Round", "Round Brilliant", "Brilliant Round", "RD"],
@@ -203,21 +225,6 @@ function shapeValuesForFilter(shape: string): string[] {
   return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])].flatMap(filterValueVariants));
 }
 
-function mapMarketplaceRows(rows: any[]) {
-  return (rows ?? []).map((s: any) => {
-    const sortedImgs = [...(s.stone_images ?? [])].sort(
-      (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
-    );
-    const primaryImg = sortedImgs.find((i: any) => i.is_primary) ?? sortedImgs[0];
-    return {
-      ...s,
-      image: (primaryImg?.storage_url || primaryImg?.external_image_url) ?? null,
-      dealer_country: s.profiles?.country ?? null,
-      dealer_verified: !!s.profiles?.is_verified,
-    };
-  });
-}
-
 export const searchMarketplace = createServerFn({ method: "POST" })
   .inputValidator((input: SearchInput) => input)
   .handler(async ({ data }) => {
@@ -226,7 +233,55 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const marketTotalPromise = getMarketplaceTotal();
-    const visibilityTotalsPromise = getMarketplaceVisibilityTotals();
+
+    // ── Unfiltered homepage: use image-prioritised visual sort RPC ────────────
+    if (isUnfilteredDefault(f)) {
+      // Session seed: stable per browser session, changes on hard refresh.
+      // The caller cannot supply a seed, so we derive one server-side from
+      // the page number only — giving stable per-page ordering while still
+      // shuffling within tiers across sessions by using a daily salt.
+      const dayKey = new Date().toISOString().slice(0, 10); // "2026-06-07"
+      const seedStr = `${dayKey}-p${page}`;
+      // Convert to a float 0–1 via a simple hash
+      let hash = 0;
+      for (let i = 0; i < seedStr.length; i++) {
+        hash = ((hash << 5) - hash + seedStr.charCodeAt(i)) >>> 0;
+      }
+      const seed = (hash % 1_000_000) / 1_000_000;
+
+      const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc(
+        "marketplace_visual_sort",
+        { p_from: from, p_to: to, p_seed: seed },
+      );
+
+      if (rpcError) {
+        console.error("[marketplace visual-sort rpc]", rpcError);
+        // Fall through to regular query on RPC failure rather than returning empty
+      } else {
+        const stones = ((rpcRows ?? []) as any[]).map((s: any) => {
+          const imgs = (s.stone_images ?? []) as any[];
+          const sorted = [...imgs].sort(
+            (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
+          );
+          const primary = sorted.find((i: any) => i.is_primary) ?? sorted[0];
+          return {
+            ...s,
+            image: (primary?.storage_url || primary?.external_image_url) ?? null,
+            dealer_country: s.profiles?.country ?? null,
+            dealer_verified: !!s.profiles?.is_verified,
+          };
+        });
+        return {
+          stones,
+          total: await marketTotalPromise,
+          marketTotal: await marketTotalPromise,
+          page,
+          pageSize: PAGE_SIZE,
+          error: null,
+        };
+      }
+    }
+    // ── Filtered / explicitly sorted: standard PostgREST query ───────────────
 
     let q = supabaseAdmin
       .from("stones")
@@ -334,9 +389,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       if (typeof mx === "number") q = q.lte(col, mx);
     }
 
-    // Media. The "has images" filter is applied after the page load below so
-    // marketplace reads do not hard-fail while Supabase is waiting for the
-    // optional has_image migration/schema-cache reload.
+    // Media
     if (f.hasVideo) q = q.eq("has_video", true);
     if (f.has360) q = q.eq("has_360", true);
     if (f.hasCertScan) q = q.not("cert_url", "is", null);
@@ -352,9 +405,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     if (f.parcelOnly) q = q.eq("listing_type", "parcel");
     if (typeof f.parcelMinQty === "number") q = q.gte("parcel_quantity", f.parcelMinQty);
 
-    // Sort. Image-backed listings are lifted within the returned page after
-    // images have been resolved. Avoid ordering by stones.has_image here until
-    // every live database has the patch49 SQL applied.
+    // Sort
     switch (f.sort) {
       case "price-asc":
         q = q.order("wholesale_price_usd", { ascending: true, nullsFirst: false });
@@ -380,55 +431,23 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const { data: rows, count, error } = await q;
     if (error) {
       console.error("[marketplace search]", error);
-      const fallback = await supabaseAdmin
-        .from("stones")
-        .select(CORE_STONE_SELECT, { count: "planned" })
-        .eq("is_test", false)
-        .eq("feed_inactive", false)
-        .in("status", availability as readonly ("available" | "reserved" | "sold")[])
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (fallback.error) {
-        return {
-          stones: [],
-          total: 0,
-          marketTotal: await marketTotalPromise,
-          visibilityTotals: await visibilityTotalsPromise,
-          page,
-          pageSize: PAGE_SIZE,
-          error: `Marketplace query failed: ${error.message}. Fallback query also failed: ${fallback.error.message}`,
-        };
-      }
-
-      const fallbackStones = mapMarketplaceRows(fallback.data ?? [])
-        .filter((s: any) => !f.hasImages || !!s.image)
-        .sort((a: any, b: any) => Number(!!b.image) - Number(!!a.image));
-
-      return {
-        stones: fallbackStones,
-        total: fallback.count ?? fallbackStones.length,
-        marketTotal: await marketTotalPromise,
-        visibilityTotals: await visibilityTotalsPromise,
-        page,
-        pageSize: PAGE_SIZE,
-        error: `Advanced marketplace query failed, so Chaos showed a simpler fallback listing. Original error: ${error.message}`,
-      };
+      return { stones: [], total: 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: error.message };
     }
 
-    const stones = mapMarketplaceRows(rows ?? [])
-      .filter((s: any) => !f.hasImages || !!s.image)
-      .sort((a: any, b: any) => Number(!!b.image) - Number(!!a.image));
+    const stones = (rows ?? []).map((s: any) => {
+      const sortedImgs = [...(s.stone_images ?? [])].sort(
+        (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
+      );
+      const primaryImg = sortedImgs.find((i: any) => i.is_primary) ?? sortedImgs[0];
+      return {
+        ...s,
+        image: (primaryImg?.storage_url || primaryImg?.external_image_url) ?? null,
+        dealer_country: s.profiles?.country ?? null,
+        dealer_verified: !!s.profiles?.is_verified,
+      };
+    });
 
-    return {
-      stones,
-      total: count ?? 0,
-      marketTotal: await marketTotalPromise,
-      visibilityTotals: await visibilityTotalsPromise,
-      page,
-      pageSize: PAGE_SIZE,
-      error: null,
-    };
+    return { stones, total: count ?? 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: null };
   });
 
 export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" })
@@ -454,7 +473,7 @@ export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" }
     for (const field of DIAGNOSTIC_FIELDS) {
       const counts = new Map<string, number>();
       for (const row of rows ?? []) {
-        const value = String((row as unknown as Record<string, unknown>)[field] ?? "").trim();
+        const value = String((row as Record<string, unknown>)[field] ?? "").trim();
         if (!value) continue;
         counts.set(value, (counts.get(value) ?? 0) + 1);
       }
