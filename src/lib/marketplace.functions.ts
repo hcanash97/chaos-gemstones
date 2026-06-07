@@ -10,7 +10,7 @@ export const PAGE_SIZE = 24; // was 48 — halving gives ~2× faster page loads
 const STONE_SELECT =
   "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, " +
   "cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, " +
-  "treatment, status, listing_type, matching_pair, has_video, has_360, has_image, " +
+  "treatment, status, listing_type, source_type, private_until, matching_pair, has_video, has_360, has_image, " +
   "created_at, updated_at, " +
   "stone_images(storage_url, external_image_url, is_primary, sort_order), " +
   "profiles:dealer_id(country, is_verified)";
@@ -32,7 +32,8 @@ async function getMarketplaceTotal(): Promise<number> {
     .select("id", { count: "planned", head: true })
     .eq("is_test", false)
     .eq("feed_inactive", false)
-    .eq("status", "available");
+    .eq("status", "available")
+    .or(`private_until.is.null,private_until.lt.${new Date().toISOString()}`);
   if (error) {
     console.error("[marketplace total]", error);
     return _cachedTotal ?? 0;
@@ -45,6 +46,7 @@ async function getMarketplaceTotal(): Promise<number> {
 export type SearchInput = {
   filters: Partial<FilterState>;
   page: number;
+  followedDealerIds?: string[];
 };
 
 export type FilterDiagnosticsInput = {
@@ -210,6 +212,8 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const marketTotalPromise = getMarketplaceTotal();
+    const followedDealerIds = uniqueValues((data.followedDealerIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id)));
+    const nowIso = new Date().toISOString();
 
     let q = supabaseAdmin
       .from("stones")
@@ -220,6 +224,12 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     // Availability (defaults to ['available'])
     const availability = f.availability && f.availability.length ? f.availability : (["available"] as const);
     q = q.in("status", availability as readonly ("available" | "reserved" | "sold")[]);
+
+    if (followedDealerIds.length) {
+      q = q.or(`private_until.is.null,private_until.lt.${nowIso},dealer_id.in.(${followedDealerIds.join(",")})`);
+    } else {
+      q = q.or(`private_until.is.null,private_until.lt.${nowIso}`);
+    }
 
     // Dealer
     if (f.dealerId && f.dealerId !== "all") q = q.eq("dealer_id", f.dealerId);

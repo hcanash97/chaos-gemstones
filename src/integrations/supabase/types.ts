@@ -1042,6 +1042,7 @@ export type Database = {
       stone_requests: {
         Row: {
           cert_lab: string | null
+          budget_usd_max: number | null
           colour_description: string | null
           created_at: string
           expires_at: string
@@ -1055,9 +1056,11 @@ export type Database = {
           status: string
           stone_type: string
           treatment: string | null
+          treatment_preference: string | null
         }
         Insert: {
           cert_lab?: string | null
+          budget_usd_max?: number | null
           colour_description?: string | null
           created_at?: string
           expires_at?: string
@@ -1071,9 +1074,11 @@ export type Database = {
           status?: string
           stone_type: string
           treatment?: string | null
+          treatment_preference?: string | null
         }
         Update: {
           cert_lab?: string | null
+          budget_usd_max?: number | null
           colour_description?: string | null
           created_at?: string
           expires_at?: string
@@ -1087,6 +1092,7 @@ export type Database = {
           status?: string
           stone_type?: string
           treatment?: string | null
+          treatment_preference?: string | null
         }
         Relationships: [
           {
@@ -1150,11 +1156,13 @@ export type Database = {
           phenomenon: string | null
           polish: string | null
           price_currency: string
+          private_until: string | null
           provenance_report: string | null
           report_date: string | null
           shade: string | null
           shape: string | null
           share_count: number
+          source_type: Database["public"]["Enums"]["stone_source_type"]
           source_stock_no: string | null
           status: Database["public"]["Enums"]["stone_status"]
           stone_type: string
@@ -1217,11 +1225,13 @@ export type Database = {
           phenomenon?: string | null
           polish?: string | null
           price_currency?: string
+          private_until?: string | null
           provenance_report?: string | null
           report_date?: string | null
           shade?: string | null
           shape?: string | null
           share_count?: number
+          source_type?: Database["public"]["Enums"]["stone_source_type"]
           source_stock_no?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type: string
@@ -1284,11 +1294,13 @@ export type Database = {
           phenomenon?: string | null
           polish?: string | null
           price_currency?: string
+          private_until?: string | null
           provenance_report?: string | null
           report_date?: string | null
           shade?: string | null
           shape?: string | null
           share_count?: number
+          source_type?: Database["public"]["Enums"]["stone_source_type"]
           source_stock_no?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type?: string
@@ -1536,6 +1548,7 @@ export type Database = {
     Enums: {
       account_type: "dealer" | "jeweller" | "admin"
       app_role: "admin" | "moderator" | "user"
+      stone_source_type: "standard" | "direct_vault"
       stone_status: "available" | "reserved" | "sold"
     }
     CompositeTypes: {
@@ -1666,6 +1679,7 @@ export const Constants = {
     Enums: {
       account_type: ["dealer", "jeweller", "admin"],
       app_role: ["admin", "moderator", "user"],
+      stone_source_type: ["standard", "direct_vault"],
       stone_status: ["available", "reserved", "sold"],
     },
   },

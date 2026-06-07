@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { useRetailMode } from "@/hooks/useRetailMode";
 import { SEO_MARKETPLACE_PAGES } from "@/lib/seo-marketplace";
+import { ConciergeRequestModal } from "@/components/marketplace/ConciergeRequestModal";
 import {
   defaultFilters,
   activeFilterCount,
@@ -128,6 +129,8 @@ function Marketplace() {
   const [page, setPage] = useState(1);
   const [debouncedF, setDebouncedF] = useState<FilterState>(initialFromUrl);
   const { retailMode, setRetailMode } = useRetailMode();
+  const isJewellerUser = checkJ(profile);
+  const isApprovedJeweller = isJewellerUser && !!profile?.is_approved;
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
   const clearFilters = () => dispatch({ type: "reset" });
@@ -168,47 +171,7 @@ function Marketplace() {
   const search = useServerFn(searchMarketplace);
   const queryClient = useQueryClient();
 
-  const { data: result, isFetching } = useQuery({
-    queryKey: ["marketplace-search", debouncedF, page],
-    queryFn: () => search({ data: { filters: debouncedF, page } }),
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,       // don't refetch for 30s — covers tab switches, back nav
-    gcTime:    5 * 60_000,   // keep in cache 5 min so back button is instant
-  });
-
-  // Prefetch next page while user is reading the current one
-  useEffect(() => {
-    if (!result || page >= Math.ceil((result.total ?? 0) / PAGE_SIZE)) return;
-    queryClient.prefetchQuery({
-      queryKey: ["marketplace-search", debouncedF, page + 1],
-      queryFn: () => search({ data: { filters: debouncedF, page: page + 1 } }),
-      staleTime: 30_000,
-    });
-  }, [result, page, debouncedF, queryClient, search]);
-
-  const rawStones = result?.stones ?? [];
-  const total = result?.total ?? 0;
-  const marketTotal = result?.marketTotal ?? total;
-  const isLoading = isFetching && !result;
-
-  const isJewellerUser = checkJ(profile);
-  const isApprovedJeweller = isJewellerUser && !!profile?.is_approved;
-
-  // Single bulk fetch of the jeweller's wishlist (replaces N+1 per-card queries).
-  const { data: wishlistIds } = useQuery({
-    queryKey: ["wishlist-ids", user?.id],
-    enabled: !!user && isApprovedJeweller,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("wishlists")
-        .select("stone_id")
-        .eq("jeweller_id", user!.id);
-      return new Set((data ?? []).map((w: any) => w.stone_id as string));
-    },
-  });
-
-  // Followed dealer ids (drives the "In feed" badge).
+  // Followed dealer ids drive private-drop visibility and the "In feed" badge.
   const { data: followedDealerIds } = useQuery({
     queryKey: ["followed-dealers", user?.id],
     enabled: !!user && isApprovedJeweller,
@@ -228,6 +191,45 @@ function Marketplace() {
         .eq("selection_type", "dealer_follow")
         .not("dealer_id", "is", null);
       return new Set((sels ?? []).map((s: any) => s.dealer_id as string));
+    },
+  });
+
+  const followedDealerKey = Array.from(followedDealerIds ?? []).sort().join(",");
+
+  const { data: result, isFetching } = useQuery({
+    queryKey: ["marketplace-search", debouncedF, page, followedDealerKey],
+    queryFn: () => search({ data: { filters: debouncedF, page, followedDealerIds: Array.from(followedDealerIds ?? []) } }),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,       // don't refetch for 30s — covers tab switches, back nav
+    gcTime:    5 * 60_000,   // keep in cache 5 min so back button is instant
+  });
+
+  // Prefetch next page while user is reading the current one
+  useEffect(() => {
+    if (!result || page >= Math.ceil((result.total ?? 0) / PAGE_SIZE)) return;
+    queryClient.prefetchQuery({
+      queryKey: ["marketplace-search", debouncedF, page + 1],
+      queryFn: () => search({ data: { filters: debouncedF, page: page + 1, followedDealerIds: Array.from(followedDealerIds ?? []) } }),
+      staleTime: 30_000,
+    });
+  }, [result, page, debouncedF, followedDealerIds, queryClient, search]);
+
+  const rawStones = result?.stones ?? [];
+  const total = result?.total ?? 0;
+  const marketTotal = result?.marketTotal ?? total;
+  const isLoading = isFetching && !result;
+
+  // Single bulk fetch of the jeweller's wishlist (replaces N+1 per-card queries).
+  const { data: wishlistIds } = useQuery({
+    queryKey: ["wishlist-ids", user?.id],
+    enabled: !!user && isApprovedJeweller,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wishlists")
+        .select("stone_id")
+        .eq("jeweller_id", user!.id);
+      return new Set((data ?? []).map((w: any) => w.stone_id as string));
     },
   });
 
@@ -847,6 +849,13 @@ function Marketplace() {
                 Clear filters
               </Button>
             )}
+            <ConciergeRequestModal
+              trigger={
+                <Button variant="outline" size="sm">
+                  Can&apos;t find it? Request it
+                </Button>
+              }
+            />
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" size="sm" className="lg:hidden">
@@ -1420,6 +1429,15 @@ function EmptyMarketplace({
           >
             {diagnosticsLoading ? "Checking values..." : "Show filter diagnostics"}
           </Button>
+          <div className="mt-3">
+            <ConciergeRequestModal
+              trigger={
+                <Button size="sm">
+                  Can&apos;t find it? Request it
+                </Button>
+              }
+            />
+          </div>
         </div>
         {diagnostics && (
           <div className="mt-6 rounded-md border border-border bg-card text-left">

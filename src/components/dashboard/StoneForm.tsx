@@ -109,6 +109,10 @@ export type StoneFormValues = {
   enhancement: string;
   // Commercial
   listing_type: "single" | "parcel";
+  source_type: "standard" | "direct_vault";
+  private_drop_enabled: boolean;
+  private_drop_duration_hours: "24" | "48" | "72";
+  private_until: string;
   parcel_quantity: string;
   matching_pair: boolean;
   // Media / provenance
@@ -160,6 +164,10 @@ export const emptyStone: StoneFormValues = {
   black_inclusion: "",
   enhancement: "",
   listing_type: "single",
+  source_type: "standard",
+  private_drop_enabled: false,
+  private_drop_duration_hours: "24",
+  private_until: "",
   parcel_quantity: "",
   matching_pair: false,
   has_video: false,
@@ -311,6 +319,10 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
       black_inclusion: values.black_inclusion.trim() || null,
       enhancement: values.enhancement.trim() || null,
       listing_type: values.listing_type,
+      source_type: values.source_type,
+      private_until: values.private_drop_enabled
+        ? new Date(Date.now() + Number(values.private_drop_duration_hours) * 60 * 60 * 1000).toISOString()
+        : null,
       parcel_quantity: values.parcel_quantity ? Number(values.parcel_quantity) : null,
       matching_pair: values.matching_pair,
       has_video: values.has_video,
@@ -682,6 +694,52 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
           </div>
           {values.listing_type === "parcel" && (
             <NumField label="Parcel quantity" v={values.parcel_quantity} on={(x) => set("parcel_quantity", x)} />
+          )}
+          <div>
+            <Label>Source type</Label>
+            <select
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={values.source_type}
+              onChange={(e) => set("source_type", e.target.value as "standard" | "direct_vault")}
+            >
+              <option value="standard">Standard</option>
+              <option value="direct_vault">Direct Vault</option>
+            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Direct Vault marks stones sourced privately or directly from a trusted supplier.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 rounded-md border border-border bg-background p-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={values.private_drop_enabled}
+              onChange={(e) => set("private_drop_enabled", e.target.checked)}
+            />
+            Private Drop / Early Access
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Temporarily show this stone only to jewellers who follow your dealership.
+          </p>
+          {values.private_drop_enabled && (
+            <div className="mt-3 max-w-xs">
+              <Label>Early access duration</Label>
+              <select
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={values.private_drop_duration_hours}
+                onChange={(e) => set("private_drop_duration_hours", e.target.value as "24" | "48" | "72")}
+              >
+                <option value="24">24 hours</option>
+                <option value="48">48 hours</option>
+                <option value="72">72 hours</option>
+              </select>
+            </div>
+          )}
+          {!values.private_drop_enabled && values.private_until && new Date(values.private_until).getTime() > Date.now() && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Current private drop expires {new Date(values.private_until).toLocaleString()}.
+            </p>
           )}
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm">

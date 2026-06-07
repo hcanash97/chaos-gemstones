@@ -59,13 +59,20 @@ function FeedsPage() {
     },
   });
 
-  async function onToggle(selectionType: "dealer_follow" | "stone_pin", id: string, enabled: boolean) {
+  async function onToggle(selectionType: "dealer_follow" | "stone_pin", id: string, enabled: boolean, addedStoneCount = 0) {
     setInlineError(null);
     try {
       await saveSelection({ data: selectionType === "dealer_follow" ? { selectionType, dealerId: id, enabled } : { selectionType, stoneId: id, enabled } });
       await refetch();
       qc.invalidateQueries({ queryKey: ["jeweller-overview"] });
-      toast.success(enabled ? "Saved" : "Removed");
+      qc.invalidateQueries({ queryKey: ["jeweller-intelligence"] });
+      toast.success(
+        enabled && selectionType === "dealer_follow"
+          ? `+${addedStoneCount.toLocaleString()} stones added to your private feed.`
+          : enabled
+          ? "Saved"
+          : "Removed",
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Server error";
       setInlineError(message);
@@ -125,7 +132,7 @@ function FeedsPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">{(d.specialities ?? []).join(", ") || "—"}</td>
                   <td className="px-4 py-3 text-right font-mono">{d.stoneCount}</td>
                   <td className="px-4 py-3 text-right">
-                    <Switch checked={followed.has(d.id)} onCheckedChange={(value) => onToggle("dealer_follow", d.id, value)} />
+                    <Switch checked={followed.has(d.id)} onCheckedChange={(value) => onToggle("dealer_follow", d.id, value, d.stoneCount)} />
                   </td>
                 </tr>
               ))}

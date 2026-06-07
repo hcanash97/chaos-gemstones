@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getJewellerSettings } from "@/lib/profile-settings.functions";
+import { useJewellerIntelligence } from "@/hooks/useJewellerIntelligence";
 import { Button } from "@/components/ui/button";
 import { ReferralNudge } from "@/components/dashboard/ReferralNudge";
 import { RoleSwitcher } from "@/components/dashboard/RoleSwitcher";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/dashboard/jeweller/")({
 function JewellerOverview() {
   const { user, profile } = useAuth();
   const fetchSettings = useServerFn(getJewellerSettings);
+  const intelligence = useJewellerIntelligence(user?.id);
 
   const { data } = useQuery({
     queryKey: ["jeweller-overview", user?.id],
@@ -68,6 +70,8 @@ function JewellerOverview() {
         <p className="text-sm text-muted-foreground">Your sourcing dashboard.</p>
       </motion.div>
 
+      <JewellerIntelligenceBanner intelligence={intelligence} />
+
       {showOnboarding ? (
         <JewellerOnboarding
           hasFollows={(data?.activeFeeds ?? 0) > 0}
@@ -105,6 +109,44 @@ function JewellerOverview() {
         <Action title="Follow vendors" desc="Pick the dealers whose inventory should flow into your feed." to="/dashboard/jeweller/feeds" />
         <Action title="Set markup" desc="Global and per-vendor multipliers for retail price." to="/dashboard/jeweller/markup" />
         <Action title="Get API key" desc="Stream your curated feed into your Shopify or custom site." to="/dashboard/jeweller/api" />
+      </div>
+    </div>
+  );
+}
+
+function JewellerIntelligenceBanner({
+  intelligence,
+}: {
+  intelligence: ReturnType<typeof useJewellerIntelligence>;
+}) {
+  if (intelligence.isLoading) return null;
+  if (intelligence.feedStones === 0 && intelligence.followedDealers === 0) {
+    return (
+      <div className="mt-5 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2">
+          <Gem className="h-4 w-4 text-[var(--color-gold)]" />
+          <span>
+            You&apos;re not following any dealers yet. Jewellers who follow 3 or more dealers source significantly faster and get first access to Direct Vault drops.
+          </span>
+          <Button asChild size="sm" variant="outline" className="ml-auto">
+            <Link to="/vendors">Browse Dealers →</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <Gem className="h-4 w-4 text-[var(--color-gold)]" />
+        {intelligence.vaultStones > 0 ? (
+          <span>
+            You have access to {intelligence.feedStones.toLocaleString()} stones, including {intelligence.vaultStones.toLocaleString()} Direct Vault drops not visible to unfollowed jewellers.
+          </span>
+        ) : (
+          <span>Follow dealers to unlock Direct Vault drops before they reach the open market.</span>
+        )}
       </div>
     </div>
   );

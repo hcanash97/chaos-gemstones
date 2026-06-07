@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { countryFlag } from "@/lib/countries";
 import { fadeUp } from "@/components/anim/Motion";
-import { ShieldCheck, Heart, Scale, RotateCcw } from "lucide-react";
+import { Clock, ShieldCheck, Heart, Scale, RotateCcw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJeweller, isDealer as checkDealer, isAdmin as checkAdmin } from "@/lib/auth.utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,8 @@ export type StoneCardData = {
   has_video?: boolean | null;
   has_360?: boolean | null;
   matching_pair?: boolean | null;
+  source_type?: "standard" | "direct_vault" | string | null;
+  private_until?: string | null;
   isWishlisted?: boolean;
 };
 
@@ -73,6 +75,8 @@ function StoneCardImpl({
   const queryClient = useQueryClient();
   const [saved, setSaved] = useState<boolean>(!!stone.isWishlisted);
   const [busy, setBusy] = useState(false);
+  const isDirectVault = stone.source_type === "direct_vault";
+  const isEarlyAccess = !!stone.private_until && new Date(stone.private_until).getTime() > Date.now();
 
   // Sync local state with prop when parent re-fetches the wishlist set.
   React.useEffect(() => {
@@ -162,6 +166,17 @@ function StoneCardImpl({
           </span>
         )}
         <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
+          {isDirectVault && (
+            <span className="rounded-full bg-amber-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-100 shadow">
+              Direct Vault
+            </span>
+          )}
+          {isEarlyAccess && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-100 shadow">
+              <Clock className="h-3 w-3" />
+              Early Access
+            </span>
+          )}
           {(stone.has_360 || stone.has_video) && (
             <span className="rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground backdrop-blur">
               {stone.has_360 ? "360°" : "Video"}
