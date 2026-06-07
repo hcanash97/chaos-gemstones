@@ -46,12 +46,13 @@ export const Route = createFileRoute("/api/dealer/v1/stones/bulk")({
             errors.push({ row: idx, field: "_root", message: "Each entry must be an object" });
             return;
           }
-          // Normalise known string fields before validation.
+          // Normalise known fields before validation, including enum fields
+          // such as cert_lab and clarity_grade.
           const rawPayload = raw as Record<string, unknown>;
           const payload: Record<string, unknown> = {};
           for (const [k, v] of Object.entries(rawPayload)) {
             const fieldDef = FIELD_MAP[k];
-            payload[k] = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
+            payload[k] = fieldDef ? normaliseValue(fieldDef, v) : v;
           }
           const cert = payload.cert_number ? String(payload.cert_number).trim() : "";
           const existingId = cert ? certToId.get(cert) : undefined;

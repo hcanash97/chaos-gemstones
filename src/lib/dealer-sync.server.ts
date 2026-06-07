@@ -363,7 +363,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       const payload: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(rawPayload)) {
         const fieldDef = FIELD_MAP[k];
-        let coerced = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
+        let coerced = fieldDef ? normaliseValue(fieldDef, v) : v;
         if (NUMERIC_FIELDS.has(k) && coerced !== null && coerced !== undefined && coerced !== "") {
           const numericText = String(coerced).replace(/,/g, "").trim();
           const n = parseFloat(numericText);

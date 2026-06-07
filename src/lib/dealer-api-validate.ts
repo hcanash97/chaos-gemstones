@@ -32,7 +32,8 @@ export function validateStonePayload(
     if (!KNOWN_FIELDS.has(key)) continue; // ignore unknown fields
     if (rawValue === undefined || rawValue === null || rawValue === "") continue;
     const fieldDef = FIELD_MAP[key];
-    const raw = fieldDef?.type === "string" ? normaliseValue(fieldDef, rawValue) : rawValue;
+    const raw = fieldDef ? normaliseValue(fieldDef, rawValue) : rawValue;
+    if (raw === undefined || raw === null || raw === "") continue;
 
     if (NUMERIC_FIELDS.has(key)) {
       const n = Number(raw);
