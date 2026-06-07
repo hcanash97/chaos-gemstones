@@ -1446,7 +1446,22 @@ export type Database = {
           stone_id?: string | null
           warnings?: string[]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_intake_log_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_intake_log_stone_id_fkey"
+            columns: ["stone_id"]
+            isOneToOne: false
+            referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wishlists: {
         Row: {
