@@ -6,12 +6,10 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
 import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
-import { extractVirtualFields, normaliseValue, resolveFieldKey, FIELD_MAP } from "@/lib/import-fields";
+import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
 
 const SYNC_BATCH_SIZE = 200;
-const IMAGE_INSERT_BATCH_SIZE = 200;
 const MAX_STORED_DIAGNOSTICS = 250;
-const MAX_EXTERNAL_FEED_BYTES = 50 * 1024 * 1024;
 
 type SyncDiagnosticLevel = "info" | "success" | "warning" | "error";
 
@@ -36,120 +34,17 @@ type SyncCandidate = {
   data: Record<string, unknown>;
   image_url?: string;
   existedBefore: boolean;
-  needsLegacyIdentityBackfill: boolean;
+  existingId?: string;
 };
 
-type ExistingSyncRow = {
+type ExistingStoneRef = {
   id: string;
-  cert_number?: string | null;
+  cert_number: string | null;
   external_sync_key?: string | null;
   source_stock_no?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
 };
-
-function canonicaliseGenericFeedRow(row: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [header, value] of Object.entries(row)) {
-    const key = resolveFieldKey(header);
-    if (key === "__skip__") continue;
-    if (out[key] === undefined || out[key] === null || out[key] === "") {
-      out[key] = value;
-    }
-  }
-  return out;
-}
-
-function isMissingImportIdentityColumn(error: unknown) {
-  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
-  const text = `${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`;
-  return err?.code === "42703" || err?.code === "PGRST204" || /external_source|external_sync_key|source_stock_no|raw_import_row|last_imported_at|schema cache/i.test(text);
-}
-
-function summarizeDiagnostics(errors: SyncDiagnostic[]): SyncDiagnostic[] {
-  if (!errors.length) return [];
-
-  const byCode = new Map<string, number>();
-  const byField = new Map<string, number>();
-  for (const error of errors) {
-    byCode.set(error.pgCode ?? "validation", (byCode.get(error.pgCode ?? "validation") ?? 0) + 1);
-    byField.set(error.field ?? "_sync", (byField.get(error.field ?? "_sync") ?? 0) + 1);
-  }
-
-  const codeText = Array.from(byCode.entries())
-    .map(([code, count]) => `${code}: ${count}`)
-    .join(", ");
-  const fieldText = Array.from(byField.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([field, count]) => `${field}: ${count}`)
-    .join(", ");
-
-  const suggestions = new Set<string>();
-  if (byCode.has("42P10")) {
-    suggestions.add("Database unique-index mismatch detected. Apply the API identity migrations and reload Supabase schema cache. Patch47 also avoids this by writing rows manually instead of relying on ON CONFLICT.");
-  }
-  if (byCode.has("23502")) {
-    suggestions.add("A required database column received null. Check the listed field and add a safe default in the mapper.");
-  }
-  if (byCode.has("23505")) {
-    suggestions.add("Duplicate key detected. Check private sync keys and existing duplicate rows for this dealer.");
-  }
-  if (byCode.has("22P02")) {
-    suggestions.add("A value could not be cast to the database type. Check the listed raw value and mapping translation.");
-  }
-
-  return [
-    diagnostic("error", `Sync finished with ${errors.length} failed event${errors.length === 1 ? "" : "s"}. Error codes: ${codeText || "none"}. Top fields: ${fieldText || "none"}.`, {
-      field: "_summary",
-    }),
-    ...Array.from(suggestions).map((message) => diagnostic("warning", message, {
-      field: "_suggestion",
-    })),
-  ];
-}
-
-function syncOutcomeDiagnostics({
-  candidates,
-  existing,
-  created,
-  updated,
-  markedInactive,
-  usedPrivateIdentity,
-}: {
-  candidates: number;
-  existing: number;
-  created: number;
-  updated: number;
-  markedInactive: number;
-  usedPrivateIdentity: boolean;
-}): SyncDiagnostic[] {
-  const diagnostics: SyncDiagnostic[] = [
-    diagnostic("success", `Sync write summary: ${created} new, ${updated} updated, ${markedInactive} marked inactive from ${candidates} feed rows.`, {
-      field: "_summary",
-    }),
-  ];
-
-  if (existing === 0 && created > 0) {
-    diagnostics.push(diagnostic("info", "Chaos found no existing stones for this dealer before writing, so this run was treated as a fresh rebuild. That is expected immediately after using Clear Imported Inventory. On the next sync, these same rows should mostly show as updated rather than new.", {
-      field: "_summary",
-    }));
-  } else if (existing > 0 && updated > created) {
-    diagnostics.push(diagnostic("success", "Healthy repeat sync pattern: most feed rows matched existing stones and were updated instead of duplicated.", {
-      field: "_summary",
-    }));
-  } else if (existing > 0 && created > updated && created > candidates * 0.25) {
-    diagnostics.push(diagnostic("warning", "This sync created many new rows even though existing stones were loaded. If this was not expected new stock, check whether the dealer changed certificate/stock numbers or whether older rows were imported under a different dealer account.", {
-      field: "_summary",
-    }));
-  }
-
-  if (!usedPrivateIdentity) {
-    diagnostics.push(diagnostic("info", "Private API identity columns are still not visible to the live Supabase schema cache, so Chaos used legacy certificate/stock-key matching. The run can still be safe, but applying the API identity SQL migrations will make future sync matching cleaner.", {
-      field: "external_sync_key",
-    }));
-  }
-
-  return diagnostics;
-}
 
 function assertSafeFeedUrl(urlStr: string): void {
   const target = new URL(urlStr);
@@ -220,6 +115,23 @@ function stockRef(raw: Record<string, unknown>): string | null {
     cleanString(raw.stockNo) ??
     cleanString(raw.stock_no) ??
     cleanString(raw.stockNumber) ??
+    cleanString(raw.stock_number) ??
+    cleanString(raw.LotNo) ??
+    cleanString(raw.lotNo) ??
+    cleanString(raw.lot_number) ??
+    cleanString(raw.LotNumber) ??
+    cleanString(raw.lotNumber) ??
+    cleanString(raw.RefNo) ??
+    cleanString(raw.refNo) ??
+    cleanString(raw.ref_number) ??
+    cleanString(raw.StoneID) ??
+    cleanString(raw.stoneId) ??
+    cleanString(raw.stoneID) ??
+    cleanString(raw.PacketNo) ??
+    cleanString(raw.packetNo) ??
+    cleanString(raw.SlipNo) ??
+    cleanString(raw.slipNo) ??
+    cleanString(raw["货号"]) ??
     cleanString(raw.sku) ??
     cleanString(raw.ref) ??
     cleanString(raw.id)
@@ -232,10 +144,25 @@ function certRef(raw: Record<string, unknown>, payload: Record<string, unknown>)
     cleanString(raw.reportNo) ??
     cleanString(raw.report_no) ??
     cleanString(raw.reportNumber) ??
+    cleanString(raw.report_number) ??
+    cleanString(raw.ReportID) ??
+    cleanString(raw.reportID) ??
+    cleanString(raw.reportId) ??
     cleanString(raw.certNo) ??
     cleanString(raw.certNumber) ??
+    cleanString(raw.cert_no) ??
+    cleanString(raw.cert_number) ??
+    cleanString(raw.CertiNo) ??
+    cleanString(raw.certiNo) ??
+    cleanString(raw.certi_no) ??
+    cleanString(raw.LabNo) ??
+    cleanString(raw.labNo) ??
+    cleanString(raw.lab_no) ??
     cleanString(raw.certificateNo) ??
-    cleanString(raw.certificateNumber)
+    cleanString(raw.certificateNumber) ??
+    cleanString(raw.certificate_no) ??
+    cleanString(raw.certificate_number) ??
+    cleanString(raw["证书号"])
   );
 }
 
@@ -283,52 +210,70 @@ function publicErrorText(d: SyncDiagnostic): string {
   return `${parts.length ? `${parts.join(" / ")} - ` : ""}${d.message}`;
 }
 
-async function fetchExistingSyncRows(
-  dealerId: string,
-  diagnostics: SyncDiagnostic[],
-): Promise<{ rows: ExistingSyncRow[]; useImportIdentityColumns: boolean }> {
-  const rows: ExistingSyncRow[] = [];
+function boolDefault(value: unknown, fallback = false): boolean {
+  if (value === true || value === false) return value;
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["1", "true", "yes", "y"].includes(String(value).trim().toLowerCase());
+}
+
+function numberDefault(value: unknown, fallback: number): number {
+  if (value === undefined || value === null || value === "") return fallback;
+  const n = Number(String(value).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function withStoneDefaults(data: Record<string, unknown>): Record<string, unknown> {
+  const videoUrl = cleanString(data.video_url);
+  return {
+    ...data,
+    available_qty: numberDefault(data.available_qty, 1),
+    minimum_order_qty: numberDefault(data.minimum_order_qty, 1),
+    featured: boolDefault(data.featured),
+    feed_inactive: boolDefault(data.feed_inactive),
+    matching_pair: boolDefault(data.matching_pair),
+    has_video: boolDefault(data.has_video, !!videoUrl),
+    has_360: boolDefault(data.has_360),
+    bulk_pricing_available: boolDefault(data.bulk_pricing_available),
+    is_test: boolDefault(data.is_test),
+    listing_type: cleanString(data.listing_type) ?? "single",
+    price_currency: cleanString(data.price_currency) ?? "USD",
+  };
+}
+
+function isMissingImportIdentityColumn(error: unknown) {
+  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  const text = `${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`;
+  return err?.code === "42703" || /external_sync_key|source_stock_no|schema cache/i.test(text);
+}
+
+async function fetchAllExistingDealerStones(dealerId: string): Promise<ExistingStoneRef[]> {
+  const rows: ExistingStoneRef[] = [];
   const pageSize = 1000;
-  let useImportIdentityColumns = true;
-
   for (let from = 0; ; from += pageSize) {
-    const page = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from("stones")
-      .select("id, cert_number, external_source, external_sync_key, source_stock_no, last_imported_at, raw_import_row")
+      .select("id, cert_number, external_sync_key, source_stock_no, updated_at, created_at")
       .eq("dealer_id", dealerId)
+      .order("updated_at", { ascending: false, nullsFirst: false })
       .range(from, from + pageSize - 1);
 
-    if (page.error && isMissingImportIdentityColumn(page.error)) {
-      useImportIdentityColumns = false;
-      diagnostics.push(diagnostic("info", "Live Supabase schema cache is missing one or more private API sync columns. Chaos will use legacy certificate/stock-key matching for this run. Apply the latest API identity SQL migration when convenient so future syncs can use the cleaner private-key path.", {
-        field: "external_sync_key",
-      }));
-      break;
+    if (error && isMissingImportIdentityColumn(error)) {
+      const fallback = await supabaseAdmin
+        .from("stones")
+        .select("id, cert_number, updated_at, created_at")
+        .eq("dealer_id", dealerId)
+        .order("updated_at", { ascending: false, nullsFirst: false })
+        .range(from, from + pageSize - 1);
+      data = fallback.data as typeof data;
+      error = fallback.error;
     }
-    if (page.error) throw new Error(page.error.message);
 
-    const data = (page.data ?? []) as ExistingSyncRow[];
-    rows.push(...data);
-    if (data.length < pageSize) {
-      return { rows, useImportIdentityColumns };
-    }
+    if (error) throw new Error(`Could not load existing inventory for duplicate detection: ${error.message}`);
+    const page = (data ?? []) as ExistingStoneRef[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
   }
-
-  rows.length = 0;
-  for (let from = 0; ; from += pageSize) {
-    const page = await supabaseAdmin
-      .from("stones")
-      .select("id, cert_number")
-      .eq("dealer_id", dealerId)
-      .range(from, from + pageSize - 1);
-
-    if (page.error) throw new Error(page.error.message);
-    const data = (page.data ?? []) as ExistingSyncRow[];
-    rows.push(...data);
-    if (data.length < pageSize) break;
-  }
-
-  return { rows, useImportIdentityColumns };
+  return rows;
 }
 
 export async function runDealerSyncForUser(dealerId: string, source: "manual" | "admin" | "cron" = "manual") {
@@ -380,8 +325,8 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     const contentType = res.headers.get("content-type") ?? "";
     const rawText = await res.text();
-    if (rawText.length > MAX_EXTERNAL_FEED_BYTES) {
-      throw new Error("Feed too large for one-shot sync (>50 MB). Ask the dealer for a paginated feed or a smaller filtered endpoint.");
+    if (rawText.length > 10 * 1024 * 1024) {
+      throw new Error("Feed too large (>10 MB)");
     }
     // Detect format defensively: many dealer inventory systems (Kodllin and
     // similar) return JSON with content-type: text/html or text/plain. Sniff
@@ -445,28 +390,42 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     const diagnostics: SyncDiagnostic[] = [];
 
-    // Fetch all existing stones for this dealer so we can diff create vs update.
-    // This is deliberately paginated: Supabase/PostgREST commonly returns only
-    // the first 1,000 rows unless ranges are requested, which would otherwise
-    // make the second Nancy sync create duplicates after the first page.
-    const existingResult = await fetchExistingSyncRows(dealerId, diagnostics);
-    const useImportIdentityColumns = existingResult.useImportIdentityColumns;
-    const existing = existingResult.rows;
-    diagnostics.push(diagnostic("info", `Loaded ${existing.length} existing dealer stones for sync matching before writing.`, {
-      field: "_prepare",
-    }));
-    const syncKeyToId = new Map<string, string>();
-    const externalKeyById = new Map<string, string>();
-    for (const s of existing ?? []) {
-      if (useImportIdentityColumns && s.external_sync_key) {
-        syncKeyToId.set(s.external_sync_key, s.id);
-        externalKeyById.set(s.id, s.external_sync_key);
+    const existing = await fetchAllExistingDealerStones(dealerId);
+    const certToId = new Map<string, string>();
+    const externalKeyToId = new Map<string, string>();
+    const duplicateExistingIds: string[] = [];
+    for (const s of existing) {
+      const externalKey = cleanString(s.external_sync_key);
+      if (externalKey && !externalKeyToId.has(externalKey)) {
+        externalKeyToId.set(externalKey, s.id);
       }
-      if (s.cert_number && !syncKeyToId.has(s.cert_number)) syncKeyToId.set(s.cert_number, s.id);
-      if (s.source_stock_no) {
-        const stockKey = `stock:${s.source_stock_no}`;
-        if (!syncKeyToId.has(stockKey)) syncKeyToId.set(stockKey, s.id);
+      const cert = cleanString(s.cert_number);
+      if (!cert) continue;
+      if (certToId.has(cert)) {
+        duplicateExistingIds.push(s.id);
+      } else {
+        certToId.set(cert, s.id);
       }
+    }
+
+    if (duplicateExistingIds.length) {
+      for (let i = 0; i < duplicateExistingIds.length; i += SYNC_BATCH_SIZE) {
+        const ids = duplicateExistingIds.slice(i, i + SYNC_BATCH_SIZE);
+        const { error } = await supabaseAdmin
+          .from("stones")
+          .delete()
+          .eq("dealer_id", dealerId)
+          .in("id", ids);
+        if (error) {
+          diagnostics.push(postgresDiagnostic("Could not remove older duplicate rows before sync. Chaos will continue using the newest row for each sync key", error, {
+            field: "_dedupe",
+          }));
+          break;
+        }
+      }
+      diagnostics.push(diagnostic("warning", `Removed ${duplicateExistingIds.length} older duplicate row${duplicateExistingIds.length === 1 ? "" : "s"} before syncing.`, {
+        field: "_dedupe",
+      }));
     }
 
     // Numeric fields that often arrive as strings from JSON feeds.
@@ -477,34 +436,22 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     ]);
 
     const errors: SyncDiagnostic[] = [];
-    const candidatesBySyncKey = new Map<string, SyncCandidate>();
-    const seenSyncKeys = new Set<string>();
+    const candidatesByCert = new Map<string, SyncCandidate>();
+    const seenCerts = new Set<string>();
     let cityFromFeed: string | undefined;
     let missingCertFallbackCount = 0;
-    let nancyImageLinkPresentCount = 0;
 
     rows.forEach((raw, idx) => {
       const sourceRow = raw as Record<string, unknown>;
       const rowNumber = idx + 1;
       const stockNo = stockRef(sourceRow);
-      if (preset?.id === "kodllin" && typeof sourceRow.imageLink === "string" && sourceRow.imageLink.trim()) {
-        nancyImageLinkPresentCount += 1;
-      }
-      const mappedBase = mapRow(sourceRow, preset);
-      const mappedStone = preset ? mappedBase.stone : canonicaliseGenericFeedRow(mappedBase.stone);
-      const virtualFields = extractVirtualFields(mappedStone);
-      const mapped = {
-        ...mappedBase,
-        stone: mappedStone,
-        image_url: mappedBase.image_url ?? virtualFields.image_url ?? undefined,
-      };
+      const mapped = mapRow(sourceRow, preset);
       if (!cityFromFeed && mapped.city) cityFromFeed = mapped.city;
       const rawPayload = mapped.stone;
       const payload: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(rawPayload)) {
         const fieldDef = FIELD_MAP[k];
-        if (fieldDef?.virtual) continue;
-        let coerced = fieldDef ? normaliseValue(fieldDef, v) : v;
+        let coerced = fieldDef && fieldDef.type === "string" ? normaliseValue(fieldDef, v) : v;
         if (NUMERIC_FIELDS.has(k) && coerced !== null && coerced !== undefined && coerced !== "") {
           const numericText = String(coerced).replace(/,/g, "").trim();
           const n = parseFloat(numericText);
@@ -523,322 +470,281 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       }
 
       const originalCert = certRef(sourceRow, payload);
-      const syncKey = originalCert ?? (stockNo ? `stock:${stockNo}` : `feed-row:${rowNumber}`);
       if (!originalCert) {
         const fallback = stockNo ? `stock:${stockNo}` : `feed-row:${rowNumber}`;
+        payload.cert_number = fallback;
         missingCertFallbackCount += 1;
         if (missingCertFallbackCount <= 20) {
-          diagnostics.push(diagnostic("info", `Nancy/Kodllin did not provide a report number for this stone. Chaos used "${fallback}" as the sync key, so the stone can still update safely on future syncs.`, {
+          diagnostics.push(diagnostic("warning", `Nancy/Kodllin did not provide a value in its report number fields for this stone. Chaos used "${fallback}" as the private sync key. The stone can still import, but the public certificate/report number will be blank unless Nancy provides one.`, {
             row: rowNumber,
             stockNo,
             certNumber: fallback,
             field: "cert_number",
           }));
         }
+      } else {
+        payload.cert_number = originalCert;
       }
 
-      payload.cert_number = useImportIdentityColumns ? (originalCert ?? null) : syncKey;
+      const cert = String(payload.cert_number).trim();
+      const externalSyncKey = originalCert ? `cert:${cert}` : cert;
+      if (cert) seenCerts.add(cert);
 
-      if (syncKey) seenSyncKeys.add(syncKey);
-
-      const existingId = syncKey ? syncKeyToId.get(syncKey) : undefined;
+      const existingId = externalKeyToId.get(externalSyncKey) ?? (cert ? certToId.get(cert) : undefined);
       const mode = existingId ? "update" : "create";
       const result = validateStonePayload(payload, mode);
       if (!result.ok) {
         result.errors.forEach((e) => errors.push(diagnostic("error", e.message, {
           row: rowNumber,
           stockNo,
-          certNumber: syncKey,
+          certNumber: cert,
           field: e.field,
         })));
         return;
       }
 
-      const previous = candidatesBySyncKey.get(syncKey);
+      const previous = candidatesByCert.get(cert);
       if (previous) {
         diagnostics.push(diagnostic("warning", `Duplicate sync key also appeared at row ${previous.sourceIndex + 1}. Using the later row and skipping the earlier duplicate to avoid an ON CONFLICT failure.`, {
           row: rowNumber,
           stockNo,
-          certNumber: syncKey,
-          field: useImportIdentityColumns ? "external_sync_key" : "cert_number",
+          certNumber: cert,
+          field: "cert_number",
         }));
       }
 
-      candidatesBySyncKey.set(syncKey, {
+      candidatesByCert.set(cert, {
         sourceIndex: idx,
         stockNo,
-        certNumber: syncKey,
-        data: {
+        certNumber: cert,
+        data: withStoneDefaults({
           ...result.data,
           dealer_id: dealerId,
-          status: result.data.status ?? "available",
-          is_test: false,
+          cert_number: cert,
+          external_source: preset?.id ?? "custom_feed",
+          source_stock_no: stockNo,
+          external_sync_key: externalSyncKey,
+          last_imported_at: new Date().toISOString(),
+          raw_import_row: sourceRow,
           feed_inactive: false,
-          has_video: result.data.has_video ?? false,
-          has_360: result.data.has_360 ?? false,
-          matching_pair: result.data.matching_pair ?? false,
-          bulk_pricing_available: result.data.bulk_pricing_available ?? false,
-          available_qty: result.data.available_qty ?? 1,
-          minimum_order_qty: result.data.minimum_order_qty ?? 1,
-          listing_type: result.data.listing_type ?? "single",
-          price_currency: result.data.price_currency ?? "USD",
-          ...(useImportIdentityColumns
-            ? {
-                cert_number: originalCert ?? null,
-                external_source: preset?.id ?? "external_feed",
-                external_sync_key: syncKey,
-                source_stock_no: stockNo,
-                last_imported_at: new Date().toISOString(),
-                raw_import_row: sourceRow,
-              }
-            : { cert_number: syncKey }),
-        },
+        }),
         image_url: mapped.image_url,
         existedBefore: !!existingId,
-        needsLegacyIdentityBackfill: useImportIdentityColumns && !!existingId && externalKeyById.get(existingId) !== syncKey,
+        existingId,
       });
     });
 
-    const candidates = Array.from(candidatesBySyncKey.values());
+    const candidates = Array.from(candidatesByCert.values());
     if (missingCertFallbackCount > 20) {
-      diagnostics.push(diagnostic("info", `${missingCertFallbackCount} stones had no Nancy/Kodllin report number, so Chaos used stock numbers as safe sync keys. This is expected for this feed and is not an import error. Showing the first 20 examples only to keep the log readable.`, {
+      diagnostics.push(diagnostic("warning", `${missingCertFallbackCount} stones had no Nancy/Kodllin report number, so Chaos used stock numbers as private sync keys. Showing the first 20 examples only to keep this log readable.`, {
         field: "cert_number",
       }));
     }
     let created = 0;
     let updated = 0;
-    const imageRowsToInsert: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
-    const existingImageUrlsByStoneId = new Map<string, Set<string>>();
-    const feedRowsWithImageUrl = candidates.filter((candidate) => !!candidate.image_url).length;
-
-    const normalizeImageUrl = (value: string | null | undefined) => String(value ?? "").trim();
-    const rememberImageUrl = (stoneId: string, url: string | null | undefined) => {
-      const normalized = normalizeImageUrl(url);
-      if (!normalized) return;
-      const urls = existingImageUrlsByStoneId.get(stoneId) ?? new Set<string>();
-      urls.add(normalized);
-      existingImageUrlsByStoneId.set(stoneId, urls);
-    };
-    const queueImageRow = (stoneId: string, imageUrl: string | null | undefined) => {
-      const normalized = normalizeImageUrl(imageUrl);
-      if (!normalized) return;
-      const knownUrls = existingImageUrlsByStoneId.get(stoneId) ?? new Set<string>();
-      if (knownUrls.has(normalized)) return;
-      imageRowsToInsert.push({
-        stone_id: stoneId,
-        storage_url: normalized,
-        external_image_url: normalized,
-        is_primary: knownUrls.size === 0,
-        sort_order: knownUrls.size,
-      });
-      knownUrls.add(normalized);
-      existingImageUrlsByStoneId.set(stoneId, knownUrls);
-    };
-
-    const existingStoneIdsForImageAudit = Array.from(new Set(
-      candidates
-        .map((candidate) => syncKeyToId.get(candidate.certNumber))
-        .filter((id): id is string => !!id),
-    ));
-    for (let i = 0; i < existingStoneIdsForImageAudit.length; i += 500) {
-      const ids = existingStoneIdsForImageAudit.slice(i, i + 500);
-      const { data: imageRows, error } = await supabaseAdmin
-        .from("stone_images")
-        .select("stone_id, storage_url, external_image_url")
-        .in("stone_id", ids);
-      if (error) {
-        diagnostics.push(diagnostic("warning", "Could not pre-check existing image rows for this batch of imported stones. Stone data will still sync, but thumbnail repair may be incomplete for this run.", {
-          field: "_images",
-        }));
-        continue;
-      }
-      for (const row of imageRows ?? []) {
-        const stoneId = String((row as any).stone_id ?? "");
-        if (!stoneId) continue;
-        rememberImageUrl(stoneId, (row as any).storage_url);
-        rememberImageUrl(stoneId, (row as any).external_image_url);
-      }
-    }
-
-    diagnostics.push(diagnostic(feedRowsWithImageUrl > 0 ? "info" : "warning", `Feed image scan found ${feedRowsWithImageUrl}/${candidates.length} rows with a usable still-image URL. 360/video links are intentionally not counted as marketplace thumbnails.`, {
-      field: "_images",
-    }));
-    if (preset?.id === "kodllin") {
-      diagnostics.push(diagnostic(nancyImageLinkPresentCount > 0 ? "info" : "warning", `Nancy/Kodllin imageLink scan found ${nancyImageLinkPresentCount}/${rows.length} rows with a non-empty imageLink field.`, {
-        field: "imageLink",
-      }));
-    }
-    diagnostics.push(diagnostic("info", `Chaos found existing image rows for ${existingImageUrlsByStoneId.size}/${existingStoneIdsForImageAudit.length} already-matched stones before writing.`, {
-      field: "_images",
-    }));
+    // Collects image rows for both new AND updated stones.
+    // Written after all stone upserts complete.
+    const imageRowsToUpsert: Array<{
+      stone_id: string;
+      storage_url: string;
+      external_image_url: string;
+      is_primary: boolean;
+      sort_order: number;
+    }> = [];
 
     diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Saving database changes in batches of ${SYNC_BATCH_SIZE}.`, {
       field: "_prepare",
     }));
 
-    if (useImportIdentityColumns) {
-      const legacyBackfills = candidates.filter((candidate) => candidate.needsLegacyIdentityBackfill);
-      if (legacyBackfills.length) {
-        diagnostics.push(diagnostic("info", `Linking ${legacyBackfills.length} existing legacy API rows to their private sync keys before upsert. This prevents duplicate stones after older patches that synced by public cert_number only.`, {
-          field: "external_sync_key",
-        }));
-      }
-      for (const candidate of legacyBackfills) {
-        const existingId = syncKeyToId.get(candidate.certNumber);
-        if (!existingId) continue;
-        const { error } = await supabaseAdmin
-          .from("stones")
-          .update({
-            external_source: preset?.id ?? "external_feed",
-            external_sync_key: candidate.certNumber,
-            source_stock_no: candidate.stockNo,
-            last_imported_at: new Date().toISOString(),
-          } as never)
-          .eq("dealer_id", dealerId)
-          .eq("id", existingId);
-        if (error) {
-          errors.push(postgresDiagnostic("Could not link an existing legacy API row to its private sync key", error, {
-            row: candidate.sourceIndex + 1,
-            stockNo: candidate.stockNo,
-            certNumber: candidate.certNumber,
-            field: "external_sync_key",
-          }));
-        }
-      }
-    }
-
-    diagnostics.push(diagnostic("info", "Patch47 sync engine is using manual identity matching: update by existing database id when possible, otherwise insert a new stone. This avoids Postgres ON CONFLICT/index errors such as 42P10 while the Supabase schema catches up.", {
-      field: "_write",
-    }));
-
     for (let i = 0; i < candidates.length; i += SYNC_BATCH_SIZE) {
       const chunk = candidates.slice(i, i + SYNC_BATCH_SIZE);
       const batchNumber = Math.floor(i / SYNC_BATCH_SIZE) + 1;
+      const toCreate = chunk.filter((candidate) => !candidate.existedBefore);
+      const toUpdate = chunk.filter((candidate) => candidate.existedBefore);
 
-      let batchCreated = 0;
-      let batchUpdated = 0;
-
-      for (const candidate of chunk) {
-        const existingId = syncKeyToId.get(candidate.certNumber);
-        if (existingId) {
-          const { error } = await supabaseAdmin
-            .from("stones")
-            .update(candidate.data as never)
-            .eq("dealer_id", dealerId)
-            .eq("id", existingId);
-
-          if (error) {
-            errors.push(postgresDiagnostic("Row failed while updating the existing matched stone", error, {
-              row: candidate.sourceIndex + 1,
-              batch: batchNumber,
-              stockNo: candidate.stockNo,
-              certNumber: candidate.certNumber,
-              field: "_write",
-            }));
-            continue;
-          }
-          updated += 1;
-          batchUpdated += 1;
-          queueImageRow(existingId, candidate.image_url);
-          continue;
-        }
-
-        const { data: inserted, error } = await supabaseAdmin
-          .from("stones")
-          .insert(candidate.data as never)
-          .select("id")
-          .single();
-
-        if (error) {
-          errors.push(postgresDiagnostic("Row failed while inserting a new matched stone", error, {
+      for (const candidate of toUpdate) {
+        if (!candidate.existingId) {
+          errors.push(diagnostic("error", "Chaos found this stone as an existing row but could not find its internal database id.", {
             row: candidate.sourceIndex + 1,
             batch: batchNumber,
             stockNo: candidate.stockNo,
             certNumber: candidate.certNumber,
-            field: "_write",
+            field: "_update",
           }));
           continue;
         }
 
-        created += 1;
-        batchCreated += 1;
-        if (inserted?.id) syncKeyToId.set(candidate.certNumber, inserted.id);
-        if (inserted?.id) queueImageRow(inserted.id, candidate.image_url);
+        const { error } = await supabaseAdmin
+          .from("stones")
+          .update(candidate.data as never)
+          .eq("id", candidate.existingId)
+          .eq("dealer_id", dealerId);
+
+        if (error) {
+          errors.push(postgresDiagnostic("Row failed while updating existing stone", error, {
+            row: candidate.sourceIndex + 1,
+            batch: batchNumber,
+            stockNo: candidate.stockNo,
+            certNumber: candidate.certNumber,
+            field: "_update",
+          }));
+        } else {
+          updated += 1;
+          // Collect image for upsert — existing stones may not have had
+          // an image row written on previous syncs.
+          if (candidate.image_url && candidate.existingId) {
+            imageRowsToUpsert.push({
+              stone_id: candidate.existingId,
+              storage_url: candidate.image_url,
+              external_image_url: candidate.image_url,
+              is_primary: true,
+              sort_order: 0,
+            });
+          }
+        }
       }
 
-      diagnostics.push(diagnostic("success", `Batch ${batchNumber} saved ${batchCreated + batchUpdated}/${chunk.length} rows: ${batchCreated} new, ${batchUpdated} updated.`, {
-        batch: batchNumber,
-        field: "_write",
-      }));
+      if (toCreate.length) {
+        const { data, error } = await supabaseAdmin
+          .from("stones")
+          .insert(toCreate.map((candidate) => candidate.data) as never)
+          .select("id, cert_number");
+
+        if (error) {
+          errors.push(postgresDiagnostic(`Batch ${batchNumber} failed while inserting new stones. Retrying this insert batch row-by-row to find the exact failing stone`, error, {
+            batch: batchNumber,
+            field: "_insert",
+          }));
+
+          for (const candidate of toCreate) {
+            const { data: singleData, error: singleError } = await supabaseAdmin
+              .from("stones")
+              .insert(candidate.data as never)
+              .select("id, cert_number")
+              .single();
+
+            if (singleError) {
+              errors.push(postgresDiagnostic("Row failed during isolated insert retry", singleError, {
+                row: candidate.sourceIndex + 1,
+                batch: batchNumber,
+                stockNo: candidate.stockNo,
+                certNumber: candidate.certNumber,
+                field: "_insert",
+              }));
+              continue;
+            }
+
+            created += 1;
+            if (candidate.image_url && singleData?.id) {
+              imageRowsToUpsert.push({
+                stone_id: singleData.id,
+                storage_url: candidate.image_url,
+                external_image_url: candidate.image_url,
+                is_primary: true,
+                sort_order: 0,
+              });
+            }
+          }
+        } else {
+          created += data?.length ?? 0;
+
+          const idByCert = new Map<string, string>();
+          for (const row of data ?? []) {
+            if ((row as any).cert_number && (row as any).id) idByCert.set((row as any).cert_number, (row as any).id);
+          }
+          for (const candidate of toCreate) {
+            const id = idByCert.get(candidate.certNumber);
+            if (candidate.image_url && id) {
+              imageRowsToUpsert.push({
+                stone_id: id,
+                storage_url: candidate.image_url,
+                external_image_url: candidate.image_url,
+                is_primary: true,
+                sort_order: 0,
+              });
+            }
+          }
+        }
+      } else {
+        diagnostics.push(diagnostic("success", `Batch ${batchNumber} updated ${toUpdate.length} existing rows.`, {
+          batch: batchNumber,
+          field: "_update",
+        }));
+      }
+
+      if (toCreate.length && !errors.some((error) => error.batch === batchNumber && (error.field === "_insert" || error.field === "_update"))) {
+        diagnostics.push(diagnostic("success", `Batch ${batchNumber} saved ${chunk.length} rows: ${toCreate.length} new, ${toUpdate.length} existing.`, {
+          batch: batchNumber,
+          field: "_write",
+        }));
+      }
     }
 
-    if (imageRowsToInsert.length) {
-      let linkedImageRows = 0;
-      for (let i = 0; i < imageRowsToInsert.length; i += IMAGE_INSERT_BATCH_SIZE) {
-        const imageChunk = imageRowsToInsert.slice(i, i + IMAGE_INSERT_BATCH_SIZE);
-        const imageBatch = Math.floor(i / IMAGE_INSERT_BATCH_SIZE) + 1;
-        const { error } = await supabaseAdmin.from("stone_images").insert(imageChunk as never);
-        if (error) {
-          errors.push(postgresDiagnostic("Stone image insert batch failed after stone upsert. Stones were still synced, but some external images may not appear", error, {
-            batch: imageBatch,
-            field: "_images",
-          }));
-          continue;
+    if (imageRowsToUpsert.length) {
+      // Upsert: insert new image rows, ignore conflicts on (stone_id) for
+      // stones that already have a primary image row from a previous sync.
+      // This means re-syncing never fails due to duplicate image rows.
+      const { error } = await supabaseAdmin
+        .from("stone_images")
+        .upsert(imageRowsToUpsert as never, {
+          onConflict: "stone_id",
+          ignoreDuplicates: true,
+        });
+      if (error) {
+        // Upsert failed — fall back to insert, skipping existing rows one by one
+        let imageWriteErrors = 0;
+        for (const row of imageRowsToUpsert) {
+          const { error: singleErr } = await supabaseAdmin
+            .from("stone_images")
+            .insert(row as never);
+          if (singleErr && singleErr.code !== "23505") {
+            // 23505 = unique violation — already exists, safe to skip
+            imageWriteErrors += 1;
+          }
         }
-        linkedImageRows += imageChunk.length;
+        if (imageWriteErrors > 0) {
+          errors.push(postgresDiagnostic(
+            `Stone image upsert failed (${imageWriteErrors} rows). Stones were synced but some images may not appear`,
+            error,
+            { field: "_images" },
+          ));
+        }
+      } else {
+        diagnostics.push(diagnostic("success",
+          `Wrote ${imageRowsToUpsert.length} image row${imageRowsToUpsert.length === 1 ? "" : "s"} (new + updated stones).`,
+          { field: "_images" },
+        ));
       }
-
-      if (linkedImageRows > 0) {
-        diagnostics.push(diagnostic("success", `Linked ${linkedImageRows}/${imageRowsToInsert.length} feed image URLs to imported stones for marketplace thumbnails.`, {
-          field: "_images",
-        }));
-      }
-      if (linkedImageRows < imageRowsToInsert.length) {
-        diagnostics.push(diagnostic("warning", `${imageRowsToInsert.length - linkedImageRows} feed image URLs could not be linked. Check the image insert batch errors above.`, {
-          field: "_images",
-        }));
-      }
-    } else if (feedRowsWithImageUrl > 0) {
-      diagnostics.push(diagnostic("info", "No new image rows needed to be inserted because the detected feed image URLs were already linked to existing stones.", {
-        field: "_images",
-      }));
-    } else {
-      diagnostics.push(diagnostic("warning", "No marketplace thumbnail image URLs were detected in this feed. If Nancy shows photos in their own portal, their API may be using a different field name or returning 360/video media only.", {
-        field: "_images",
-      }));
     }
 
     let markedInactive = 0;
-    if (seenSyncKeys.size && existing && existing.length) {
+    if (seenCerts.size && existing && existing.length) {
       const inactiveIds = (existing ?? []).filter((s) => {
-        const key = useImportIdentityColumns ? (s.external_sync_key ?? (s.source_stock_no ? `stock:${s.source_stock_no}` : s.cert_number)) : s.cert_number;
-        return key && !seenSyncKeys.has(key);
+        const key = cleanString(s.external_sync_key);
+        const cert = cleanString(s.cert_number);
+        return (key && !seenCerts.has(key.replace(/^cert:/, ""))) || (!key && cert && !seenCerts.has(cert));
       }).map((s) => s.id);
       if (inactiveIds.length) {
-        const { error } = await supabaseAdmin.from("stones").update({ feed_inactive: true }).in("id", inactiveIds).eq("dealer_id", dealerId);
-        if (error) {
-          errors.push(postgresDiagnostic("Could not mark missing feed rows inactive", error, {
-            field: "_inactive",
-          }));
-        } else {
-          markedInactive = inactiveIds.length;
+        for (let i = 0; i < inactiveIds.length; i += SYNC_BATCH_SIZE) {
+          const ids = inactiveIds.slice(i, i + SYNC_BATCH_SIZE);
+          const { error } = await supabaseAdmin
+            .from("stones")
+            .update({ feed_inactive: true })
+            .in("id", ids)
+            .eq("dealer_id", dealerId);
+          if (error) {
+            errors.push(postgresDiagnostic("Could not mark missing feed rows inactive", error, {
+              batch: Math.floor(i / SYNC_BATCH_SIZE) + 1,
+              field: "_inactive",
+            }));
+            break;
+          }
+          markedInactive += ids.length;
         }
       }
     }
 
-    const allDiagnostics = [
-      ...diagnostics,
-      ...syncOutcomeDiagnostics({
-        candidates: candidates.length,
-        existing: existing.length,
-        created,
-        updated,
-        markedInactive,
-        usedPrivateIdentity: useImportIdentityColumns,
-      }),
-      ...summarizeDiagnostics(errors),
-      ...errors,
-    ];
+    const allDiagnostics = [...diagnostics, ...errors];
     await supabaseAdmin.from("sync_logs").update({
       status: errors.length ? "partial" : "success",
       finished_at: new Date().toISOString(),
