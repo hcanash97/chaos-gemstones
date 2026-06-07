@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { CARAT_MAX, CARAT_MIN, PREMIUM_ORIGINS, PRICE_MAX, PRICE_MIN, type FilterState } from "@/lib/marketplace/filters";
 
@@ -11,7 +10,7 @@ export const PAGE_SIZE = 24; // was 48 — halving gives ~2× faster page loads
 const STONE_SELECT =
   "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, " +
   "cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, " +
-  "treatment, status, listing_type, source_type, private_until, matching_pair, has_video, has_360, has_image, " +
+  "treatment, status, listing_type, matching_pair, has_video, has_360, has_image, " +
   "created_at, updated_at, " +
   "stone_images(storage_url, external_image_url, is_primary, sort_order), " +
   "profiles:dealer_id(country, is_verified)";
@@ -33,8 +32,7 @@ async function getMarketplaceTotal(): Promise<number> {
     .select("id", { count: "planned", head: true })
     .eq("is_test", false)
     .eq("feed_inactive", false)
-    .eq("status", "available")
-    .or(`private_until.is.null,private_until.lt.${new Date().toISOString()}`);
+    .eq("status", "available");
   if (error) {
     console.error("[marketplace total]", error);
     return _cachedTotal ?? 0;
@@ -204,39 +202,6 @@ function shapeValuesForFilter(shape: string): string[] {
   return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])].flatMap(filterValueVariants));
 }
 
-async function getAuthenticatedUserIdFromRequest(): Promise<string | null> {
-  const authHeader = getRequest()?.headers?.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.replace("Bearer ", "").trim();
-  if (!token) return null;
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user?.id) return null;
-  return data.user.id;
-}
-
-async function getFollowedDealerIdsForRequest(): Promise<string[]> {
-  const userId = await getAuthenticatedUserIdFromRequest();
-  if (!userId) return [];
-
-  const { data: keys, error: keyError } = await supabaseAdmin
-    .from("api_keys")
-    .select("id")
-    .eq("jeweller_id", userId)
-    .eq("is_active", true)
-    .limit(1);
-  if (keyError || !keys?.[0]) return [];
-
-  const { data: selections, error: selectionError } = await supabaseAdmin
-    .from("feed_selections")
-    .select("dealer_id")
-    .eq("api_key_id", keys[0].id)
-    .eq("selection_type", "dealer_follow")
-    .not("dealer_id", "is", null);
-  if (selectionError) return [];
-
-  return uniqueValues((selections ?? []).map((selection) => selection.dealer_id).filter(Boolean));
-}
-
 export const searchMarketplace = createServerFn({ method: "POST" })
   .inputValidator((input: SearchInput) => input)
   .handler(async ({ data }) => {
@@ -245,8 +210,6 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const marketTotalPromise = getMarketplaceTotal();
-    const followedDealerIds = await getFollowedDealerIdsForRequest();
-    const nowIso = new Date().toISOString();
 
     let q = supabaseAdmin
       .from("stones")
@@ -257,12 +220,6 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     // Availability (defaults to ['available'])
     const availability = f.availability && f.availability.length ? f.availability : (["available"] as const);
     q = q.in("status", availability as readonly ("available" | "reserved" | "sold")[]);
-
-    if (followedDealerIds.length) {
-      q = q.or(`private_until.is.null,private_until.lt.${nowIso},dealer_id.in.(${followedDealerIds.join(",")})`);
-    } else {
-      q = q.or(`private_until.is.null,private_until.lt.${nowIso}`);
-    }
 
     // Dealer
     if (f.dealerId && f.dealerId !== "all") q = q.eq("dealer_id", f.dealerId);
