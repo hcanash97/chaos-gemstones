@@ -5,7 +5,7 @@ import { CARAT_MAX, CARAT_MIN, PREMIUM_ORIGINS, PRICE_MAX, PRICE_MIN, type Filte
 export const PAGE_SIZE = 48;
 
 const STONE_SELECT =
-  "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
+  "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_image, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
 
 export type SearchInput = {
   filters: Partial<FilterState>;
@@ -297,6 +297,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     }
 
     // Media
+    if (f.hasImages) q = q.eq("has_image", true);
     if (f.hasVideo) q = q.eq("has_video", true);
     if (f.has360) q = q.eq("has_360", true);
     if (f.hasCertScan) q = q.not("cert_url", "is", null);
@@ -312,7 +313,10 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     if (f.parcelOnly) q = q.eq("listing_type", "parcel");
     if (typeof f.parcelMinQty === "number") q = q.gte("parcel_quantity", f.parcelMinQty);
 
-    // Sort
+    // Sort: visual listings first, then the user's selected ordering inside
+    // each group. This keeps "No image" stock discoverable later without
+    // letting it dominate the first marketplace pages or homepage-like views.
+    q = q.order("has_image", { ascending: false });
     switch (f.sort) {
       case "price-asc":
         q = q.order("wholesale_price_usd", { ascending: true, nullsFirst: false });

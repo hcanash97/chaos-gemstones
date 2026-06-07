@@ -109,10 +109,11 @@ function VendorProfile() {
       if (!vendor) return { vendor: null, stones: [], totalStones: 0 };
       const { data: stones, count: totalStones } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)", { count: "planned" })
+        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, colour_grade, clarity_grade, has_image, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)", { count: "planned" })
         .eq("dealer_id", vendor.id)
         .eq("status", "available")
         .eq("feed_inactive", false)
+        .order("has_image", { ascending: false })
         .order("created_at", { ascending: false })
         .range(from, to);
       const { count: soldCount } = await supabase

@@ -1129,6 +1129,7 @@ export type Database = {
           fluorescence_colour: string | null
           girdle: string | null
           has_360: boolean
+          has_image: boolean
           has_video: boolean
           id: string
           intake_source: string | null
@@ -1195,6 +1196,7 @@ export type Database = {
           fluorescence_colour?: string | null
           girdle?: string | null
           has_360?: boolean
+          has_image?: boolean
           has_video?: boolean
           id?: string
           intake_source?: string | null
@@ -1261,6 +1263,7 @@ export type Database = {
           fluorescence_colour?: string | null
           girdle?: string | null
           has_360?: boolean
+          has_image?: boolean
           has_video?: boolean
           id?: string
           intake_source?: string | null

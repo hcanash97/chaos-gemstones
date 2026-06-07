@@ -48,6 +48,7 @@ export function StoneImages({ stoneId, dealerId }: { stoneId: string; dealerId: 
           sort_order: images.length,
         });
         if (insErr) throw insErr;
+        await supabase.from("stones").update({ has_image: true } as never).eq("id", stoneId).eq("dealer_id", dealerId);
       }
       await load();
     } catch (err) {
@@ -74,6 +75,13 @@ export function StoneImages({ stoneId, dealerId }: { stoneId: string; dealerId: 
       await supabase.storage.from("stone-images").remove([path]);
     }
     await supabase.from("stone_images").delete().eq("id", img.id);
+    const { count } = await supabase
+      .from("stone_images")
+      .select("id", { count: "exact", head: true })
+      .eq("stone_id", stoneId);
+    if (!count) {
+      await supabase.from("stones").update({ has_image: false } as never).eq("id", stoneId).eq("dealer_id", dealerId);
+    }
     load();
   }
 
