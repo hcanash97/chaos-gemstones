@@ -16,7 +16,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  getDealerApiStatus, generateDealerApiKey, updateDealerSyncSettings, runDealerSync,
+  clearDealerImportedInventory,
+  getDealerApiStatus,
+  generateDealerApiKey,
+  updateDealerSyncSettings,
+  runDealerSync,
 } from "@/lib/dealer-api.functions";
 import { fetchExternalFeed } from "@/lib/feed-fetch.functions";
 import { detectPreset } from "@/lib/dealer-feed-mappings";
@@ -55,6 +59,8 @@ function fieldLabel(field?: string) {
     _prepare: "Preparation",
     _sync: "Sync",
     _fetch: "Feed fetch",
+    _clear: "Clear imported inventory",
+    external_sync_key: "Private API sync key",
   };
   return field ? labels[field] ?? field : null;
 }
@@ -126,6 +132,7 @@ function DealerApiPage() {
   const createKey = useServerFn(generateDealerApiKey);
   const saveSync = useServerFn(updateDealerSyncSettings);
   const triggerSync = useServerFn(runDealerSync);
+  const clearImportedInventory = useServerFn(clearDealerImportedInventory);
   const fetchFeed = useServerFn(fetchExternalFeed);
 
   const [revealed, setRevealed] = useState<string | null>(null);
@@ -139,6 +146,7 @@ function DealerApiPage() {
   const [syncDiagnostics, setSyncDiagnostics] = useState<SyncDiagnostic[]>([]);
   const [syncProgress, setSyncProgress] = useState(0);
   const [testing, setTesting] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [testResult, setTestResult] = useState<
     | { ok: true; rowCount: number; preset: string; sample: string }
     | { ok: false; error: string }
@@ -275,6 +283,8 @@ function DealerApiPage() {
           : Array.isArray((data as any)?.stones) ? (data as any).stones
           : Array.isArray((data as any)?.data) ? (data as any).data
           : Array.isArray((data as any)?.result) ? (data as any).result
+          : Array.isArray((data as any)?.items) ? (data as any).items
+          : Array.isArray((data as any)?.results) ? (data as any).results
           : [];
       } else {
         // crude CSV row count for the preview
@@ -300,6 +310,42 @@ function DealerApiPage() {
       setTestResult({ ok: false, error: msg });
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function clearImported() {
+    setClearing(true);
+    setSyncDiagnostics([
+      {
+        level: "info",
+        field: "_clear",
+        message: "Clearing API-imported stones in small batches. Manual listings are left alone.",
+      },
+    ]);
+    try {
+      const result = await clearImportedInventory();
+      setSyncDiagnostics([
+        {
+          level: "success",
+          field: "_clear",
+          message: `Clear complete. Removed ${result.deleted} API-imported stone${result.deleted === 1 ? "" : "s"}.`,
+        },
+      ]);
+      toast.success(`Cleared ${result.deleted} imported stone${result.deleted === 1 ? "" : "s"}`);
+      await refetch();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Clear imported inventory failed";
+      setSyncDiagnostics((prev) => [
+        ...prev,
+        {
+          level: "error",
+          field: "_clear",
+          message: msg,
+        },
+      ]);
+      toast.error("Clear imported inventory failed", { description: msg });
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -381,7 +427,7 @@ function DealerApiPage() {
         <h2 className="font-serif text-xl">Sync URL</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Optional: paste a URL that returns your inventory as JSON or CSV. Chaos will fetch
-          and upsert stones by <code>cert_number</code>.
+          and upsert stones by a private sync key, while keeping public certificate numbers clean.
         </p>
         <div className="mt-4 space-y-3">
           <div>
@@ -442,6 +488,39 @@ function DealerApiPage() {
               <ErrorDiagnosticsLog logs={syncDiagnostics} syncing={syncing} />
             </div>
           )}
+          <div className="rounded-md border border-red-200 bg-red-50 p-4">
+            <div className="font-medium text-red-950">Imported feed inventory</div>
+            <p className="mt-1 text-sm text-red-900/75">
+              Clears stones created by this API feed so the next sync can rebuild from a clean slate. Manual listings are left alone.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="mt-3"
+                  disabled={clearing || syncing}
+                >
+                  {clearing ? "Clearing..." : "Clear Imported Inventory"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear imported inventory?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This deletes stones created by your external API/feed sync and clears recent sync logs. Manual stones are not targeted. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearImported}>
+                    Clear imported stones
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
           {testResult && testResult.ok && (
             <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs space-y-1">
               <div>✓ Feed reachable — <strong>{testResult.rowCount}</strong> row{testResult.rowCount === 1 ? "" : "s"} found.</div>

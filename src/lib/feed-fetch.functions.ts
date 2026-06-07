@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { safeFetch, assertSafeUrl } from "@/lib/safe-fetch.server";
 
+const MAX_FEED_PREVIEW_BYTES = 50 * 1024 * 1024;
+
 const InputSchema = z.object({
   url: z.string().url().max(2048),
   method: z.enum(["GET", "POST"]).default("GET"),
@@ -22,7 +24,7 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<FeedFetchResult> => {
     const target = assertSafeUrl(data.url);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20_000);
+    const timer = setTimeout(() => controller.abort(), 60_000);
     let res: Response;
     try {
       const init: RequestInit = {
@@ -45,7 +47,9 @@ export const fetchExternalFeed = createServerFn({ method: "POST" })
     }
     if (!res.ok) throw new Error(`Feed returned ${res.status}`);
     const text = await res.text();
-    if (text.length > 10 * 1024 * 1024) throw new Error("Feed too large (>10MB)");
+    if (text.length > MAX_FEED_PREVIEW_BYTES) {
+      throw new Error("Feed too large for preview (>50MB). The feed may need pagination before Chaos can safely inspect it.");
+    }
     const contentType = (res.headers.get("content-type") || "").toLowerCase();
     let format: FeedFetchResult["format"] = "unknown";
     if (contentType.includes("json") || text.trim().startsWith("[") || text.trim().startsWith("{")) format = "json";
