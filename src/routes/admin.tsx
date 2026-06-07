@@ -17,7 +17,14 @@ import { approveWhatsAppStoneFn, rejectWhatsAppStoneFn } from "@/lib/whatsapp-in
 import { StatsPanel } from "@/components/admin/StatsPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
-import { adminCreateDealerCorrectionMessage, adminGetDealerHealth, adminGetProfileDataQuality, adminRepairProfileLocations } from "@/lib/admin-dealer.functions";
+import {
+  adminCreateDealerCorrectionMessage,
+  adminGetDealerHealth,
+  adminGetProfileDataQuality,
+  adminGetDealerProfileOutreachQueue,
+  adminRepairProfileLocations,
+  adminUpdateDealerProfileOutreachStatus,
+} from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
 import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type HomepageSectionCopy, type SiteThemeSettings } from "@/lib/site-theme";
@@ -1808,7 +1815,29 @@ function DataCleanupPanel() {
     subject: string;
     body: string;
     mailto: string;
+    outreachId: string | null;
   } | null>(null);
+  const [outreachRows, setOutreachRows] = useState<Array<{
+    id: string;
+    dealer_id: string;
+    email: string | null;
+    subject: string;
+    body: string;
+    issues: string[] | null;
+    status: "drafted" | "sent" | "resolved" | "dismissed";
+    created_at: string;
+    sent_at: string | null;
+    resolved_at: string | null;
+    dealer: {
+      company_name: string | null;
+      full_name: string | null;
+      email: string | null;
+      city: string | null;
+      country: string | null;
+    } | null;
+  }>>([]);
+  const [loadingOutreach, setLoadingOutreach] = useState(false);
+  const [updatingOutreachId, setUpdatingOutreachId] = useState<string | null>(null);
   const [profileQuality, setProfileQuality] = useState<{
     scanned: number;
     repairable: number;
@@ -1846,12 +1875,27 @@ function DataCleanupPanel() {
   const scanProfiles = useServerFn(adminGetProfileDataQuality);
   const repairProfileLocations = useServerFn(adminRepairProfileLocations);
   const createCorrectionMessage = useServerFn(adminCreateDealerCorrectionMessage);
+  const getOutreachQueue = useServerFn(adminGetDealerProfileOutreachQueue);
+  const updateOutreachStatus = useServerFn(adminUpdateDealerProfileOutreachStatus);
+
+  async function loadOutreachQueue() {
+    setLoadingOutreach(true);
+    try {
+      const res = await getOutreachQueue({});
+      setOutreachRows(res.rows as typeof outreachRows);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load outreach queue");
+    } finally {
+      setLoadingOutreach(false);
+    }
+  }
 
   async function runProfileScan() {
     setScanningProfiles(true);
     try {
       const scan = await scanProfiles({});
       setProfileQuality(scan);
+      await loadOutreachQueue();
       toast.success(`Scanned ${scan.scanned} profiles`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Profile scan failed");
@@ -1894,12 +1938,31 @@ function DataCleanupPanel() {
         },
       });
       setCorrectionPrompt(message);
+      await loadOutreachQueue();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create correction message");
     } finally {
       setPromptingProfileId(null);
     }
   }
+
+  async function setOutreachStatus(outreachId: string, status: "drafted" | "sent" | "resolved" | "dismissed") {
+    setUpdatingOutreachId(outreachId);
+    try {
+      await updateOutreachStatus({ data: { outreachId, status } });
+      await loadOutreachQueue();
+      toast.success("Outreach updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update outreach");
+    } finally {
+      setUpdatingOutreachId(null);
+    }
+  }
+
+  useEffect(() => {
+    void loadOutreachQueue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function runCleanup() {
     setRunning(true);
@@ -2188,7 +2251,14 @@ function DataCleanupPanel() {
                 </Button>
                 {correctionPrompt.email ? (
                   <Button asChild>
-                    <a href={correctionPrompt.mailto}>Open email</a>
+                    <a
+                      href={correctionPrompt.mailto}
+                      onClick={() => {
+                        if (correctionPrompt.outreachId) void setOutreachStatus(correctionPrompt.outreachId, "sent");
+                      }}
+                    >
+                      Open email
+                    </a>
                   </Button>
                 ) : (
                   <Button type="button" disabled>
@@ -2200,6 +2270,89 @@ function DataCleanupPanel() {
           )}
         </DialogContent>
       </Dialog>
+
+      <div className="rounded-md border border-border bg-background p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium">Dealer outreach queue</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tracks profile correction prompts generated from the completeness scan.
+            </p>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={loadOutreachQueue} disabled={loadingOutreach}>
+            {loadingOutreach ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
+        <div className="mt-3 overflow-auto rounded-md border border-border">
+          <table className="w-full min-w-[820px] text-xs">
+            <thead className="border-b border-border bg-muted/30 text-left uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2">Dealer</th>
+                <th className="px-3 py-2">Issues</th>
+                <th className="px-3 py-2">Created</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2 text-right">Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingOutreach && outreachRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Loading outreach...</td>
+                </tr>
+              ) : outreachRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">No profile outreach logged yet.</td>
+                </tr>
+              ) : outreachRows.slice(0, 30).map((row) => (
+                <tr key={row.id} className="border-b border-border last:border-0">
+                  <td className="px-3 py-2">
+                    <div className="font-medium">{row.dealer?.company_name || row.dealer?.full_name || row.email || row.dealer_id.slice(0, 8)}</div>
+                    <div className="text-muted-foreground">{row.email || row.dealer?.email || "No email"}</div>
+                    <div className="text-muted-foreground">{[row.dealer?.city, row.dealer?.country].filter(Boolean).join(", ") || "—"}</div>
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {(row.issues ?? []).slice(0, 4).join(", ") || "—"}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    <div>{new Date(row.created_at).toLocaleString()}</div>
+                    {row.sent_at && <div>Sent: {new Date(row.sent_at).toLocaleDateString()}</div>}
+                    {row.resolved_at && <div>Resolved: {new Date(row.resolved_at).toLocaleDateString()}</div>}
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                      value={row.status}
+                      disabled={updatingOutreachId === row.id}
+                      onChange={(event) => setOutreachStatus(row.id, event.target.value as "drafted" | "sent" | "resolved" | "dismissed")}
+                    >
+                      <option value="drafted">Drafted</option>
+                      <option value="sent">Sent</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="dismissed">Dismissed</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setCorrectionPrompt({
+                        email: row.email || row.dealer?.email || "",
+                        subject: row.subject,
+                        body: row.body,
+                        mailto: `mailto:${encodeURIComponent(row.email || row.dealer?.email || "")}?subject=${encodeURIComponent(row.subject)}&body=${encodeURIComponent(row.body)}`,
+                        outreachId: row.id,
+                      })}
+                    >
+                      View
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div className="rounded-md border border-border bg-background p-4">
         <div className="text-sm font-medium">Stone import cleanup</div>

@@ -646,12 +646,67 @@ export const adminCreateDealerCorrectionMessage = createServerFn({ method: "POST
       "Chaos Gemstones",
     ].flat().filter(Boolean).join("\n");
 
+    const { data: outreach } = await (sb as any)
+      .from("dealer_profile_outreach")
+      .insert({
+        dealer_id: data.dealerId,
+        admin_id: context.userId,
+        email: profile?.email ?? null,
+        subject: "Please update your Chaos dealer profile",
+        body,
+        issues: data.issues,
+        status: "drafted",
+      })
+      .select("id")
+      .maybeSingle();
+
     return {
       email: profile?.email ?? "",
       subject: "Please update your Chaos dealer profile",
       body,
       mailto: `mailto:${encodeURIComponent(profile?.email ?? "")}?subject=${encodeURIComponent("Please update your Chaos dealer profile")}&body=${encodeURIComponent(body)}`,
+      outreachId: outreach?.id ?? null,
     };
+  });
+
+export const adminGetDealerProfileOutreachQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = await requireAdmin(context.userId);
+    const { data, error } = await (sb as any)
+      .from("dealer_profile_outreach")
+      .select(`
+        id, dealer_id, email, subject, body, issues, status, created_at, sent_at, resolved_at,
+        dealer:dealer_id(company_name, full_name, email, city, country)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return { rows: data ?? [] };
+  });
+
+export const adminUpdateDealerProfileOutreachStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    outreachId: z.string().uuid(),
+    status: z.enum(["drafted", "sent", "resolved", "dismissed"]),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
+    const sb = await requireAdmin(context.userId);
+    const patch: Record<string, string | null> = { status: data.status };
+    if (data.status === "sent") patch.sent_at = new Date().toISOString();
+    if (data.status === "resolved") patch.resolved_at = new Date().toISOString();
+    if (data.status === "drafted") {
+      patch.sent_at = null;
+      patch.resolved_at = null;
+    }
+
+    const { error } = await (sb as any)
+      .from("dealer_profile_outreach")
+      .update(patch)
+      .eq("id", data.outreachId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /**
