@@ -224,19 +224,24 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     // Dealer
     if (f.dealerId && f.dealerId !== "all") q = q.eq("dealer_id", f.dealerId);
 
-    // Stone types (with diamond natural/lab special handling)
+    // Stone types — use generated lowercase column for exact match (no case variants needed)
     if (f.types && f.types.length) {
       const wantsDiamondNat = f.types.includes("diamond-natural");
       const wantsDiamondLab = f.types.includes("diamond-lab");
       const others = f.types.filter((t) => t !== "diamond-natural" && t !== "diamond-lab");
-      const expanded: string[] = [...others];
-      if (wantsDiamondNat || wantsDiamondLab) expanded.push("diamond");
-      q = q.in("stone_type", uniqueValues(expanded.flatMap(stoneTypeValuesForFilter)));
+
+      // Normalise to lowercase for the generated column
+      const typeValues: string[] = others.map((t) => t.toLowerCase());
+      if (wantsDiamondNat || wantsDiamondLab) typeValues.push("diamond");
+
+      q = q.in("stone_type_lower", uniqueValues(typeValues));
+
+      // Origin sub-filter for diamond natural/lab split
       if (wantsDiamondNat && !wantsDiamondLab) {
-        q = q.or("origin.is.null,origin.in.(natural,Natural,NATURAL)");
+        q = q.or("origin_lower.is.null,origin_lower.in.(natural)");
       }
       if (wantsDiamondLab && !wantsDiamondNat) {
-        q = q.in("origin", originValuesForFilter("lab-grown"));
+        q = q.in("origin_lower", ["lab-grown", "lab grown", "lab", "cvd", "hpht"]);
       }
     }
 
@@ -244,7 +249,13 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     if (f.labs && f.labs.length) q = q.in("cert_lab", uniqueValues(f.labs.flatMap(filterValueVariants)));
     if (f.certNumber && f.certNumber.trim()) q = q.ilike("cert_number", `%${f.certNumber.trim()}%`);
     if (f.countries && f.countries.length) q = q.in("country_of_origin", f.countries);
-    if (f.origin && f.origin !== "all") q = q.in("origin", originValuesForFilter(f.origin));
+    if (f.origin && f.origin !== "all") {
+      if (f.origin === "lab-grown") {
+        q = q.in("origin_lower", ["lab-grown", "lab grown", "lab", "cvd", "hpht"]);
+      } else {
+        q = q.in("origin_lower", ["natural"]);
+      }
+    }
     if (f.listingType && f.listingType !== "all") q = q.eq("listing_type", f.listingType);
     if (f.bulkPricingOnly) q = q.eq("bulk_pricing_available", true);
 
