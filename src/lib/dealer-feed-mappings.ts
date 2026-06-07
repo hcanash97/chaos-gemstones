@@ -39,10 +39,18 @@ function looksLikeUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
+function isClearlyNotStillImageUrl(value: string): boolean {
+  return /gem360|diamond360|v360|video|iframe|spin|viewer|certificate|cert|report|pdf/i.test(value);
+}
+
 function looksLikeStillImageUrl(value: string): boolean {
   if (!looksLikeUrl(value)) return false;
-  if (/gem360|diamond360|v360|video|iframe|spin|viewer/i.test(value)) return false;
+  if (isClearlyNotStillImageUrl(value)) return false;
   return /\.(jpe?g|png|webp|gif|avif)(\?|#|$)/i.test(value) || /image|photo|picture|thumbnail|thumb|media/i.test(value);
+}
+
+function looksLikeTrustedImageFieldUrl(value: string): boolean {
+  return looksLikeUrl(value) && !isClearlyNotStillImageUrl(value);
 }
 
 function findLikelyImageUrl(row: Record<string, unknown>): string {
@@ -78,7 +86,7 @@ function findLikelyImageUrl(row: Record<string, unknown>): string {
 
   for (const key of directKeys) {
     const value = s(row[key]);
-    if (looksLikeStillImageUrl(value)) return value;
+    if (looksLikeTrustedImageFieldUrl(value)) return value;
   }
 
   for (const [key, raw] of Object.entries(row)) {

@@ -481,11 +481,15 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     const seenSyncKeys = new Set<string>();
     let cityFromFeed: string | undefined;
     let missingCertFallbackCount = 0;
+    let nancyImageLinkPresentCount = 0;
 
     rows.forEach((raw, idx) => {
       const sourceRow = raw as Record<string, unknown>;
       const rowNumber = idx + 1;
       const stockNo = stockRef(sourceRow);
+      if (preset?.id === "kodllin" && typeof sourceRow.imageLink === "string" && sourceRow.imageLink.trim()) {
+        nancyImageLinkPresentCount += 1;
+      }
       const mappedBase = mapRow(sourceRow, preset);
       const mappedStone = preset ? mappedBase.stone : canonicaliseGenericFeedRow(mappedBase.stone);
       const virtualFields = extractVirtualFields(mappedStone);
@@ -659,6 +663,11 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     diagnostics.push(diagnostic(feedRowsWithImageUrl > 0 ? "info" : "warning", `Feed image scan found ${feedRowsWithImageUrl}/${candidates.length} rows with a usable still-image URL. 360/video links are intentionally not counted as marketplace thumbnails.`, {
       field: "_images",
     }));
+    if (preset?.id === "kodllin") {
+      diagnostics.push(diagnostic(nancyImageLinkPresentCount > 0 ? "info" : "warning", `Nancy/Kodllin imageLink scan found ${nancyImageLinkPresentCount}/${rows.length} rows with a non-empty imageLink field.`, {
+        field: "imageLink",
+      }));
+    }
     diagnostics.push(diagnostic("info", `Chaos found existing image rows for ${existingImageUrlsByStoneId.size}/${existingStoneIdsForImageAudit.length} already-matched stones before writing.`, {
       field: "_images",
     }));
