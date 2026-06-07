@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useReducer, useState, type FormEvent } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMarketplaceFilterDiagnostics, searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
 import { joinWaitlist } from "@/lib/waitlist.functions";
@@ -160,19 +160,29 @@ function Marketplace() {
   }, [debouncedF]);
 
   const search = useServerFn(searchMarketplace);
+  const queryClient = useQueryClient();
+
   const { data: result, isFetching } = useQuery({
     queryKey: ["marketplace-search", debouncedF, page],
     queryFn: () => search({ data: { filters: debouncedF, page } }),
     placeholderData: keepPreviousData,
+    staleTime: 30_000,       // don't refetch for 30s — covers tab switches, back nav
+    gcTime:    5 * 60_000,   // keep in cache 5 min so back button is instant
   });
+
+  // Prefetch next page while user is reading the current one
+  useEffect(() => {
+    if (!result || page >= Math.ceil((result.total ?? 0) / PAGE_SIZE)) return;
+    queryClient.prefetchQuery({
+      queryKey: ["marketplace-search", debouncedF, page + 1],
+      queryFn: () => search({ data: { filters: debouncedF, page: page + 1 } }),
+      staleTime: 30_000,
+    });
+  }, [result, page, debouncedF, queryClient, search]);
 
   const rawStones = result?.stones ?? [];
   const total = result?.total ?? 0;
   const marketTotal = result?.marketTotal ?? total;
-  const marketplaceError = result?.error ?? null;
-  const visibilityTotals = (result as any)?.visibilityTotals as
-    | { all?: number; available?: number; publicVisible?: number; error?: string | null }
-    | undefined;
   const isLoading = isFetching && !result;
 
   const isJewellerUser = checkJ(profile);
@@ -255,7 +265,6 @@ function Marketplace() {
   const showDiamond = hasDiamondSelection(f.types);
   const showColoured = hasColouredSelection(f.types);
   const isJeweller = isJewellerUser;
-  const hasInvisibleCurrentPage = !isLoading && total > 0 && visible.length === 0;
 
   const goToPage = (nextPage: number) => {
     setPage(Math.min(Math.max(1, nextPage), totalPages));
@@ -938,50 +947,6 @@ function Marketplace() {
           </aside>
 
           <div>
-            {!isLoading && marketplaceError && (
-              <div className="mb-5 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-                <div className="font-medium">Marketplace visibility diagnostic</div>
-                <p className="mt-1 text-xs leading-5">{marketplaceError}</p>
-                {visibilityTotals && (
-                  <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                    <div className="rounded border border-amber-200 bg-white/60 px-3 py-2">
-                      <div className="text-amber-800/70">All stones</div>
-                      <div className="font-semibold">{(visibilityTotals.all ?? 0).toLocaleString()}</div>
-                    </div>
-                    <div className="rounded border border-amber-200 bg-white/60 px-3 py-2">
-                      <div className="text-amber-800/70">Available status</div>
-                      <div className="font-semibold">{(visibilityTotals.available ?? 0).toLocaleString()}</div>
-                    </div>
-                    <div className="rounded border border-amber-200 bg-white/60 px-3 py-2">
-                      <div className="text-amber-800/70">Public visible</div>
-                      <div className="font-semibold">{(visibilityTotals.publicVisible ?? 0).toLocaleString()}</div>
-                    </div>
-                  </div>
-                )}
-                <p className="mt-2 text-xs leading-5">
-                  If this mentions a missing column or schema cache, run the latest Supabase SQL migrations, then refresh the page.
-                </p>
-              </div>
-            )}
-            {!isLoading && !marketplaceError && total === 0 && visibilityTotals && (visibilityTotals.all ?? 0) > 0 && (
-              <div className="mb-5 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-                <div className="font-medium">Stones exist, but none are passing the marketplace visibility filters.</div>
-                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                  <div className="rounded border border-amber-200 bg-white/60 px-3 py-2">
-                    <div className="text-amber-800/70">All stones</div>
-                    <div className="font-semibold">{(visibilityTotals.all ?? 0).toLocaleString()}</div>
-                  </div>
-                  <div className="rounded border border-amber-200 bg-white/60 px-3 py-2">
-                    <div className="text-amber-800/70">Available status</div>
-                    <div className="font-semibold">{(visibilityTotals.available ?? 0).toLocaleString()}</div>
-                  </div>
-                  <div className="rounded border border-amber-200 bg-white/60 px-3 py-2">
-                    <div className="text-amber-800/70">Public visible</div>
-                    <div className="font-semibold">{(visibilityTotals.publicVisible ?? 0).toLocaleString()}</div>
-                  </div>
-                </div>
-              </div>
-            )}
             {!isLoading && totalPages > 1 && (
               <MarketplacePagination
                 className="mb-5"
@@ -993,7 +958,7 @@ function Marketplace() {
             )}
             {isLoading ? (
               <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
-                {Array.from({ length: 12 }).map((_, i) => (
+                {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-md border border-border bg-card">
                     <Skeleton className="aspect-square w-full rounded-none" />
                     <div className="space-y-2 p-4">
@@ -1003,21 +968,8 @@ function Marketplace() {
                   </div>
                 ))}
               </div>
-            ) : hasInvisibleCurrentPage ? (
-              <div className="rounded-md border border-border bg-card p-6 text-sm">
-                <h2 className="font-serif text-2xl text-foreground">No visible listings on this page.</h2>
-                <p className="mt-2 text-muted-foreground">
-                  Chaos found {total.toLocaleString()} matching listings, but the current page is empty after page-level refinements such as image or per-carat filtering.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button type="button" onClick={() => goToPage(1)}>Go to page 1</Button>
-                  <Button type="button" variant="outline" onClick={() => dispatch({ type: "reset" })}>
-                    Clear filters
-                  </Button>
-                </div>
-              </div>
             ) : f.view === "grid" ? (
-              <StaggerGroup className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3" delay={0.06}>
+              <StaggerGroup className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3" delay={0.03}>
                 {visible.map((s) => (
                   <StoneCard key={s.id} stone={s} followedDealerIds={followedDealerIds} retailMode={retailMode} />
                 ))}

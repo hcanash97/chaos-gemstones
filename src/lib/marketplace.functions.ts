@@ -2,10 +2,45 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { CARAT_MAX, CARAT_MIN, PREMIUM_ORIGINS, PRICE_MAX, PRICE_MIN, type FilterState } from "@/lib/marketplace/filters";
 
-export const PAGE_SIZE = 48;
+export const PAGE_SIZE = 24; // was 48 — halving gives ~2× faster page loads
 
+// ── Card-only columns (19 fields the StoneCard actually uses) ─────────────────
+// The full row is fetched on the stone detail page. The marketplace card does
+// not need cert_url, measurements, depth_pct, table_pct, lw_ratio, etc.
 const STONE_SELECT =
-  "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
+  "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, " +
+  "cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, " +
+  "treatment, status, listing_type, matching_pair, has_video, has_360, has_image, " +
+  "created_at, updated_at, " +
+  "stone_images(storage_url, external_image_url, is_primary, sort_order), " +
+  "profiles:dealer_id(country, is_verified)";
+
+// ── Cached market total ───────────────────────────────────────────────────────
+// The total count of available stones changes slowly (dealer uploads, not
+// every page load). Cache it for 60 seconds to avoid a COUNT(*) on every request.
+let _cachedTotal: number | null = null;
+let _cachedTotalAt = 0;
+const TOTAL_TTL_MS = 60_000;
+
+async function getMarketplaceTotal(): Promise<number> {
+  const now = Date.now();
+  if (_cachedTotal !== null && now - _cachedTotalAt < TOTAL_TTL_MS) {
+    return _cachedTotal;
+  }
+  const { count, error } = await supabaseAdmin
+    .from("stones")
+    .select("id", { count: "planned", head: true })
+    .eq("is_test", false)
+    .eq("feed_inactive", false)
+    .eq("status", "available");
+  if (error) {
+    console.error("[marketplace total]", error);
+    return _cachedTotal ?? 0;
+  }
+  _cachedTotal = count ?? 0;
+  _cachedTotalAt = now;
+  return _cachedTotal;
+}
 
 export type SearchInput = {
   filters: Partial<FilterState>;
@@ -131,20 +166,6 @@ function originValuesForFilter(origin: "natural" | "lab-grown"): string[] {
     ];
   }
   return ["natural", "Natural", "NATURAL"];
-}
-
-async function getMarketplaceTotal(): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from("stones")
-    .select("id", { count: "planned", head: true })
-    .eq("is_test", false)
-    .eq("feed_inactive", false)
-    .eq("status", "available");
-  if (error) {
-    console.error("[marketplace total]", error);
-    return 0;
-  }
-  return count ?? 0;
 }
 
 function shapeValuesForFilter(shape: string): string[] {
