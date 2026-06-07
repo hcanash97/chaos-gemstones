@@ -502,7 +502,6 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         data: {
           ...result.data,
           dealer_id: dealerId,
-          ...(mapped.image_url ? { has_image: true } : {}),
           ...(useImportIdentityColumns
             ? {
                 cert_number: originalCert ?? null,
@@ -644,22 +643,6 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         errors.push(postgresDiagnostic("Stone image insert failed after stone upsert. Stones were still synced, but some external images may not appear", error, {
           field: "_images",
         }));
-      } else {
-        const imageStoneIds = Array.from(new Set(createdImageRows.map((row) => row.stone_id)));
-        for (let i = 0; i < imageStoneIds.length; i += SYNC_BATCH_SIZE) {
-          const ids = imageStoneIds.slice(i, i + SYNC_BATCH_SIZE);
-          const { error: imageFlagError } = await supabaseAdmin
-            .from("stones")
-            .update({ has_image: true } as never)
-            .in("id", ids)
-            .eq("dealer_id", dealerId);
-          if (imageFlagError) {
-            errors.push(postgresDiagnostic("Stone images were saved, but Chaos could not update the image-backed listing flag", imageFlagError, {
-              field: "_images",
-            }));
-            break;
-          }
-        }
       }
     }
 

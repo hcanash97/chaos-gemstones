@@ -145,12 +145,11 @@ function Home() {
     queryFn: async () => {
       const { data } = await supabase
         .from("stones")
-        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, has_image, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)")
+        .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)")
         .eq("featured", true)
         .eq("status", "available")
-        .eq("has_image", true)
         .order("updated_at", { ascending: false })
-        .limit(8);
+        .limit(24);
       return (data ?? []).map((s: any) => {
         const sorted = [...(s.stone_images ?? [])].sort(
           (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
@@ -160,7 +159,7 @@ function Home() {
           ...s,
           image: primary?.storage_url || primary?.external_image_url || null,
         };
-      });
+      }).filter((s: any) => !!s.image).slice(0, 8);
     },
   });
 

@@ -282,7 +282,7 @@ function ImportPage() {
       const chunk = toImport.slice(i, i + BATCH);
       const { data: inserted, error } = await supabase
         .from("stones")
-        .insert(chunk.map((c) => ({ ...c.stone, has_image: !!c.virtual?.image_url })) as any)
+        .insert(chunk.map((c) => c.stone) as any)
         .select("id");
       if (error) {
         toast.error(`Import stopped at row ${i + 1}: ${error.message}`);
@@ -310,10 +310,6 @@ function ImportPage() {
     if (imageRows.length > 0) {
       const { error: imgErr } = await supabase.from("stone_images").insert(imageRows as any);
       if (imgErr) toast.error(`Stones imported but image links failed: ${imgErr.message}`);
-      else {
-        const ids = Array.from(new Set(imageRows.map((row) => row.stone_id)));
-        await supabase.from("stones").update({ has_image: true } as never).in("id", ids).eq("dealer_id", user.id);
-      }
     }
     setImporting(false);
     setSummary({ imported, skipped: mappedPreview.length - imported, errorBreakdown });
