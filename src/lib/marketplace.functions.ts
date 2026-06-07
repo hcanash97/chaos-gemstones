@@ -4,50 +4,6 @@ import { CARAT_MAX, CARAT_MIN, PREMIUM_ORIGINS, PRICE_MAX, PRICE_MIN, type Filte
 
 export const PAGE_SIZE = 48;
 
-// ─── Unfiltered detection ─────────────────────────────────────────────────────
-// Returns true when the user has applied no filters AND is on the default sort.
-// In this state we use the visual-sort RPC so image-rich stones always lead.
-function isUnfilteredDefault(f: Partial<FilterState>): boolean {
-  if (f.search && f.search.trim()) return false;
-  if (f.types && f.types.length) return false;
-  if (f.shapes && f.shapes.length) return false;
-  if (f.labs && f.labs.length) return false;
-  if (f.certNumber && f.certNumber.trim()) return false;
-  if (f.countries && f.countries.length) return false;
-  if (f.origin && f.origin !== "all") return false;
-  if (f.listingType && f.listingType !== "all") return false;
-  if (f.bulkPricingOnly) return false;
-  if (f.dealerId && f.dealerId !== "all") return false;
-  if (f.newWithin && f.newWithin > 0) return false;
-  if (f.colourGrades && f.colourGrades.length) return false;
-  if (f.fancyHues && f.fancyHues.length) return false;
-  if (f.fancyIntensities && f.fancyIntensities.length) return false;
-  if (f.clarities && f.clarities.length) return false;
-  if (f.cutGrades && f.cutGrades.length) return false;
-  if (f.polish && f.polish.length) return false;
-  if (f.symmetry && f.symmetry.length) return false;
-  if (f.fluorescenceIntensity && f.fluorescenceIntensity.length) return false;
-  if (f.fluorescenceColour && f.fluorescenceColour.length) return false;
-  if (f.primaryColours && f.primaryColours.length) return false;
-  if (f.tones && f.tones.length) return false;
-  if (f.saturations && f.saturations.length) return false;
-  if (f.treatments && f.treatments.length) return false;
-  if (f.phenomena && f.phenomena.length) return false;
-  if (f.premiumOriginsOnly) return false;
-  if (f.matchingPairOnly) return false;
-  if (f.parcelOnly) return false;
-  if (f.hasVideo) return false;
-  if (f.has360) return false;
-  if (f.hasCertScan) return false;
-  if (f.enhancement && f.enhancement !== "all") return false;
-  if (f.availability && f.availability.length === 1 && f.availability[0] !== "available") return false;
-  if (f.availability && f.availability.length > 1) return false;
-  // Sort must be default (newest) or unset — any explicit sort means the user
-  // has made a choice, so we respect it and skip the visual-sort RPC.
-  if (f.sort && f.sort !== "newest") return false;
-  return true;
-}
-
 const STONE_SELECT =
   "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
 
@@ -234,55 +190,6 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const to = from + PAGE_SIZE - 1;
     const marketTotalPromise = getMarketplaceTotal();
 
-    // ── Unfiltered homepage: use image-prioritised visual sort RPC ────────────
-    if (isUnfilteredDefault(f)) {
-      // Session seed: stable per browser session, changes on hard refresh.
-      // The caller cannot supply a seed, so we derive one server-side from
-      // the page number only — giving stable per-page ordering while still
-      // shuffling within tiers across sessions by using a daily salt.
-      const dayKey = new Date().toISOString().slice(0, 10); // "2026-06-07"
-      const seedStr = `${dayKey}-p${page}`;
-      // Convert to a float 0–1 via a simple hash
-      let hash = 0;
-      for (let i = 0; i < seedStr.length; i++) {
-        hash = ((hash << 5) - hash + seedStr.charCodeAt(i)) >>> 0;
-      }
-      const seed = (hash % 1_000_000) / 1_000_000;
-
-      const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc(
-        "marketplace_visual_sort",
-        { p_from: from, p_to: to, p_seed: seed },
-      );
-
-      if (rpcError) {
-        console.error("[marketplace visual-sort rpc]", rpcError);
-        // Fall through to regular query on RPC failure rather than returning empty
-      } else {
-        const stones = ((rpcRows ?? []) as any[]).map((s: any) => {
-          const imgs = (s.stone_images ?? []) as any[];
-          const sorted = [...imgs].sort(
-            (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
-          );
-          const primary = sorted.find((i: any) => i.is_primary) ?? sorted[0];
-          return {
-            ...s,
-            image: (primary?.storage_url || primary?.external_image_url) ?? null,
-            dealer_country: s.profiles?.country ?? null,
-            dealer_verified: !!s.profiles?.is_verified,
-          };
-        });
-        return {
-          stones,
-          total: await marketTotalPromise,
-          marketTotal: await marketTotalPromise,
-          page,
-          pageSize: PAGE_SIZE,
-          error: null,
-        };
-      }
-    }
-    // ── Filtered / explicitly sorted: standard PostgREST query ───────────────
-
     let q = supabaseAdmin
       .from("stones")
       .select(STONE_SELECT, { count: "planned" })
@@ -423,7 +330,13 @@ export const searchMarketplace = createServerFn({ method: "POST" })
         q = q.order("updated_at", { ascending: false });
         break;
       default:
-        q = q.order("created_at", { ascending: false });
+        // Image-first: stones with at least one image always precede imageless ones.
+        // Within each tier, newest first. has_image is maintained by DB trigger.
+        q = q
+          .order("has_image", { ascending: false, nullsFirst: false })
+          .order("has_360",   { ascending: false, nullsFirst: false })
+          .order("has_video", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false });
     }
 
     q = q.range(from, to);
