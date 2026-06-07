@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Instagram } from "lucide-react";
+import { MessageCircle, ShieldCheck, Instagram, Wrench } from "lucide-react";
 import { EnquireDialog } from "@/components/site/EnquireDialog";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/vendors/$slug")({
   loader: async ({ params }) => {
     const { data } = await supabase
       .from("dealer_profiles")
-      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, profiles!inner(company_name, city, country, is_approved)")
+      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, whatsapp_first, supplier_services, supplier_note, profiles!inner(company_name, city, country, is_approved)")
       .eq("slug", params.slug)
       .maybeSingle();
     return { vendor: data as any };
@@ -69,7 +69,9 @@ export const Route = createFileRoute("/vendors/$slug")({
                   },
                 }
               : {}),
-            ...(v?.specialities?.length ? { knowsAbout: v.specialities.join(", ") } : {}),
+            ...(v?.specialities?.length || v?.supplier_services?.length
+              ? { knowsAbout: [...(v.specialities ?? []), ...(v.supplier_services ?? [])].join(", ") }
+              : {}),
             ...(v?.trade_memberships?.length
               ? { memberOf: v.trade_memberships.map((m: string) => ({ "@type": "Organization", name: m })) }
               : {}),
@@ -103,7 +105,7 @@ function VendorProfile() {
       const to = from + VENDOR_CATALOGUE_PAGE_SIZE - 1;
       const { data: vendor } = await supabase
         .from("dealer_profiles")
-        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
+        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, whatsapp_first, supplier_services, supplier_note, profiles!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
       if (!vendor) return { vendor: null, stones: [], totalStones: 0 };
@@ -290,8 +292,20 @@ function VendorProfile() {
           )}
           <p className="mt-6 max-w-2xl opacity-90">{v.bio}</p>
           <div className="mt-6 flex flex-wrap gap-1.5">
+            {v.whatsapp_first && (
+              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+                <MessageCircle className="mr-1 h-3 w-3" />
+                WhatsApp-first supplier
+              </Badge>
+            )}
             {(v.specialities ?? []).map((s: string) => (
               <Badge key={s} className="bg-white/10 text-primary-foreground">{s}</Badge>
+            ))}
+            {(v.supplier_services ?? []).map((s: string) => (
+              <Badge key={s} className="bg-white/10 text-primary-foreground">
+                <Wrench className="mr-1 h-3 w-3" />
+                {s}
+              </Badge>
             ))}
             {v.gia_member && <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">GIA Member</Badge>}
             {v.igi_member && <Badge className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">IGI Member</Badge>}
@@ -319,6 +333,35 @@ function VendorProfile() {
             <div className="mt-4 border-l-2 border-[var(--color-gold)] pl-5">
               <p className="whitespace-pre-line text-base leading-relaxed text-foreground/85">{v.story}</p>
             </div>
+          </div>
+        </section>
+      )}
+      {v.whatsapp_first && (
+        <section className="border-b border-emerald-200 bg-emerald-50">
+          <div className="mx-auto max-w-4xl px-6 py-8">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-emerald-800">
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp-first sourcing
+            </div>
+            <p className="mt-3 text-sm leading-6 text-emerald-950">
+              This supplier can work from WhatsApp-first stock, rough parcels, cutting/polishing updates,
+              or one-off availability. Chaos should confirm price, media, treatment, and availability before a
+              jeweller quotes a client.
+            </p>
+            {v.supplier_note && (
+              <p className="mt-3 rounded-md border border-emerald-200 bg-white/70 p-3 text-sm leading-6 text-emerald-950">
+                {v.supplier_note}
+              </p>
+            )}
+            {(v.supplier_services ?? []).length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(v.supplier_services ?? []).map((s: string) => (
+                  <span key={s} className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-medium text-emerald-900">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}

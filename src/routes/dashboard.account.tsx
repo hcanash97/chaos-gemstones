@@ -215,6 +215,17 @@ const JEWELLER_SPECIALITIES = [
   "Antique restoration", "High jewellery", "Men's jewellery", "Wedding bands",
 ];
 
+const SUPPLIER_SERVICES = [
+  "Cut stones",
+  "Rough stones",
+  "Cutting & polishing",
+  "Recutting",
+  "Matched pairs",
+  "Parcels",
+  "One-off WhatsApp stock",
+  "Custom sourcing",
+];
+
 function slugify(s: string) {
   return s
     .toLowerCase()
@@ -397,13 +408,17 @@ function DealerPublicProfileForm({ userId }: { userId: string }) {
     founded_year: "" as string,
     certifications: [] as string[],
     cert_input: "" as string,
+    whatsapp_first: false,
+    whatsapp_number: "" as string,
+    supplier_services: [] as string[],
+    supplier_note: "" as string,
   });
 
   useEffect(() => {
     (async () => {
       const { data } = await (supabase as any)
         .from("dealer_profiles")
-        .select("logo_url, cover_image_url, tagline, story, instagram_url, founded_year, certifications")
+        .select("logo_url, cover_image_url, tagline, story, instagram_url, founded_year, certifications, whatsapp_first, whatsapp_number, supplier_services, supplier_note")
         .eq("id", userId)
         .maybeSingle();
       setForm((f) => ({
@@ -415,6 +430,10 @@ function DealerPublicProfileForm({ userId }: { userId: string }) {
         instagram_url: data?.instagram_url ?? "",
         founded_year: data?.founded_year ? String(data.founded_year) : "",
         certifications: data?.certifications ?? [],
+        whatsapp_first: !!data?.whatsapp_first,
+        whatsapp_number: data?.whatsapp_number ?? "",
+        supplier_services: data?.supplier_services ?? [],
+        supplier_note: data?.supplier_note ?? "",
       }));
       setLoading(false);
     })();
@@ -439,6 +458,10 @@ function DealerPublicProfileForm({ userId }: { userId: string }) {
       instagram_url: form.instagram_url || null,
       founded_year: form.founded_year ? Number(form.founded_year) : null,
       certifications: form.certifications,
+      whatsapp_first: form.whatsapp_first,
+      whatsapp_number: form.whatsapp_number || null,
+      supplier_services: form.supplier_services,
+      supplier_note: form.supplier_note || null,
     }).eq("id", userId);
     setSaving(false);
     if (error) toast.error(error.message);
@@ -490,6 +513,77 @@ function DealerPublicProfileForm({ userId }: { userId: string }) {
         <div>
           <Label htmlFor="dp-story">Our story</Label>
           <Textarea id="dp-story" rows={5} value={form.story} onChange={(e) => setForm({ ...form, story: e.target.value })} className="mt-1.5" placeholder="Based in Jaipur's gem district, we have been cutting and polishing coloured stones for three generations…" />
+        </div>
+        <div className="rounded-md border border-[var(--color-gold)]/35 bg-[var(--color-gold)]/5 p-4">
+          <label className="flex items-start gap-3 text-sm">
+            <Checkbox
+              checked={form.whatsapp_first}
+              onCheckedChange={(v) => setForm({ ...form, whatsapp_first: !!v })}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block font-medium">WhatsApp-first supplier</span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                Use this for dealers who primarily send stones, rough, cutting updates, photos, and prices through WhatsApp.
+                Chaos can still create hidden draft listings and confirm availability before anything goes live.
+              </span>
+            </span>
+          </label>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="dp-whatsapp">WhatsApp number</Label>
+              <Input
+                id="dp-whatsapp"
+                placeholder="+92..."
+                value={form.whatsapp_number}
+                onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Stored for admin/sourcing workflows. Do not publish private numbers without permission.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="dp-supplier-note">Supplier note</Label>
+              <Textarea
+                id="dp-supplier-note"
+                rows={3}
+                placeholder="e.g. Pakistan-based cutter, sends rough and polished sapphire/ruby options by WhatsApp."
+                value={form.supplier_note}
+                onChange={(e) => setForm({ ...form, supplier_note: e.target.value })}
+                className="mt-1.5"
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <Label>Supplier capabilities</Label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SUPPLIER_SERVICES.map((s) => {
+                const on = form.supplier_services.includes(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        supplier_services: on
+                          ? f.supplier_services.filter((x) => x !== s)
+                          : [...f.supplier_services, s],
+                      }))
+                    }
+                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                      on
+                        ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-[var(--color-gold-foreground)]"
+                        : "border-border hover:border-[var(--color-gold)]"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
         <div>
           <Label>Certifications & memberships</Label>

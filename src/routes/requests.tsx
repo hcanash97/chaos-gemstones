@@ -29,7 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ, isDealer as checkD } from "@/lib/auth.utils";
 import { STONE_TYPES, STONE_TYPE_LABELS, SHAPES, SHAPE_LABELS } from "@/lib/marketplace/filters";
 import { countryFlag } from "@/lib/countries";
-import { Search } from "lucide-react";
+import { MessageCircle, Search } from "lucide-react";
 
 export const Route = createFileRoute("/requests")({
   component: RequestsPage,
@@ -59,6 +59,18 @@ const TREATMENT_OPTIONS = [
   { value: "heat-ok", label: "Heat treated OK" },
 ];
 const DURATIONS = [30, 60, 90];
+const SOURCING_STAGES = [
+  { value: "cut", label: "Cut stone" },
+  { value: "polished", label: "Finished/polished" },
+  { value: "rough", label: "Rough stone" },
+  { value: "cutting_service", label: "Cutting/polishing service" },
+  { value: "any", label: "Open to options" },
+];
+const RESPONSE_CHANNELS = [
+  { value: "chaos", label: "Chaos replies only" },
+  { value: "whatsapp_ok", label: "WhatsApp sourcing OK" },
+  { value: "whatsapp_preferred", label: "WhatsApp preferred" },
+];
 
 type RequestRow = {
   id: string;
@@ -72,6 +84,9 @@ type RequestRow = {
   cert_lab: string | null;
   treatment: string | null;
   notes: string | null;
+  allow_whatsapp_sourcing: boolean | null;
+  preferred_response_channel: string | null;
+  sourcing_stage: string | null;
   created_at: string;
   expires_at: string;
   profiles: { company_name: string | null; country: string | null } | null;
@@ -98,7 +113,7 @@ function RequestsPage() {
       const { data, error } = await (supabase as any)
         .from("stone_requests")
         .select(
-          "id, jeweller_id, stone_type, shape, min_carat, max_carat, colour_description, max_budget_usd, cert_lab, treatment, notes, created_at, expires_at, profiles:jeweller_id(company_name, country)",
+          "id, jeweller_id, stone_type, shape, min_carat, max_carat, colour_description, max_budget_usd, cert_lab, treatment, notes, allow_whatsapp_sourcing, preferred_response_channel, sourcing_stage, created_at, expires_at, profiles:jeweller_id(company_name, country)",
         )
         .eq("status", "open")
         .gt("expires_at", new Date().toISOString())
@@ -242,6 +257,9 @@ function PostRequestForm({ onPosted }: { onPosted: () => void }) {
   const [treatment, setTreatment] = useState("any");
   const [notes, setNotes] = useState("");
   const [duration, setDuration] = useState(30);
+  const [allowWhatsApp, setAllowWhatsApp] = useState(false);
+  const [responseChannel, setResponseChannel] = useState("chaos");
+  const [sourcingStage, setSourcingStage] = useState("cut");
   const [busy, setBusy] = useState(false);
 
   function toggleShape(s: string) {
@@ -263,6 +281,9 @@ function PostRequestForm({ onPosted }: { onPosted: () => void }) {
       cert_lab: cert === "Any" ? null : cert,
       treatment: treatment === "any" ? null : treatment,
       notes: notes || null,
+      allow_whatsapp_sourcing: allowWhatsApp || responseChannel !== "chaos",
+      preferred_response_channel: responseChannel,
+      sourcing_stage: sourcingStage,
       status: "open",
       expires_at: expiresAt,
     });
@@ -278,6 +299,9 @@ function PostRequestForm({ onPosted }: { onPosted: () => void }) {
     setMinCarat("");
     setMaxCarat("");
     setShapes([]);
+    setAllowWhatsApp(false);
+    setResponseChannel("chaos");
+    setSourcingStage("cut");
     onPosted();
   }
 
@@ -377,7 +401,61 @@ function PostRequestForm({ onPosted }: { onPosted: () => void }) {
 
         <div>
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">Notes</Label>
-          <Textarea className="mt-1.5" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Textarea
+            className="mt-1.5"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Include timing, client use, preferred origin, whether rough/cutting options are acceptable..."
+          />
+        </div>
+
+        <div className="rounded-md border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/5 p-4">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              checked={allowWhatsApp}
+              onCheckedChange={(v) => {
+                const next = !!v;
+                setAllowWhatsApp(next);
+                if (next && responseChannel === "chaos") setResponseChannel("whatsapp_ok");
+                if (!next) setResponseChannel("chaos");
+              }}
+              className="mt-0.5"
+            />
+            <div>
+              <Label className="text-sm font-medium">Allow WhatsApp-first sourcing</Label>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Use this when Chaos or a dealer may source from suppliers who trade mainly through WhatsApp.
+                Availability and price should be confirmed before quoting your client.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Request stage</Label>
+              <Select value={sourcingStage} onValueChange={setSourcingStage}>
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SOURCING_STAGES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Response channel</Label>
+              <Select
+                value={responseChannel}
+                onValueChange={(v) => {
+                  setResponseChannel(v);
+                  setAllowWhatsApp(v !== "chaos");
+                }}
+              >
+                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {RESPONSE_CHANNELS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -424,6 +502,8 @@ function RequestCard({
       : null;
   const company = r.profiles?.company_name || "A verified jeweller";
   const country = r.profiles?.country;
+  const stageLabel = SOURCING_STAGES.find((o) => o.value === r.sourcing_stage)?.label;
+  const wantsWhatsApp = !!r.allow_whatsapp_sourcing || r.preferred_response_channel === "whatsapp_ok" || r.preferred_response_channel === "whatsapp_preferred";
 
   return (
     <article className="rounded-md border border-border bg-card p-5 transition-shadow hover:shadow-[0_18px_40px_-22px_rgba(15,27,61,0.45)]">
@@ -435,7 +515,7 @@ function RequestCard({
             {carats && r.max_budget_usd ? " · " : ""}
             {r.max_budget_usd ? `Up to $${Number(r.max_budget_usd).toLocaleString()}` : ""}
           </div>
-          {(r.colour_description || r.treatment || r.cert_lab) && (
+          {(r.colour_description || r.treatment || r.cert_lab || stageLabel || wantsWhatsApp) && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {r.cert_lab && <Badge variant="outline" className="text-[10px]">{r.cert_lab}</Badge>}
               {r.treatment && (
@@ -445,6 +525,15 @@ function RequestCard({
               )}
               {r.colour_description && (
                 <Badge variant="secondary" className="text-[10px]">{r.colour_description}</Badge>
+              )}
+              {stageLabel && (
+                <Badge variant="outline" className="text-[10px]">{stageLabel}</Badge>
+              )}
+              {wantsWhatsApp && (
+                <Badge className="bg-emerald-600 text-[10px] text-white hover:bg-emerald-600">
+                  <MessageCircle className="mr-1 h-3 w-3" />
+                  WhatsApp sourcing OK
+                </Badge>
               )}
             </div>
           )}
@@ -470,6 +559,7 @@ function RequestCard({
             <RespondDialog
               requestId={r.id}
               headline={headline}
+              wantsWhatsApp={wantsWhatsApp}
               hasResponded={hasResponded}
               onResponded={onResponded}
             />
@@ -483,11 +573,13 @@ function RequestCard({
 function RespondDialog({
   requestId,
   headline,
+  wantsWhatsApp,
   hasResponded,
   onResponded,
 }: {
   requestId: string;
   headline: string;
+  wantsWhatsApp: boolean;
   hasResponded: boolean;
   onResponded: () => void;
 }) {
@@ -531,9 +623,19 @@ function RespondDialog({
           <DialogTitle>Respond to request</DialogTitle>
           <DialogDescription>{headline}</DialogDescription>
         </DialogHeader>
+        {wantsWhatsApp && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-900">
+            This buyer is open to WhatsApp-first sourcing. Include whether the stone is currently in hand,
+            rough/cutting status, and when availability was last confirmed.
+          </div>
+        )}
         <Textarea
           rows={6}
-          placeholder="Describe what you can supply — origin, treatment, price, lead time…"
+          placeholder={
+            wantsWhatsApp
+              ? "Describe what you can supply — origin, treatment, price, lead time, WhatsApp availability status, and whether photos/video can be provided..."
+              : "Describe what you can supply — origin, treatment, price, lead time…"
+          }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
