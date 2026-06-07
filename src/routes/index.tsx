@@ -20,6 +20,8 @@ import { BetaTopBanner } from "@/components/site/BetaTopBanner";
 import { DEFAULT_SITE_THEME, type HomepageBlockType } from "@/lib/site-theme";
 import { useSiteTheme } from "@/hooks/useSiteTheme";
 
+const SITE_URL = "https://chaosgemstones.com";
+
 export const Route = createFileRoute("/")({
   component: Home,
   head: () => ({
@@ -28,10 +30,10 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Connect with verified independent gemstone and diamond dealers in Jaipur, Surat, Bangkok and Colombo. Certified stones, live inventory feeds." },
       { property: "og:title", content: "B2B Gemstone & Diamond Marketplace — Chaos" },
       { property: "og:description", content: "Connect with verified independent gemstone and diamond dealers worldwide." },
-      { property: "og:url", content: "/" },
+      { property: "og:url", content: SITE_URL },
       { name: "keywords", content: "gemstone marketplace, diamond marketplace, wholesale gemstones, B2B gemstone platform, loose stones API, gemstone dealer UK, wholesale sapphire, wholesale ruby, Jaipur gemstone dealer, Surat diamond dealer" },
     ],
-    links: [{ rel: "canonical", href: "/" }],
+    links: [{ rel: "canonical", href: SITE_URL }],
     scripts: [
       {
         type: "application/ld+json",
@@ -48,10 +50,10 @@ export const Route = createFileRoute("/")({
             {
               "@type": "WebSite",
               name: "Chaos",
-              url: "https://chaosgemstones.com",
+              url: SITE_URL,
               potentialAction: {
                 "@type": "SearchAction",
-                target: "https://chaosgemstones.com/marketplace?q={search_term_string}",
+                target: `${SITE_URL}/marketplace?search={search_term_string}`,
                 "query-input": "required name=search_term_string",
               },
             },

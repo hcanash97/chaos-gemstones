@@ -46,6 +46,9 @@ async function getServerRates(): Promise<Record<string, number>> {
 function checkRateLimit(keyId: string): boolean {
   const now = Date.now();
   const entry = rateLimitMap.get(keyId);
+  if (entry && now > entry.resetAt) {
+    rateLimitMap.delete(keyId);
+  }
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(keyId, { count: 1, resetAt: now + 60_000 });
     return true;

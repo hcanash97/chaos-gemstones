@@ -66,6 +66,8 @@ import {
   type FilterState,
 } from "@/lib/marketplace/filters";
 
+const SITE_URL = "https://chaosgemstones.com";
+
 export const Route = createFileRoute("/marketplace")({
   component: Marketplace,
   head: () => ({
@@ -82,10 +84,10 @@ export const Route = createFileRoute("/marketplace")({
         content:
           "Search certified natural and lab-grown diamonds and coloured gemstones from verified dealers worldwide.",
       },
-      { property: "og:url", content: "/marketplace" },
+      { property: "og:url", content: `${SITE_URL}/marketplace` },
       { name: "keywords", content: "buy loose gemstones wholesale, certified diamonds wholesale, sapphire wholesale UK, ruby wholesale, emerald wholesale, loose stones for jewellers, coloured gemstone marketplace" },
     ],
-    links: [{ rel: "canonical", href: "/marketplace" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/marketplace` }],
   }),
 });
 
@@ -111,6 +113,10 @@ function Marketplace() {
       if (raw) {
         const parsed = JSON.parse(decodeURIComponent(raw));
         return { ...defaultFilters, ...parsed };
+      }
+      const search = sp.get("search") ?? sp.get("q");
+      if (search?.trim()) {
+        return { ...defaultFilters, search: search.trim() };
       }
     } catch {
       /* ignore */

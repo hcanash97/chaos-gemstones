@@ -55,11 +55,17 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const [{ data: vendors }, { data: stones }] = await Promise.all([
+        const [{ data: vendors }, { data: jewellers }, { data: stones }] = await Promise.all([
           supabaseAdmin
             .from("dealer_profiles")
             .select("slug, updated_at, profiles!inner(is_approved)")
             .eq("profiles.is_approved", true),
+          supabaseAdmin
+            .from("jeweller_profiles")
+            .select("slug, created_at, profiles!inner(is_approved)")
+            .eq("profiles.is_approved", true)
+            .eq("is_public", true)
+            .not("slug", "is", null),
           supabaseAdmin
             .from("stones")
             .select("id, updated_at")
@@ -81,6 +87,14 @@ export const Route = createFileRoute("/sitemap.xml")({
             }<changefreq>weekly</changefreq><priority>0.7</priority></url>`,
           );
         }
+        for (const j of jewellers ?? []) {
+          const lastmod = fmtDate((j as any).created_at);
+          urls.push(
+            `  <url><loc>${BASE_URL}/jewellers/${(j as any).slug}</loc>${
+              lastmod ? `<lastmod>${lastmod}</lastmod>` : ""
+            }<changefreq>weekly</changefreq><priority>0.6</priority></url>`,
+          );
+        }
         for (const s of stones ?? []) {
           const lastmod = fmtDate((s as any).updated_at);
           urls.push(
@@ -100,7 +114,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         return new Response(xml, {
           headers: {
             "Content-Type": "application/xml",
-            "Cache-Control": "public, max-age=3600",
+            "Cache-Control": "public, max-age=86400, stale-while-revalidate=3600",
           },
         });
       },

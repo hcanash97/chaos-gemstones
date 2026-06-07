@@ -36,7 +36,7 @@ export type StoneCardData = {
   isWishlisted?: boolean;
 };
 
-function stoneAltText(stone: StoneCardData): string {
+export function stoneAltText(stone: StoneCardData): string {
   const parts = [
     stone.carat_weight ? `${Number(stone.carat_weight).toFixed(2)} carat` : null,
     stone.shape || null,
@@ -46,7 +46,7 @@ function stoneAltText(stone: StoneCardData): string {
     stone.clarity_grade ? `${stone.clarity_grade} clarity` : null,
     stone.cert_lab ? `certified by ${stone.cert_lab}` : null,
   ].filter(Boolean);
-  return parts.join(", ");
+  return parts.join(", ") || "loose gemstone";
 }
 
 function StoneCardImpl({
