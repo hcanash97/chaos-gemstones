@@ -18,18 +18,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import { StoneCard, stoneAltText } from "@/components/site/StoneCard";
+import { StoneCard } from "@/components/site/StoneCard";
 import { ClientQuoteDialog } from "@/components/site/ClientQuoteDialog";
 import { Switch } from "@/components/ui/switch";
 import { useRetailMode } from "@/hooks/useRetailMode";
-
-const SITE_URL = "https://chaosgemstones.com";
-
-function absoluteUrl(pathOrUrl: string | null | undefined): string | null {
-  if (!pathOrUrl) return null;
-  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-  return `${SITE_URL}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`;
-}
 
 export const Route = createFileRoute("/stone/$id")({
   component: StoneDetail,
@@ -37,7 +29,7 @@ export const Route = createFileRoute("/stone/$id")({
     const { data } = await supabase
       .from("stones")
       .select(
-        "id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cert_lab, cert_number, treatment, country_of_origin, wholesale_price_usd, price_currency, status, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(company_name, city, country)",
+        "id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cert_lab, cert_number, treatment, country_of_origin, wholesale_price_usd, price_currency, status, stone_images(storage_url, external_image_url), profiles:dealer_id(company_name, city, country)",
       )
       .eq("id", params.id)
       .maybeSingle();
@@ -50,11 +42,7 @@ export const Route = createFileRoute("/stone/$id")({
     const shape = s.shape ? `${s.shape} ` : "";
     const title = `${carat}${shape}${s.stone_type} — ${s.cert_lab || "Uncertified"} — Chaos`;
     const desc = `${carat}${s.colour_grade ? s.colour_grade + " " : ""}${shape}${s.stone_type}${s.clarity_grade ? ", " + s.clarity_grade : ""}${s.cert_lab ? ", certified by " + s.cert_lab : ""}${s.profiles?.company_name ? ", sourced from " + s.profiles.company_name : ""}${s.profiles?.city ? " in " + s.profiles.city + (s.profiles.country ? ", " + s.profiles.country : "") : ""}.`;
-    const sortedImages = [...(s.stone_images ?? [])].sort(
-      (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
-    );
-    const primary = sortedImages.find((image: any) => image.is_primary) ?? sortedImages[0];
-    const img = absoluteUrl(primary?.storage_url || primary?.external_image_url);
+    const img = s.stone_images?.[0]?.storage_url || s.stone_images?.[0]?.external_image_url;
     const availability =
       s.status === "available"
         ? "https://schema.org/InStock"
@@ -79,7 +67,7 @@ export const Route = createFileRoute("/stone/$id")({
         { property: "og:title", content: title },
         { property: "og:description", content: desc },
         { property: "og:type", content: "product" },
-        { property: "og:url", content: `${SITE_URL}/stone/${params.id}` },
+        { property: "og:url", content: `/stone/${params.id}` },
         ...(img
           ? [
               { property: "og:image", content: img },
@@ -88,7 +76,7 @@ export const Route = createFileRoute("/stone/$id")({
           : []),
         { name: "twitter:card", content: "summary_large_image" },
       ],
-      links: [{ rel: "canonical", href: `${SITE_URL}/stone/${params.id}` }],
+      links: [{ rel: "canonical", href: `/stone/${params.id}` }],
       scripts: [
         {
           type: "application/ld+json",
@@ -215,7 +203,6 @@ function StoneDetail() {
     .map((i: any) => i.storage_url || i.external_image_url)
     .filter(Boolean);
   const primaryImage = images[0];
-  const primaryImageAlt = stoneAltText(stone);
   const slug = stone.dealer?.dealer_profiles?.slug;
 
   // Does this stone have a working 360° viewer?
@@ -294,7 +281,7 @@ function StoneDetail() {
               <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-card">
                 <motion.img
                   src={primaryImage}
-                  alt={primaryImageAlt}
+                  alt=""
                   className="h-full w-full object-cover"
                   initial={{ opacity: 0, scale: 1.02 }}
                   animate={{ opacity: 1, scale: 1 }}
