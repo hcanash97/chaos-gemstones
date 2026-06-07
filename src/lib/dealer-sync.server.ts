@@ -51,10 +51,47 @@ function isMissingImportIdentityColumn(error: unknown) {
   return err?.code === "42703" || err?.code === "PGRST204" || /external_source|external_sync_key|source_stock_no|raw_import_row|last_imported_at|schema cache/i.test(text);
 }
 
-function isMissingConflictTarget(error: unknown) {
-  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
-  const text = `${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`;
-  return err?.code === "42P10" || /no unique or exclusion constraint matching the ON CONFLICT specification/i.test(text);
+function summarizeDiagnostics(errors: SyncDiagnostic[]): SyncDiagnostic[] {
+  if (!errors.length) return [];
+
+  const byCode = new Map<string, number>();
+  const byField = new Map<string, number>();
+  for (const error of errors) {
+    byCode.set(error.pgCode ?? "validation", (byCode.get(error.pgCode ?? "validation") ?? 0) + 1);
+    byField.set(error.field ?? "_sync", (byField.get(error.field ?? "_sync") ?? 0) + 1);
+  }
+
+  const codeText = Array.from(byCode.entries())
+    .map(([code, count]) => `${code}: ${count}`)
+    .join(", ");
+  const fieldText = Array.from(byField.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([field, count]) => `${field}: ${count}`)
+    .join(", ");
+
+  const suggestions = new Set<string>();
+  if (byCode.has("42P10")) {
+    suggestions.add("Database unique-index mismatch detected. Apply the API identity migrations and reload Supabase schema cache. Patch47 also avoids this by writing rows manually instead of relying on ON CONFLICT.");
+  }
+  if (byCode.has("23502")) {
+    suggestions.add("A required database column received null. Check the listed field and add a safe default in the mapper.");
+  }
+  if (byCode.has("23505")) {
+    suggestions.add("Duplicate key detected. Check private sync keys and existing duplicate rows for this dealer.");
+  }
+  if (byCode.has("22P02")) {
+    suggestions.add("A value could not be cast to the database type. Check the listed raw value and mapping translation.");
+  }
+
+  return [
+    diagnostic("error", `Sync finished with ${errors.length} failed event${errors.length === 1 ? "" : "s"}. Error codes: ${codeText || "none"}. Top fields: ${fieldText || "none"}.`, {
+      field: "_summary",
+    }),
+    ...Array.from(suggestions).map((message) => diagnostic("warning", message, {
+      field: "_suggestion",
+    })),
+  ];
 }
 
 function assertSafeFeedUrl(urlStr: string): void {
@@ -461,7 +498,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     let updated = 0;
     const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
 
-    diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Running database upserts in batches of ${SYNC_BATCH_SIZE}.`, {
+    diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Saving database changes in batches of ${SYNC_BATCH_SIZE}.`, {
       field: "_prepare",
     }));
 
@@ -496,150 +533,76 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       }
     }
 
+    diagnostics.push(diagnostic("info", "Patch47 sync engine is using manual identity matching: update by existing database id when possible, otherwise insert a new stone. This avoids Postgres ON CONFLICT/index errors such as 42P10 while the Supabase schema catches up.", {
+      field: "_write",
+    }));
+
     for (let i = 0; i < candidates.length; i += SYNC_BATCH_SIZE) {
       const chunk = candidates.slice(i, i + SYNC_BATCH_SIZE);
       const batchNumber = Math.floor(i / SYNC_BATCH_SIZE) + 1;
-      const batchStartRow = chunk[0]?.sourceIndex + 1;
-      const batchEndRow = chunk[chunk.length - 1]?.sourceIndex + 1;
 
-      const upsertConflict = useImportIdentityColumns ? "dealer_id,external_sync_key" : "dealer_id,cert_number";
-      const selectColumns = useImportIdentityColumns ? "id, external_sync_key, cert_number" : "id, cert_number";
+      let batchCreated = 0;
+      let batchUpdated = 0;
 
-      const { data, error } = await supabaseAdmin
-        .from("stones")
-        .upsert(chunk.map((c) => c.data) as never, { onConflict: upsertConflict })
-        .select(selectColumns);
-
-      if (error) {
-        if (isMissingConflictTarget(error)) {
-          const attemptedConflict = upsertConflict;
-          const conflictHelp = useImportIdentityColumns
-            ? "The live database has private API sync columns but is missing the unique index for dealer_id + external_sync_key. Apply migration 20260607090000_repair_dealer_api_private_sync_key.sql for the normal fast path."
-            : "The sync is in legacy cert-number fallback mode and the live database is missing the unique index for dealer_id + cert_number. Apply migration 20260607100000_repair_legacy_cert_conflict_target.sql, then apply 20260607093000_repair_api_identity_schema_cache.sql for the safer private-key path.";
-          diagnostics.push(diagnostic("warning", `${conflictHelp} Chaos is using a slower manual update/insert fallback for this sync.`, {
-            batch: batchNumber,
-            field: useImportIdentityColumns ? "external_sync_key" : "cert_number",
-            details: `Attempted onConflict target: ${attemptedConflict}`,
-          }));
-
-          for (const candidate of chunk) {
-            const existingId = syncKeyToId.get(candidate.certNumber);
-            if (existingId) {
-              const { error: updateError } = await supabaseAdmin
-                .from("stones")
-                .update(candidate.data as never)
-                .eq("dealer_id", dealerId)
-                .eq("id", existingId);
-              if (updateError) {
-                errors.push(postgresDiagnostic("Row failed during manual update fallback", updateError, {
-                  row: candidate.sourceIndex + 1,
-                  batch: batchNumber,
-                  stockNo: candidate.stockNo,
-                  certNumber: candidate.certNumber,
-                  field: "_upsert",
-                }));
-                continue;
-              }
-              updated += 1;
-              continue;
-            }
-
-            const { data: inserted, error: insertError } = await supabaseAdmin
-              .from("stones")
-              .insert(candidate.data as never)
-              .select("id")
-              .single();
-            if (insertError) {
-              errors.push(postgresDiagnostic("Row failed during manual insert fallback", insertError, {
-                row: candidate.sourceIndex + 1,
-                batch: batchNumber,
-                stockNo: candidate.stockNo,
-                certNumber: candidate.certNumber,
-                field: "_upsert",
-              }));
-              continue;
-            }
-            created += 1;
-            if (inserted?.id) syncKeyToId.set(candidate.certNumber, inserted.id);
-            if (candidate.image_url && inserted?.id) {
-              createdImageRows.push({
-                stone_id: inserted.id,
-                storage_url: candidate.image_url,
-                external_image_url: candidate.image_url,
-                is_primary: true,
-                sort_order: 0,
-              });
-            }
-          }
-          continue;
-        }
-
-        errors.push(postgresDiagnostic(`Batch ${batchNumber} failed while upserting feed rows ${batchStartRow}-${batchEndRow}. Retrying this batch row-by-row to find the exact failing stone`, error, {
-          batch: batchNumber,
-          field: "_upsert",
-        }));
-
-        for (const candidate of chunk) {
-          const { data: singleDataRaw, error: singleError } = await supabaseAdmin
+      for (const candidate of chunk) {
+        const existingId = syncKeyToId.get(candidate.certNumber);
+        if (existingId) {
+          const { error } = await supabaseAdmin
             .from("stones")
-            .upsert(candidate.data as never, { onConflict: upsertConflict })
-            .select(selectColumns)
-            .single();
-          const singleData = singleDataRaw as { id: string } | null;
+            .update(candidate.data as never)
+            .eq("dealer_id", dealerId)
+            .eq("id", existingId);
 
-          if (singleError) {
-            errors.push(postgresDiagnostic("Row failed during isolated retry", singleError, {
+          if (error) {
+            errors.push(postgresDiagnostic("Row failed while updating the existing matched stone", error, {
               row: candidate.sourceIndex + 1,
               batch: batchNumber,
               stockNo: candidate.stockNo,
               certNumber: candidate.certNumber,
-              field: "_upsert",
+              field: "_write",
             }));
             continue;
           }
-
-          if (candidate.existedBefore) updated += 1;
-          else created += 1;
-
-          if (!candidate.existedBefore && candidate.image_url && singleData?.id) {
-            createdImageRows.push({
-              stone_id: singleData.id,
-              storage_url: candidate.image_url,
-              external_image_url: candidate.image_url,
-              is_primary: true,
-              sort_order: 0,
-            });
-          }
-        }
-      } else {
-        for (const candidate of chunk) {
-          if (candidate.existedBefore) updated += 1;
-          else created += 1;
+          updated += 1;
+          batchUpdated += 1;
+          continue;
         }
 
-        const idBySyncKey = new Map<string, string>();
-        for (const row of data ?? []) {
-          const key = useImportIdentityColumns ? (row as any).external_sync_key : (row as any).cert_number;
-          if (key && (row as any).id) idBySyncKey.set(key, (row as any).id);
-        }
-        for (const candidate of chunk) {
-          const id = idBySyncKey.get(candidate.certNumber);
-          if (!candidate.existedBefore && candidate.image_url && id) {
-            createdImageRows.push({
-              stone_id: id,
-              storage_url: candidate.image_url,
-              external_image_url: candidate.image_url,
-              is_primary: true,
-              sort_order: 0,
-            });
-          }
+        const { data: inserted, error } = await supabaseAdmin
+          .from("stones")
+          .insert(candidate.data as never)
+          .select("id")
+          .single();
+
+        if (error) {
+          errors.push(postgresDiagnostic("Row failed while inserting a new matched stone", error, {
+            row: candidate.sourceIndex + 1,
+            batch: batchNumber,
+            stockNo: candidate.stockNo,
+            certNumber: candidate.certNumber,
+            field: "_write",
+          }));
+          continue;
         }
 
-        diagnostics.push(diagnostic("success", `Batch ${batchNumber} upserted ${chunk.length} rows successfully.`, {
-          batch: batchNumber,
-          field: "_upsert",
-        }));
+        created += 1;
+        batchCreated += 1;
+        if (inserted?.id) syncKeyToId.set(candidate.certNumber, inserted.id);
+        if (candidate.image_url && inserted?.id) {
+          createdImageRows.push({
+            stone_id: inserted.id,
+            storage_url: candidate.image_url,
+            external_image_url: candidate.image_url,
+            is_primary: true,
+            sort_order: 0,
+          });
+        }
       }
+
+      diagnostics.push(diagnostic("success", `Batch ${batchNumber} saved ${batchCreated + batchUpdated}/${chunk.length} rows: ${batchCreated} new, ${batchUpdated} updated.`, {
+        batch: batchNumber,
+        field: "_write",
+      }));
     }
 
     if (createdImageRows.length) {
@@ -669,7 +632,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       }
     }
 
-    const allDiagnostics = [...diagnostics, ...errors];
+    const allDiagnostics = [...diagnostics, ...summarizeDiagnostics(errors), ...errors];
     await supabaseAdmin.from("sync_logs").update({
       status: errors.length ? "partial" : "success",
       finished_at: new Date().toISOString(),

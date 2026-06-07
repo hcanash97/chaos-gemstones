@@ -60,6 +60,9 @@ function fieldLabel(field?: string) {
     _sync: "Sync",
     _fetch: "Feed fetch",
     _clear: "Clear imported inventory",
+    _write: "Database write",
+    _summary: "Error summary",
+    _suggestion: "Suggested fix",
     external_sync_key: "Private API sync key",
   };
   return field ? labels[field] ?? field : null;
@@ -82,6 +85,47 @@ function errorDiagnosticCount(logs: SyncDiagnostic[]) {
   return logs.filter((log) => log.level === "error" || !log.level).length;
 }
 
+function diagnosticSummaryText(logs: SyncDiagnostic[]) {
+  const countBy = (pick: (log: SyncDiagnostic) => string | null | undefined) => {
+    const counts = new Map<string, number>();
+    logs.forEach((log) => {
+      const key = pick(log);
+      if (!key) return;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([key, count]) => `${key}: ${count}`)
+      .join(", ");
+  };
+
+  const errors = logs.filter((log) => log.level === "error" || !log.level);
+  const warnings = logs.filter((log) => log.level === "warning");
+  const examples = errors.slice(0, 8).map((log) => {
+    const context = [
+      log.batch ? `batch ${log.batch}` : null,
+      log.row ? `row ${log.row}` : null,
+      log.stockNo ? `stock ${log.stockNo}` : null,
+      log.certNumber ? `key ${log.certNumber}` : null,
+      log.field ? `field ${fieldLabel(log.field) ?? log.field}` : null,
+      log.pgCode ? `pg ${log.pgCode}` : null,
+    ].filter(Boolean).join(", ");
+    return `- ${context || "general"}: ${log.message ?? "Unknown event"}`;
+  });
+
+  return [
+    "Chaos API sync diagnostic summary",
+    `Total events: ${logs.length}`,
+    `Errors: ${errors.length}`,
+    `Warnings: ${warnings.length}`,
+    `By level: ${countBy((log) => log.level ?? "error") || "none"}`,
+    `By Postgres code: ${countBy((log) => log.pgCode) || "none"}`,
+    `By field: ${countBy((log) => log.field ? fieldLabel(log.field) ?? log.field : null) || "none"}`,
+    examples.length ? "Example errors:" : "Example errors: none",
+    ...examples,
+  ].join("\n");
+}
+
 function ErrorDiagnosticsLog({
   logs,
   syncing,
@@ -90,6 +134,11 @@ function ErrorDiagnosticsLog({
   syncing: boolean;
 }) {
   const hasLogs = logs.length > 0;
+  const copySummary = async () => {
+    if (!hasLogs) return;
+    await navigator.clipboard.writeText(diagnosticSummaryText(logs));
+    toast.success("Diagnostic summary copied");
+  };
   return (
     <details open={syncing || hasLogs} className="rounded-md border border-border bg-background">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm">
@@ -97,12 +146,26 @@ function ErrorDiagnosticsLog({
           <Terminal className="h-4 w-4" />
           Error Diagnostics Log
         </span>
-        <span className="text-xs text-muted-foreground">
-          {syncing ? "sync running" : hasLogs ? `${logs.length} event${logs.length === 1 ? "" : "s"}` : "no events yet"}
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{syncing ? "sync running" : hasLogs ? `${logs.length} event${logs.length === 1 ? "" : "s"}` : "no events yet"}</span>
+          {hasLogs && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-1 text-[11px] text-foreground hover:bg-muted"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                copySummary();
+              }}
+            >
+              <Copy className="h-3 w-3" />
+              Copy summary
+            </button>
+          )}
         </span>
       </summary>
       <div className="max-h-72 overflow-auto border-t border-border bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-100">
-        {syncing && <div className="text-zinc-300">ℹ Sync request sent. Waiting for the server to finish chunked upserts...</div>}
+        {syncing && <div className="text-zinc-300">ℹ Sync request sent. Waiting for the server to finish chunked writes...</div>}
         {!syncing && !hasLogs && <div className="text-zinc-400">Run a sync to see batch-by-batch diagnostics here.</div>}
         {logs.map((log, idx) => (
           <div
@@ -214,7 +277,7 @@ function DealerApiPage() {
       {
         level: "info",
         field: "_start",
-        message: `Saving the visible sync settings, then starting sync with ${method}. Chaos will clean rows, deduplicate sync keys, then upsert in batches of 200.`,
+        message: `Saving the visible sync settings, then starting sync with ${method}. Chaos will clean rows, deduplicate sync keys, then save database changes in batches of 200.`,
       },
     ]);
     try {
