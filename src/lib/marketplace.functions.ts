@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { CARAT_MAX, CARAT_MIN, PREMIUM_ORIGINS, PRICE_MAX, PRICE_MIN, type FilterState } from "@/lib/marketplace/filters";
 
@@ -46,7 +47,6 @@ async function getMarketplaceTotal(): Promise<number> {
 export type SearchInput = {
   filters: Partial<FilterState>;
   page: number;
-  followedDealerIds?: string[];
 };
 
 export type FilterDiagnosticsInput = {
@@ -204,6 +204,39 @@ function shapeValuesForFilter(shape: string): string[] {
   return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])].flatMap(filterValueVariants));
 }
 
+async function getAuthenticatedUserIdFromRequest(): Promise<string | null> {
+  const authHeader = getRequest()?.headers?.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.replace("Bearer ", "").trim();
+  if (!token) return null;
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data.user?.id) return null;
+  return data.user.id;
+}
+
+async function getFollowedDealerIdsForRequest(): Promise<string[]> {
+  const userId = await getAuthenticatedUserIdFromRequest();
+  if (!userId) return [];
+
+  const { data: keys, error: keyError } = await supabaseAdmin
+    .from("api_keys")
+    .select("id")
+    .eq("jeweller_id", userId)
+    .eq("is_active", true)
+    .limit(1);
+  if (keyError || !keys?.[0]) return [];
+
+  const { data: selections, error: selectionError } = await supabaseAdmin
+    .from("feed_selections")
+    .select("dealer_id")
+    .eq("api_key_id", keys[0].id)
+    .eq("selection_type", "dealer_follow")
+    .not("dealer_id", "is", null);
+  if (selectionError) return [];
+
+  return uniqueValues((selections ?? []).map((selection) => selection.dealer_id).filter(Boolean));
+}
+
 export const searchMarketplace = createServerFn({ method: "POST" })
   .inputValidator((input: SearchInput) => input)
   .handler(async ({ data }) => {
@@ -212,7 +245,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const marketTotalPromise = getMarketplaceTotal();
-    const followedDealerIds = uniqueValues((data.followedDealerIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id)));
+    const followedDealerIds = await getFollowedDealerIdsForRequest();
     const nowIso = new Date().toISOString();
 
     let q = supabaseAdmin

@@ -194,11 +194,9 @@ function Marketplace() {
     },
   });
 
-  const followedDealerKey = Array.from(followedDealerIds ?? []).sort().join(",");
-
   const { data: result, isFetching } = useQuery({
-    queryKey: ["marketplace-search", debouncedF, page, followedDealerKey],
-    queryFn: () => search({ data: { filters: debouncedF, page, followedDealerIds: Array.from(followedDealerIds ?? []) } }),
+    queryKey: ["marketplace-search", debouncedF, page, user?.id],
+    queryFn: () => search({ data: { filters: debouncedF, page } }),
     placeholderData: keepPreviousData,
     staleTime: 30_000,       // don't refetch for 30s — covers tab switches, back nav
     gcTime:    5 * 60_000,   // keep in cache 5 min so back button is instant
@@ -209,10 +207,10 @@ function Marketplace() {
     if (!result || page >= Math.ceil((result.total ?? 0) / PAGE_SIZE)) return;
     queryClient.prefetchQuery({
       queryKey: ["marketplace-search", debouncedF, page + 1],
-      queryFn: () => search({ data: { filters: debouncedF, page: page + 1, followedDealerIds: Array.from(followedDealerIds ?? []) } }),
+      queryFn: () => search({ data: { filters: debouncedF, page: page + 1 } }),
       staleTime: 30_000,
     });
-  }, [result, page, debouncedF, followedDealerIds, queryClient, search]);
+  }, [result, page, debouncedF, queryClient, search]);
 
   const rawStones = result?.stones ?? [];
   const total = result?.total ?? 0;

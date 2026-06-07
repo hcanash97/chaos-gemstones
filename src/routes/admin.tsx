@@ -17,7 +17,7 @@ import { approveWhatsAppStoneFn, rejectWhatsAppStoneFn } from "@/lib/whatsapp-in
 import { StatsPanel } from "@/components/admin/StatsPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
-import { adminGetDealerHealth, adminGetProfileDataQuality, adminRepairProfileLocations } from "@/lib/admin-dealer.functions";
+import { adminCreateDealerCorrectionMessage, adminGetDealerHealth, adminGetProfileDataQuality, adminRepairProfileLocations } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
 import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type HomepageSectionCopy, type SiteThemeSettings } from "@/lib/site-theme";
@@ -1802,6 +1802,13 @@ function DataCleanupPanel() {
   const [result, setResult] = useState<string | null>(null);
   const [scanningProfiles, setScanningProfiles] = useState(false);
   const [repairingProfiles, setRepairingProfiles] = useState(false);
+  const [promptingProfileId, setPromptingProfileId] = useState<string | null>(null);
+  const [correctionPrompt, setCorrectionPrompt] = useState<{
+    email: string;
+    subject: string;
+    body: string;
+    mailto: string;
+  } | null>(null);
   const [profileQuality, setProfileQuality] = useState<{
     scanned: number;
     repairable: number;
@@ -1838,6 +1845,7 @@ function DataCleanupPanel() {
   } | null>(null);
   const scanProfiles = useServerFn(adminGetProfileDataQuality);
   const repairProfileLocations = useServerFn(adminRepairProfileLocations);
+  const createCorrectionMessage = useServerFn(adminCreateDealerCorrectionMessage);
 
   async function runProfileScan() {
     setScanningProfiles(true);
@@ -1863,6 +1871,33 @@ function DataCleanupPanel() {
       toast.error(err instanceof Error ? err.message : "Profile repair failed");
     } finally {
       setRepairingProfiles(false);
+    }
+  }
+
+  async function buildCorrectionPrompt(profile: NonNullable<typeof profileQuality>["completeness"][number]) {
+    if (profile.accountType !== "dealer") {
+      toast.error("Correction prompts are currently for dealer profiles.");
+      return;
+    }
+    const issues = [...profile.missing, ...profile.recommended].slice(0, 8);
+    if (issues.length === 0) {
+      toast.success("This profile already looks complete.");
+      return;
+    }
+    setPromptingProfileId(profile.id);
+    try {
+      const message = await createCorrectionMessage({
+        data: {
+          dealerId: profile.id,
+          issues,
+          note: "You can update these from your Chaos dashboard under Account settings. If any field is unclear, reply here and we can help.",
+        },
+      });
+      setCorrectionPrompt(message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not create correction message");
+    } finally {
+      setPromptingProfileId(null);
     }
   }
 
@@ -2041,13 +2076,27 @@ function DataCleanupPanel() {
                           {[...profile.missing, ...profile.recommended].slice(0, 4).join(", ") || "Looks complete"}
                         </td>
                         <td className="px-3 py-2 text-right">
-                          {profile.href ? (
-                            <a href={profile.href} className="text-primary underline">
-                              Edit
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">Manual</span>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {profile.href ? (
+                              <a href={profile.href} className="text-primary underline">
+                                Edit
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground">Manual</span>
+                            )}
+                            {profile.accountType === "dealer" && profile.score < 85 && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-[11px]"
+                                disabled={promptingProfileId === profile.id}
+                                onClick={() => buildCorrectionPrompt(profile)}
+                              >
+                                {promptingProfileId === profile.id ? "Writing..." : "Prompt"}
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2113,6 +2162,44 @@ function DataCleanupPanel() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!correctionPrompt} onOpenChange={(open) => !open && setCorrectionPrompt(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Dealer correction prompt</DialogTitle>
+          </DialogHeader>
+          {correctionPrompt && (
+            <div className="space-y-4">
+              <div className="rounded-md border border-border bg-muted/30 p-3 text-xs">
+                <div><span className="font-medium">To:</span> {correctionPrompt.email || "No email on profile"}</div>
+                <div className="mt-1"><span className="font-medium">Subject:</span> {correctionPrompt.subject}</div>
+              </div>
+              <Textarea value={correctionPrompt.body} readOnly rows={12} className="font-mono text-xs" />
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    await navigator.clipboard?.writeText(correctionPrompt.body);
+                    toast.success("Prompt copied");
+                  }}
+                >
+                  Copy message
+                </Button>
+                {correctionPrompt.email ? (
+                  <Button asChild>
+                    <a href={correctionPrompt.mailto}>Open email</a>
+                  </Button>
+                ) : (
+                  <Button type="button" disabled>
+                    Open email
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-md border border-border bg-background p-4">
         <div className="text-sm font-medium">Stone import cleanup</div>
