@@ -551,7 +551,6 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
           feed_inactive: false,
           has_video: result.data.has_video ?? false,
           has_360: result.data.has_360 ?? false,
-          ...(mapped.image_url ? { has_image: true } : {}),
           matching_pair: result.data.matching_pair ?? false,
           bulk_pricing_available: result.data.bulk_pricing_available ?? false,
           available_qty: result.data.available_qty ?? 1,

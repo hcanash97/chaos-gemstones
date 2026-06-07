@@ -146,9 +146,7 @@ function StoneCardImpl({
             decoding="async"
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <span className="text-xs opacity-50">Photo coming soon</span>
-          </div>
+          <div className="h-full w-full bg-muted" aria-hidden />
         )}
         <span className="shimmer-overlay" aria-hidden />
         {inFeed && (
