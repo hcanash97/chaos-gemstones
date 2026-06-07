@@ -322,7 +322,7 @@ export const saveWhatsAppDraftFn = createServerFn({ method: "POST" })
         await context.supabase.from("whatsapp_intake_log").insert({
           dealer_id: context.userId,
           raw_message: data.raw_message,
-          extracted_json: data.extracted_json as unknown as Record<string, never>,
+          extracted_json: data.extracted_json as never,
           confidence: data.confidence,
           warnings: data.warnings,
           raw_price_text: data.raw_price_text,
@@ -385,7 +385,7 @@ export const saveWhatsAppDraftFn = createServerFn({ method: "POST" })
       .insert({
         dealer_id:         context.userId,
         raw_message:       data.raw_message,
-        extracted_json:    data.extracted_json as unknown as Record<string, never>,
+        extracted_json:    data.extracted_json as never,
         confidence:        data.confidence,
         warnings:          data.warnings,
         raw_price_text:    data.raw_price_text,
