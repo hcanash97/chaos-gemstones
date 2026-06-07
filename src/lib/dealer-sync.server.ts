@@ -551,6 +551,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
           feed_inactive: false,
           has_video: result.data.has_video ?? false,
           has_360: result.data.has_360 ?? false,
+          ...(mapped.image_url ? { has_image: true } : {}),
           matching_pair: result.data.matching_pair ?? false,
           bulk_pricing_available: result.data.bulk_pricing_available ?? false,
           available_qty: result.data.available_qty ?? 1,
@@ -582,7 +583,57 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     }
     let created = 0;
     let updated = 0;
-    const createdImageRows: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
+    const imageRowsToInsert: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
+    const existingImageUrlsByStoneId = new Map<string, Set<string>>();
+
+    const normalizeImageUrl = (value: string | null | undefined) => String(value ?? "").trim();
+    const rememberImageUrl = (stoneId: string, url: string | null | undefined) => {
+      const normalized = normalizeImageUrl(url);
+      if (!normalized) return;
+      const urls = existingImageUrlsByStoneId.get(stoneId) ?? new Set<string>();
+      urls.add(normalized);
+      existingImageUrlsByStoneId.set(stoneId, urls);
+    };
+    const queueImageRow = (stoneId: string, imageUrl: string | null | undefined) => {
+      const normalized = normalizeImageUrl(imageUrl);
+      if (!normalized) return;
+      const knownUrls = existingImageUrlsByStoneId.get(stoneId) ?? new Set<string>();
+      if (knownUrls.has(normalized)) return;
+      imageRowsToInsert.push({
+        stone_id: stoneId,
+        storage_url: normalized,
+        external_image_url: normalized,
+        is_primary: knownUrls.size === 0,
+        sort_order: knownUrls.size,
+      });
+      knownUrls.add(normalized);
+      existingImageUrlsByStoneId.set(stoneId, knownUrls);
+    };
+
+    const existingStoneIdsForImageAudit = Array.from(new Set(
+      candidates
+        .map((candidate) => syncKeyToId.get(candidate.certNumber))
+        .filter((id): id is string => !!id),
+    ));
+    for (let i = 0; i < existingStoneIdsForImageAudit.length; i += 500) {
+      const ids = existingStoneIdsForImageAudit.slice(i, i + 500);
+      const { data: imageRows, error } = await supabaseAdmin
+        .from("stone_images")
+        .select("stone_id, storage_url, external_image_url")
+        .in("stone_id", ids);
+      if (error) {
+        diagnostics.push(diagnostic("warning", "Could not pre-check existing image rows for this batch of imported stones. Stone data will still sync, but thumbnail repair may be incomplete for this run.", {
+          field: "_images",
+        }));
+        continue;
+      }
+      for (const row of imageRows ?? []) {
+        const stoneId = String((row as any).stone_id ?? "");
+        if (!stoneId) continue;
+        rememberImageUrl(stoneId, (row as any).storage_url);
+        rememberImageUrl(stoneId, (row as any).external_image_url);
+      }
+    }
 
     diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Saving database changes in batches of ${SYNC_BATCH_SIZE}.`, {
       field: "_prepare",
@@ -651,6 +702,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
           }
           updated += 1;
           batchUpdated += 1;
+          queueImageRow(existingId, candidate.image_url);
           continue;
         }
 
@@ -674,15 +726,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         created += 1;
         batchCreated += 1;
         if (inserted?.id) syncKeyToId.set(candidate.certNumber, inserted.id);
-        if (candidate.image_url && inserted?.id) {
-          createdImageRows.push({
-            stone_id: inserted.id,
-            storage_url: candidate.image_url,
-            external_image_url: candidate.image_url,
-            is_primary: true,
-            sort_order: 0,
-          });
-        }
+        if (inserted?.id) queueImageRow(inserted.id, candidate.image_url);
       }
 
       diagnostics.push(diagnostic("success", `Batch ${batchNumber} saved ${batchCreated + batchUpdated}/${chunk.length} rows: ${batchCreated} new, ${batchUpdated} updated.`, {
@@ -691,10 +735,14 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       }));
     }
 
-    if (createdImageRows.length) {
-      const { error } = await supabaseAdmin.from("stone_images").insert(createdImageRows as never);
+    if (imageRowsToInsert.length) {
+      const { error } = await supabaseAdmin.from("stone_images").insert(imageRowsToInsert as never);
       if (error) {
         errors.push(postgresDiagnostic("Stone image insert failed after stone upsert. Stones were still synced, but some external images may not appear", error, {
+          field: "_images",
+        }));
+      } else {
+        diagnostics.push(diagnostic("success", `Linked ${imageRowsToInsert.length} feed image URLs to imported stones for marketplace thumbnails.`, {
           field: "_images",
         }));
       }

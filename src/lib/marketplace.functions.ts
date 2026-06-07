@@ -369,11 +369,10 @@ export const searchMarketplace = createServerFn({ method: "POST" })
         break;
       default:
         // Image-first: stones with at least one image always precede imageless ones.
-        // Within each tier, newest first. has_image is maintained by DB trigger.
+        // Within each tier, newest first. 360/video media should not lift a
+        // photo-less listing ahead of other normal marketplace cards.
         q = q
           .order("has_image", { ascending: false, nullsFirst: false })
-          .order("has_360",   { ascending: false, nullsFirst: false })
-          .order("has_video", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false });
     }
 

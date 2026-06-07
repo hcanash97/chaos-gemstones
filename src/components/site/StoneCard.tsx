@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { countryFlag } from "@/lib/countries";
 import { fadeUp } from "@/components/anim/Motion";
-import { Clock, ShieldCheck, Heart, Scale, RotateCcw } from "lucide-react";
+import { Clock, ShieldCheck, Heart, Scale } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJeweller, isDealer as checkDealer, isAdmin as checkAdmin } from "@/lib/auth.utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -147,16 +147,7 @@ function StoneCardImpl({
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            {(stone.has_360 || stone.has_video) ? (
-              <>
-                <RotateCcw className="h-7 w-7 opacity-40" />
-                <span className="text-[11px] font-medium uppercase tracking-wider opacity-60">
-                  {stone.has_360 ? "360° view inside" : "Video inside"}
-                </span>
-              </>
-            ) : (
-              <span className="text-xs opacity-50">No image</span>
-            )}
+            <span className="text-xs opacity-50">Photo coming soon</span>
           </div>
         )}
         <span className="shimmer-overlay" aria-hidden />
@@ -175,11 +166,6 @@ function StoneCardImpl({
             <span className="inline-flex items-center gap-1 rounded-full bg-indigo-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-100 shadow">
               <Clock className="h-3 w-3" />
               Early Access
-            </span>
-          )}
-          {(stone.has_360 || stone.has_video) && (
-            <span className="rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground backdrop-blur">
-              {stone.has_360 ? "360°" : "Video"}
             </span>
           )}
           {stone.matching_pair && (

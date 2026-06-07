@@ -177,7 +177,22 @@ const KODLLIN: FeedPreset = {
       if (/gem360|v360|diamond360/i.test(video)) stone.has_360 = true;
     }
 
-    const image = s(row.imageLink);
+    const image =
+      s(row.imageLink) ||
+      s(row.imageUrl) ||
+      s(row.imageURL) ||
+      s(row.image) ||
+      s(row.photo) ||
+      s(row.photoUrl) ||
+      s(row.picture) ||
+      s(row.pictureUrl) ||
+      s(row.img) ||
+      s(row.imgUrl) ||
+      s(row.diamondImage) ||
+      s(row.stoneImage) ||
+      s(row.mediaUrl) ||
+      s(row.thumbnail) ||
+      s(row.thumbnailUrl);
 
     return {
       stone,
