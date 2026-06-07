@@ -31,12 +31,113 @@ type ProfileQualityIssue = {
   href: string | null;
 };
 
+type ProfileCompleteness = {
+  id: string;
+  accountType: string | null;
+  name: string;
+  email: string | null;
+  city: string | null;
+  country: string | null;
+  score: number;
+  level: "strong" | "good" | "needs_work" | "poor";
+  missing: string[];
+  recommended: string[];
+  stoneCount: number;
+  href: string | null;
+};
+
 function profileHref(id: string, accountType?: string | null) {
   return accountType === "dealer" ? `/admin/dealer/${id}` : null;
 }
 
 function profileLabel(p: { company_name: string | null; full_name: string | null; email: string | null; id: string }) {
   return p.company_name || p.full_name || p.email || p.id.slice(0, 8);
+}
+
+function hasText(value: unknown, minLength = 1) {
+  return typeof value === "string" && value.trim().length >= minLength;
+}
+
+function hasArray(value: unknown) {
+  return Array.isArray(value) && value.filter((item) => hasText(item)).length > 0;
+}
+
+function completenessLevel(score: number): ProfileCompleteness["level"] {
+  if (score >= 85) return "strong";
+  if (score >= 70) return "good";
+  if (score >= 45) return "needs_work";
+  return "poor";
+}
+
+function scoreProfileCompleteness({
+  profile,
+  dealer,
+  jeweller,
+  stoneCount,
+}: {
+  profile: any;
+  dealer?: any;
+  jeweller?: any;
+  stoneCount: number;
+}): ProfileCompleteness {
+  const accountType = profile.account_type ?? null;
+  const name = profileLabel(profile);
+  const missing: string[] = [];
+  const recommended: string[] = [];
+  let score = 0;
+
+  const add = (ok: boolean, points: number, label: string, bucket: "missing" | "recommended" = "missing") => {
+    if (ok) {
+      score += points;
+      return;
+    }
+    if (bucket === "missing") missing.push(label);
+    else recommended.push(label);
+  };
+
+  add(hasText(profile.company_name), 10, "Company name");
+  add(hasText(profile.email), 5, "Contact email");
+  add(hasText(profile.city), 5, "City");
+  add(hasText(profile.country) && !["europe", "asia", "south asia", "middle east"].includes(String(profile.country).toLowerCase()), 10, "Specific country");
+  add(hasText(profile.website) || hasText(profile.phone), 5, "Website or phone", "recommended");
+  add(!!profile.is_verified, 5, "Admin verification", "recommended");
+
+  if (accountType === "dealer") {
+    add(hasText(dealer?.slug), 8, "Vendor profile slug");
+    add(hasText(dealer?.logo_url), 8, "Logo image", "recommended");
+    add(hasText(dealer?.tagline), 6, "Short public tagline", "recommended");
+    add(hasText(dealer?.story, 80) || hasText(dealer?.bio, 80), 12, "Public story or detailed bio");
+    add(hasArray(dealer?.specialities) || hasArray(dealer?.supplier_services), 8, "Specialities or supplier services");
+    add(stoneCount > 0, 12, "Live inventory");
+    add(hasText(dealer?.external_feed_url) || !!dealer?.whatsapp_first, 6, "Inventory workflow: API feed or WhatsApp-first supplier mode", "recommended");
+    add(Number(dealer?.years_trading ?? 0) > 0, 4, "Years trading", "recommended");
+    add(Number(dealer?.response_time_hours ?? 0) > 0, 2, "Expected response time", "recommended");
+  } else if (accountType === "jeweller") {
+    add(hasText(jeweller?.slug), 8, "Public jeweller slug", "recommended");
+    add(hasText(jeweller?.logo_url), 8, "Logo image", "recommended");
+    add(hasText(jeweller?.tagline), 6, "Short public tagline", "recommended");
+    add(hasText(jeweller?.bio, 80), 12, "Public jeweller bio", "recommended");
+    add(hasArray(jeweller?.specialities), 8, "Jewellery specialities", "recommended");
+    add(!jeweller?.is_public || hasText(jeweller?.slug), 8, "Public profile route");
+    add(!!jeweller?.is_public, 5, "Public jeweller profile", "recommended");
+    add(hasText(profile.website), 8, "Website", "recommended");
+  }
+
+  const cappedScore = Math.max(0, Math.min(100, Math.round(score)));
+  return {
+    id: profile.id,
+    accountType,
+    name,
+    email: profile.email ?? null,
+    city: profile.city ?? null,
+    country: profile.country ?? null,
+    score: cappedScore,
+    level: completenessLevel(cappedScore),
+    missing,
+    recommended,
+    stoneCount,
+    href: profileHref(profile.id, accountType),
+  };
 }
 
 function locationIssuesForProfile(p: {
@@ -290,31 +391,55 @@ export const adminGetProfileDataQuality = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = await requireAdmin(context.userId);
 
-    const [{ data: profiles, error: profilesError }, { data: dealerProfiles }, { data: jewellerProfiles }] = await Promise.all([
+    const [
+      { data: profiles, error: profilesError },
+      { data: dealerProfiles },
+      { data: jewellerProfiles },
+      { data: stoneRows },
+    ] = await Promise.all([
       sb
         .from("profiles")
-        .select("id, account_type, full_name, company_name, email, city, country, is_approved, is_verified, created_at")
+        .select("id, account_type, full_name, company_name, email, city, country, phone, website, is_approved, is_verified, created_at")
         .order("created_at", { ascending: false })
         .limit(500),
       (sb as any)
         .from("dealer_profiles")
-        .select("id, slug, logo_url, tagline, story, whatsapp_first, supplier_services"),
+        .select("id, slug, bio, logo_url, tagline, story, specialities, external_feed_url, whatsapp_first, supplier_services, years_trading, response_time_hours"),
       (sb as any)
         .from("jeweller_profiles")
-        .select("id, slug, logo_url, tagline, is_public, specialities"),
+        .select("id, slug, bio, logo_url, tagline, is_public, specialities"),
+      sb
+        .from("stones")
+        .select("dealer_id")
+        .eq("status", "available")
+        .eq("feed_inactive", false)
+        .limit(20000),
     ]);
 
     if (profilesError) throw new Error(profilesError.message);
 
     const dealerMap = new Map((dealerProfiles ?? []).map((d: any) => [d.id, d]));
     const jewellerMap = new Map((jewellerProfiles ?? []).map((j: any) => [j.id, j]));
+    const stoneCountMap = new Map<string, number>();
+    for (const row of stoneRows ?? []) {
+      if (!row.dealer_id) continue;
+      stoneCountMap.set(row.dealer_id, (stoneCountMap.get(row.dealer_id) ?? 0) + 1);
+    }
     const issues: ProfileQualityIssue[] = [];
+    const completeness: ProfileCompleteness[] = [];
 
     for (const p of profiles ?? []) {
       issues.push(...locationIssuesForProfile(p));
+      const dealer = dealerMap.get(p.id);
+      const jeweller = jewellerMap.get(p.id);
+      completeness.push(scoreProfileCompleteness({
+        profile: p,
+        dealer,
+        jeweller,
+        stoneCount: stoneCountMap.get(p.id) ?? 0,
+      }));
 
       if (p.account_type === "dealer") {
-        const dealer = dealerMap.get(p.id);
         if (!dealer?.slug) {
           issues.push({
             id: p.id,
@@ -350,7 +475,6 @@ export const adminGetProfileDataQuality = createServerFn({ method: "GET" })
       }
 
       if (p.account_type === "jeweller") {
-        const jeweller = jewellerMap.get(p.id);
         if (jeweller?.is_public && !jeweller?.slug) {
           issues.push({
             id: p.id,
@@ -380,6 +504,7 @@ export const adminGetProfileDataQuality = createServerFn({ method: "GET" })
     return {
       scanned: profiles?.length ?? 0,
       issues,
+      completeness: completeness.sort((a, b) => a.score - b.score),
       byField,
       bySeverity,
       repairable: issues.filter((i) => i.field === "country" && i.suggestedCountry).length,

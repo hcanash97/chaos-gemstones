@@ -1821,6 +1821,20 @@ function DataCleanupPanel() {
       suggestedCountry: string | null;
       href: string | null;
     }>;
+    completeness: Array<{
+      id: string;
+      accountType: string | null;
+      name: string;
+      email: string | null;
+      city: string | null;
+      country: string | null;
+      score: number;
+      level: "strong" | "good" | "needs_work" | "poor";
+      missing: string[];
+      recommended: string[];
+      stoneCount: number;
+      href: string | null;
+    }>;
   } | null>(null);
   const scanProfiles = useServerFn(adminGetProfileDataQuality);
   const repairProfileLocations = useServerFn(adminRepairProfileLocations);
@@ -1970,6 +1984,75 @@ function DataCleanupPanel() {
               <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
                 <div className="uppercase tracking-wider">Auto-fixable</div>
                 <div className="mt-1 text-lg font-medium">{profileQuality.repairable}</div>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border bg-background p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-medium">Profile completeness</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Low scores usually mean the account will look less trustworthy to jewellers or will be harder to search.
+                  </p>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {profileQuality.completeness.filter((p) => p.score < 70).length} below 70%
+                </div>
+              </div>
+              <div className="mt-3 max-h-80 overflow-auto rounded-md border border-border">
+                <table className="w-full min-w-[780px] text-xs">
+                  <thead className="border-b border-border bg-muted/30 text-left uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2">Score</th>
+                      <th className="px-3 py-2">Account</th>
+                      <th className="px-3 py-2">Location</th>
+                      <th className="px-3 py-2">Inventory</th>
+                      <th className="px-3 py-2">Needs</th>
+                      <th className="px-3 py-2 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profileQuality.completeness.slice(0, 80).map((profile) => (
+                      <tr key={profile.id} className="border-b border-border last:border-0">
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex min-w-14 justify-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+                              profile.level === "strong"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : profile.level === "good"
+                                ? "bg-blue-100 text-blue-800"
+                                : profile.level === "needs_work"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {profile.score}%
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="font-medium">{profile.name}</div>
+                          <div className="text-muted-foreground">{profile.accountType || "account"} · {profile.email || "no email"}</div>
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {[profile.city, profile.country].filter(Boolean).join(", ") || "—"}
+                        </td>
+                        <td className="px-3 py-2">{profile.stoneCount} stones</td>
+                        <td className="px-3 py-2">
+                          {[...profile.missing, ...profile.recommended].slice(0, 4).join(", ") || "Looks complete"}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {profile.href ? (
+                            <a href={profile.href} className="text-primary underline">
+                              Edit
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">Manual</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 

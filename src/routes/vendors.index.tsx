@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldCheck, Gem } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Gem } from "lucide-react";
 import { motion } from "framer-motion";
 import { StaggerGroup } from "@/components/anim/Motion";
 
@@ -45,7 +45,7 @@ function Vendors() {
     queryFn: async () => {
       const { data } = await supabase
         .from("dealer_profiles")
-        .select("id, slug, bio, specialities, years_trading, response_time_hours, profiles!inner(company_name, city, country, is_verified)")
+        .select("id, slug, bio, logo_url, tagline, story, specialities, years_trading, response_time_hours, profiles!inner(company_name, city, country, is_verified)")
         .order("featured", { ascending: false });
       return data ?? [];
     },
@@ -82,6 +82,7 @@ function Vendors() {
       v.profiles?.company_name?.toLowerCase().includes(s) ||
       v.profiles?.city?.toLowerCase().includes(s) ||
       v.profiles?.country?.toLowerCase().includes(s) ||
+      v.tagline?.toLowerCase().includes(s) ||
       (v.specialities ?? []).some((x: string) => x.toLowerCase().includes(s))
     );
   });
@@ -119,6 +120,8 @@ function Vendors() {
               ? { background: "linear-gradient(135deg, #0F1B3D 0%, #2E4A8A 100%)" }
               : { background: "linear-gradient(135deg, #1B3A2D 0%, #3F7A5E 100%)" };
             const count = stoneCounts?.[v.id] ?? 0;
+            const completeness = publicVendorCompleteness(v, count);
+            const hasCompleteProfile = completeness >= 80;
             return (
             <motion.div
               key={v.id}
@@ -135,11 +138,33 @@ function Vendors() {
                   <span className="shimmer-overlay" aria-hidden />
                 </div>
                 <div className="p-6">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-xl">{v.profiles?.company_name}</h3>
-                    {v.profiles?.is_verified && (
-                      <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
+                  <div className="flex items-start gap-3">
+                    {v.logo_url ? (
+                      <img
+                        src={v.logo_url}
+                        alt={`${v.profiles?.company_name ?? "Vendor"} logo`}
+                        className="h-11 w-11 shrink-0 rounded-full border border-[var(--color-gold)]/40 object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-muted font-serif text-lg">
+                        {(v.profiles?.company_name || "?").slice(0, 1).toUpperCase()}
+                      </div>
                     )}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-serif text-xl leading-tight">{v.profiles?.company_name}</h3>
+                        {v.profiles?.is_verified && (
+                          <ShieldCheck className="h-4 w-4 text-[var(--color-gold)] gold-pulse" />
+                        )}
+                      </div>
+                      {hasCompleteProfile && (
+                        <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-emerald-800">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Profile complete
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {v.profiles?.city}, {v.profiles?.country} · {v.years_trading} yrs trading
@@ -149,7 +174,9 @@ function Vendors() {
                     <span className="font-mono text-lg leading-none font-semibold">{count}</span>
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground">stones</span>
                   </div>
-                  <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{v.bio}</p>
+                  <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">
+                    {v.tagline || v.bio}
+                  </p>
                   <div className="mt-4 flex flex-wrap gap-1.5">
                     {specs.slice(0, 4).map((s: string) => (
                       <span
@@ -171,4 +198,17 @@ function Vendors() {
       <SiteFooter />
     </div>
   );
+}
+
+function publicVendorCompleteness(v: any, stoneCount: number) {
+  let score = 0;
+  if (v.profiles?.company_name) score += 15;
+  if (v.profiles?.city && v.profiles?.country) score += 15;
+  if (v.profiles?.is_verified) score += 15;
+  if (v.logo_url) score += 10;
+  if (v.tagline) score += 10;
+  if ((v.bio?.trim()?.length ?? 0) >= 80 || (v.story?.trim()?.length ?? 0) >= 80) score += 15;
+  if ((v.specialities?.length ?? 0) > 0) score += 10;
+  if (stoneCount > 0) score += 10;
+  return score;
 }
