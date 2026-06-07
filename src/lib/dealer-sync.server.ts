@@ -226,6 +226,54 @@ function publicErrorText(d: SyncDiagnostic): string {
   return `${parts.length ? `${parts.join(" / ")} - ` : ""}${d.message}`;
 }
 
+async function fetchExistingSyncRows(
+  dealerId: string,
+  diagnostics: SyncDiagnostic[],
+): Promise<{ rows: ExistingSyncRow[]; useImportIdentityColumns: boolean }> {
+  const rows: ExistingSyncRow[] = [];
+  const pageSize = 1000;
+  let useImportIdentityColumns = true;
+
+  for (let from = 0; ; from += pageSize) {
+    const page = await supabaseAdmin
+      .from("stones")
+      .select("id, cert_number, external_source, external_sync_key, source_stock_no, last_imported_at, raw_import_row")
+      .eq("dealer_id", dealerId)
+      .range(from, from + pageSize - 1);
+
+    if (page.error && isMissingImportIdentityColumn(page.error)) {
+      useImportIdentityColumns = false;
+      diagnostics.push(diagnostic("info", "Live Supabase schema cache is missing one or more private API sync columns. Chaos will use legacy certificate/stock-key matching for this run. Apply the latest API identity SQL migration when convenient so future syncs can use the cleaner private-key path.", {
+        field: "external_sync_key",
+      }));
+      break;
+    }
+    if (page.error) throw new Error(page.error.message);
+
+    const data = (page.data ?? []) as ExistingSyncRow[];
+    rows.push(...data);
+    if (data.length < pageSize) {
+      return { rows, useImportIdentityColumns };
+    }
+  }
+
+  rows.length = 0;
+  for (let from = 0; ; from += pageSize) {
+    const page = await supabaseAdmin
+      .from("stones")
+      .select("id, cert_number")
+      .eq("dealer_id", dealerId)
+      .range(from, from + pageSize - 1);
+
+    if (page.error) throw new Error(page.error.message);
+    const data = (page.data ?? []) as ExistingSyncRow[];
+    rows.push(...data);
+    if (data.length < pageSize) break;
+  }
+
+  return { rows, useImportIdentityColumns };
+}
+
 export async function runDealerSyncForUser(dealerId: string, source: "manual" | "admin" | "cron" = "manual") {
   const { data: dealer } = await (supabaseAdmin as any)
     .from("dealer_profiles")
@@ -341,31 +389,15 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     const diagnostics: SyncDiagnostic[] = [];
 
     // Fetch all existing stones for this dealer so we can diff create vs update.
-    // Prefer the private external_sync_key introduced for high-volume imports.
-    // If the live Supabase project has not had that migration applied yet, keep
-    // the older cert_number behaviour working rather than crashing the sync.
-    let useImportIdentityColumns = true;
-    let existing: ExistingSyncRow[] | null = null;
-    const existingWithIdentity = await supabaseAdmin
-      .from("stones")
-      .select("id, cert_number, external_source, external_sync_key, source_stock_no, last_imported_at, raw_import_row")
-      .eq("dealer_id", dealerId);
-    if (existingWithIdentity.error && isMissingImportIdentityColumn(existingWithIdentity.error)) {
-      useImportIdentityColumns = false;
-      diagnostics.push(diagnostic("warning", "Live Supabase schema cache is missing one or more private API sync columns. Chaos is falling back to legacy cert-number sync for this run. Apply migration 20260607093000_repair_api_identity_schema_cache.sql, then rerun sync for the safer private-key path.", {
-        field: "external_sync_key",
-      }));
-      const legacyExisting = await supabaseAdmin
-        .from("stones")
-        .select("id, cert_number")
-        .eq("dealer_id", dealerId);
-      if (legacyExisting.error) throw new Error(legacyExisting.error.message);
-      existing = (legacyExisting.data ?? []) as ExistingSyncRow[];
-    } else if (existingWithIdentity.error) {
-      throw new Error(existingWithIdentity.error.message);
-    } else {
-      existing = (existingWithIdentity.data ?? []) as ExistingSyncRow[];
-    }
+    // This is deliberately paginated: Supabase/PostgREST commonly returns only
+    // the first 1,000 rows unless ranges are requested, which would otherwise
+    // make the second Nancy sync create duplicates after the first page.
+    const existingResult = await fetchExistingSyncRows(dealerId, diagnostics);
+    const useImportIdentityColumns = existingResult.useImportIdentityColumns;
+    const existing = existingResult.rows;
+    diagnostics.push(diagnostic("info", `Loaded ${existing.length} existing dealer stones for sync matching before writing.`, {
+      field: "_prepare",
+    }));
     const syncKeyToId = new Map<string, string>();
     const externalKeyById = new Map<string, string>();
     for (const s of existing ?? []) {
@@ -427,7 +459,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         const fallback = stockNo ? `stock:${stockNo}` : `feed-row:${rowNumber}`;
         missingCertFallbackCount += 1;
         if (missingCertFallbackCount <= 20) {
-          diagnostics.push(diagnostic("warning", `Nancy/Kodllin did not provide a value in its report number fields for this stone. Chaos used "${fallback}" as the private sync key. The stone can still import, but the public certificate/report number will be blank unless Nancy provides one.`, {
+          diagnostics.push(diagnostic("info", `Nancy/Kodllin did not provide a report number for this stone. Chaos used "${fallback}" as the sync key, so the stone can still update safely on future syncs.`, {
             row: rowNumber,
             stockNo,
             certNumber: fallback,
@@ -490,7 +522,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     const candidates = Array.from(candidatesBySyncKey.values());
     if (missingCertFallbackCount > 20) {
-      diagnostics.push(diagnostic("warning", `${missingCertFallbackCount} stones had no Nancy/Kodllin report number, so Chaos used stock numbers as private sync keys. Showing the first 20 examples only to keep this log readable.`, {
+      diagnostics.push(diagnostic("info", `${missingCertFallbackCount} stones had no Nancy/Kodllin report number, so Chaos used stock numbers as safe sync keys. This is expected for this feed and is not an import error. Showing the first 20 examples only to keep the log readable.`, {
         field: "cert_number",
       }));
     }
