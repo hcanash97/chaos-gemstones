@@ -35,6 +35,63 @@ function titleCase(str: string): string {
     .join(" ");
 }
 
+function looksLikeUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
+function looksLikeStillImageUrl(value: string): boolean {
+  if (!looksLikeUrl(value)) return false;
+  if (/gem360|diamond360|v360|video|iframe|spin|viewer/i.test(value)) return false;
+  return /\.(jpe?g|png|webp|gif|avif)(\?|#|$)/i.test(value) || /image|photo|picture|thumbnail|thumb|media/i.test(value);
+}
+
+function findLikelyImageUrl(row: Record<string, unknown>): string {
+  const directKeys = [
+    "imageLink",
+    "image_link",
+    "imageUrl",
+    "imageURL",
+    "image_url",
+    "image",
+    "photo",
+    "photoUrl",
+    "photo_url",
+    "picture",
+    "pictureUrl",
+    "picture_url",
+    "img",
+    "imgUrl",
+    "img_url",
+    "diamondImage",
+    "stoneImage",
+    "mainImage",
+    "main_image",
+    "mediaUrl",
+    "media_url",
+    "thumbnail",
+    "thumbnailUrl",
+    "thumbnail_url",
+    "thumb",
+    "thumbUrl",
+    "thumb_url",
+  ];
+
+  for (const key of directKeys) {
+    const value = s(row[key]);
+    if (looksLikeStillImageUrl(value)) return value;
+  }
+
+  for (const [key, raw] of Object.entries(row)) {
+    const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!/(image|photo|picture|thumbnail|thumb|media|img)/.test(normalizedKey)) continue;
+    if (/(video|360|viewer|iframe|certificate|cert|report|pdf)/.test(normalizedKey)) continue;
+    const value = s(raw);
+    if (looksLikeStillImageUrl(value)) return value;
+  }
+
+  return "";
+}
+
 function parseMeasurements(value: unknown): {
   measurements_length?: number;
   measurements_width?: number;
@@ -177,22 +234,7 @@ const KODLLIN: FeedPreset = {
       if (/gem360|v360|diamond360/i.test(video)) stone.has_360 = true;
     }
 
-    const image =
-      s(row.imageLink) ||
-      s(row.imageUrl) ||
-      s(row.imageURL) ||
-      s(row.image) ||
-      s(row.photo) ||
-      s(row.photoUrl) ||
-      s(row.picture) ||
-      s(row.pictureUrl) ||
-      s(row.img) ||
-      s(row.imgUrl) ||
-      s(row.diamondImage) ||
-      s(row.stoneImage) ||
-      s(row.mediaUrl) ||
-      s(row.thumbnail) ||
-      s(row.thumbnailUrl);
+    const image = findLikelyImageUrl(row);
 
     return {
       stone,

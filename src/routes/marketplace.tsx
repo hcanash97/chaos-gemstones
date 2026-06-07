@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useReducer, useState, type FormEvent } from "react";
 import { useQuery, keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMarketplaceFilterDiagnostics, searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
+import { getMarketplaceFilterDiagnostics, getMarketplaceMediaDiagnostics, searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
 import { joinWaitlist } from "@/lib/waitlist.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
@@ -22,7 +22,7 @@ import { StaggerGroup } from "@/components/anim/Motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { isJeweller as checkJ } from "@/lib/auth.utils";
+import { isAdmin as checkAdmin, isJeweller as checkJ } from "@/lib/auth.utils";
 import { useRetailMode } from "@/hooks/useRetailMode";
 import { SEO_MARKETPLACE_PAGES } from "@/lib/seo-marketplace";
 import { ConciergeRequestModal } from "@/components/marketplace/ConciergeRequestModal";
@@ -131,6 +131,7 @@ function Marketplace() {
   const { retailMode, setRetailMode } = useRetailMode();
   const isJewellerUser = checkJ(profile);
   const isApprovedJeweller = isJewellerUser && !!profile?.is_approved;
+  const isAdminUser = checkAdmin(profile);
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
   const clearFilters = () => dispatch({ type: "reset" });
@@ -169,7 +170,19 @@ function Marketplace() {
   }, [debouncedF]);
 
   const search = useServerFn(searchMarketplace);
+  const getMediaDiagnostics = useServerFn(getMarketplaceMediaDiagnostics);
   const queryClient = useQueryClient();
+  const [mediaDiagnostics, setMediaDiagnostics] = useState<any>(null);
+  const [mediaDiagnosticsLoading, setMediaDiagnosticsLoading] = useState(false);
+
+  async function loadMediaDiagnostics() {
+    setMediaDiagnosticsLoading(true);
+    try {
+      setMediaDiagnostics(await getMediaDiagnostics({ data: { page } }));
+    } finally {
+      setMediaDiagnosticsLoading(false);
+    }
+  }
 
   // Followed dealer ids drive private-drop visibility and the "In feed" badge.
   const { data: followedDealerIds } = useQuery({
@@ -206,11 +219,11 @@ function Marketplace() {
   useEffect(() => {
     if (!result || page >= Math.ceil((result.total ?? 0) / PAGE_SIZE)) return;
     queryClient.prefetchQuery({
-      queryKey: ["marketplace-search", debouncedF, page + 1],
+      queryKey: ["marketplace-search", debouncedF, page + 1, user?.id],
       queryFn: () => search({ data: { filters: debouncedF, page: page + 1 } }),
       staleTime: 30_000,
     });
-  }, [result, page, debouncedF, queryClient, search]);
+  }, [result, page, debouncedF, queryClient, search, user?.id]);
 
   const rawStones = result?.stones ?? [];
   const total = result?.total ?? 0;
@@ -868,6 +881,11 @@ function Marketplace() {
               </SheetContent>
             </Sheet>
             {isJeweller && <SaveSearchDialog filters={f} userId={user!.id} />}
+            {isAdminUser && (
+              <Button variant="ghost" size="sm" onClick={loadMediaDiagnostics} disabled={mediaDiagnosticsLoading}>
+                {mediaDiagnosticsLoading ? "Checking media..." : "Media diagnostics"}
+              </Button>
+            )}
             <div className="flex rounded-md border border-border">
               <button
                 onClick={() => set({ view: "grid" })}
@@ -899,6 +917,50 @@ function Marketplace() {
             </Select>
           </div>
         </div>
+
+        {isAdminUser && mediaDiagnostics && (
+          <div className="mt-4 rounded-md border border-border bg-card p-4 text-xs">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-foreground">Marketplace Media Diagnostics</div>
+                <div className="mt-1 text-muted-foreground">
+                  Page {mediaDiagnostics.page} sampled {mediaDiagnostics.firstPage?.sampled ?? 0} cards.
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigator.clipboard?.writeText(JSON.stringify(mediaDiagnostics, null, 2))}
+              >
+                Copy JSON
+              </Button>
+            </div>
+            {mediaDiagnostics.error ? (
+              <div className="mt-3 rounded border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+                {mediaDiagnostics.error}
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                  <MediaStat label="Available stones" value={mediaDiagnostics.counts?.availableStones} />
+                  <MediaStat label="Flagged with image" value={mediaDiagnostics.counts?.stonesFlaggedWithImage} />
+                  <MediaStat label="Flagged without image" value={mediaDiagnostics.counts?.stonesFlaggedWithoutImage} />
+                  <MediaStat label="Image rows" value={mediaDiagnostics.counts?.totalStoneImageRows} />
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <MediaStat label="Page cards with image URL" value={mediaDiagnostics.firstPage?.rowsWithRenderableImage} />
+                  <MediaStat label="Stale image flags on page" value={mediaDiagnostics.firstPage?.staleHasImageFlags} />
+                  <MediaStat label="Image rows but flag false" value={mediaDiagnostics.firstPage?.rowsWithImagesButFlagFalse} />
+                </div>
+                <div className="mt-3 space-y-1 text-muted-foreground">
+                  {(mediaDiagnostics.suggestions ?? []).map((suggestion: string) => (
+                    <div key={suggestion}>• {suggestion}</div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {filterCount > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
@@ -1217,6 +1279,18 @@ function Chip({ label, onClear }: { label: string; onClear: () => void }) {
       {label}
       <X className="h-3 w-3" />
     </button>
+  );
+}
+
+function MediaStat({ label, value }: { label: string; value: unknown }) {
+  const n = typeof value === "number" ? value : Number(value ?? 0);
+  return (
+    <div className="rounded border border-border bg-background px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 font-mono text-sm font-semibold text-foreground">
+        {Number.isFinite(n) ? n.toLocaleString() : "0"}
+      </div>
+    </div>
   );
 }
 

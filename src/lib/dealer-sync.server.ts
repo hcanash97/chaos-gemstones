@@ -9,6 +9,7 @@ import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
 import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
 
 const SYNC_BATCH_SIZE = 200;
+const IMAGE_INSERT_BATCH_SIZE = 200;
 const MAX_STORED_DIAGNOSTICS = 250;
 const MAX_EXTERNAL_FEED_BYTES = 50 * 1024 * 1024;
 
@@ -584,6 +585,7 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     let updated = 0;
     const imageRowsToInsert: Array<{ stone_id: string; storage_url: string; external_image_url: string; is_primary: boolean; sort_order: number }> = [];
     const existingImageUrlsByStoneId = new Map<string, Set<string>>();
+    const feedRowsWithImageUrl = candidates.filter((candidate) => !!candidate.image_url).length;
 
     const normalizeImageUrl = (value: string | null | undefined) => String(value ?? "").trim();
     const rememberImageUrl = (stoneId: string, url: string | null | undefined) => {
@@ -633,6 +635,13 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         rememberImageUrl(stoneId, (row as any).external_image_url);
       }
     }
+
+    diagnostics.push(diagnostic(feedRowsWithImageUrl > 0 ? "info" : "warning", `Feed image scan found ${feedRowsWithImageUrl}/${candidates.length} rows with a usable still-image URL. 360/video links are intentionally not counted as marketplace thumbnails.`, {
+      field: "_images",
+    }));
+    diagnostics.push(diagnostic("info", `Chaos found existing image rows for ${existingImageUrlsByStoneId.size}/${existingStoneIdsForImageAudit.length} already-matched stones before writing.`, {
+      field: "_images",
+    }));
 
     diagnostics.unshift(diagnostic("info", `Prepared ${candidates.length} valid unique rows from ${rows.length} feed rows. Saving database changes in batches of ${SYNC_BATCH_SIZE}.`, {
       field: "_prepare",
@@ -735,16 +744,39 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     }
 
     if (imageRowsToInsert.length) {
-      const { error } = await supabaseAdmin.from("stone_images").insert(imageRowsToInsert as never);
-      if (error) {
-        errors.push(postgresDiagnostic("Stone image insert failed after stone upsert. Stones were still synced, but some external images may not appear", error, {
-          field: "_images",
-        }));
-      } else {
-        diagnostics.push(diagnostic("success", `Linked ${imageRowsToInsert.length} feed image URLs to imported stones for marketplace thumbnails.`, {
+      let linkedImageRows = 0;
+      for (let i = 0; i < imageRowsToInsert.length; i += IMAGE_INSERT_BATCH_SIZE) {
+        const imageChunk = imageRowsToInsert.slice(i, i + IMAGE_INSERT_BATCH_SIZE);
+        const imageBatch = Math.floor(i / IMAGE_INSERT_BATCH_SIZE) + 1;
+        const { error } = await supabaseAdmin.from("stone_images").insert(imageChunk as never);
+        if (error) {
+          errors.push(postgresDiagnostic("Stone image insert batch failed after stone upsert. Stones were still synced, but some external images may not appear", error, {
+            batch: imageBatch,
+            field: "_images",
+          }));
+          continue;
+        }
+        linkedImageRows += imageChunk.length;
+      }
+
+      if (linkedImageRows > 0) {
+        diagnostics.push(diagnostic("success", `Linked ${linkedImageRows}/${imageRowsToInsert.length} feed image URLs to imported stones for marketplace thumbnails.`, {
           field: "_images",
         }));
       }
+      if (linkedImageRows < imageRowsToInsert.length) {
+        diagnostics.push(diagnostic("warning", `${imageRowsToInsert.length - linkedImageRows} feed image URLs could not be linked. Check the image insert batch errors above.`, {
+          field: "_images",
+        }));
+      }
+    } else if (feedRowsWithImageUrl > 0) {
+      diagnostics.push(diagnostic("info", "No new image rows needed to be inserted because the detected feed image URLs were already linked to existing stones.", {
+        field: "_images",
+      }));
+    } else {
+      diagnostics.push(diagnostic("warning", "No marketplace thumbnail image URLs were detected in this feed. If Nancy shows photos in their own portal, their API may be using a different field name or returning 360/video media only.", {
+        field: "_images",
+      }));
     }
 
     let markedInactive = 0;

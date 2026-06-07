@@ -51,6 +51,10 @@ export type FilterDiagnosticsInput = {
   filters: Partial<FilterState>;
 };
 
+export type MediaDiagnosticsInput = {
+  page?: number;
+};
+
 const DIAGNOSTIC_FIELDS = [
   "stone_type",
   "origin",
@@ -329,6 +333,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     }
 
     // Media
+    if (f.hasImages) q = q.eq("has_image", true);
     if (f.hasVideo) q = q.eq("has_video", true);
     if (f.has360) q = q.eq("has_360", true);
     if (f.hasCertScan) q = q.not("cert_url", "is", null);
@@ -450,5 +455,113 @@ export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" }
         treatments: f.treatments ?? [],
       },
       fields,
+    };
+  });
+
+export const getMarketplaceMediaDiagnostics = createServerFn({ method: "POST" })
+  .inputValidator((input: MediaDiagnosticsInput) => input ?? {})
+  .handler(async ({ data }) => {
+    const page = Math.max(1, Number(data?.page ?? 1));
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const [totalResult, hasImageResult, noImageResult, imageRowsResult, firstPageResult] = await Promise.all([
+      supabaseAdmin
+        .from("stones")
+        .select("id", { count: "planned", head: true })
+        .eq("is_test", false)
+        .eq("feed_inactive", false)
+        .eq("status", "available"),
+      supabaseAdmin
+        .from("stones")
+        .select("id", { count: "planned", head: true })
+        .eq("is_test", false)
+        .eq("feed_inactive", false)
+        .eq("status", "available")
+        .eq("has_image", true),
+      supabaseAdmin
+        .from("stones")
+        .select("id", { count: "planned", head: true })
+        .eq("is_test", false)
+        .eq("feed_inactive", false)
+        .eq("status", "available")
+        .eq("has_image", false),
+      supabaseAdmin
+        .from("stone_images")
+        .select("id", { count: "planned", head: true }),
+      supabaseAdmin
+        .from("stones")
+        .select(
+          "id, stone_type, shape, carat_weight, has_image, has_360, has_video, created_at, stone_images(storage_url, external_image_url, is_primary, sort_order)",
+        )
+        .eq("is_test", false)
+        .eq("feed_inactive", false)
+        .eq("status", "available")
+        .order("has_image", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .range(from, to),
+    ]);
+
+    const error =
+      totalResult.error?.message ??
+      hasImageResult.error?.message ??
+      noImageResult.error?.message ??
+      imageRowsResult.error?.message ??
+      firstPageResult.error?.message ??
+      null;
+
+    const firstPageRows = (firstPageResult.data ?? []).map((stone: any) => {
+      const images = [...(stone.stone_images ?? [])].sort((a: any, b: any) => {
+        if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
+        return (a.sort_order ?? 99) - (b.sort_order ?? 99);
+      });
+      const firstImage = images.find((image: any) => image.storage_url || image.external_image_url) ?? null;
+      return {
+        id: stone.id,
+        title: `${stone.carat_weight ?? ""}ct ${stone.shape ?? ""} ${stone.stone_type ?? "stone"}`.replace(/\s+/g, " ").trim(),
+        hasImageFlag: !!stone.has_image,
+        imageRows: images.length,
+        firstImageUrl: firstImage?.storage_url || firstImage?.external_image_url || null,
+        has360: !!stone.has_360,
+        hasVideo: !!stone.has_video,
+      };
+    });
+
+    const staleFlagRows = firstPageRows.filter((row) => row.hasImageFlag && row.imageRows === 0);
+    const hiddenImageRows = firstPageRows.filter((row) => !row.hasImageFlag && row.imageRows > 0);
+    const rowsWithRenderableImage = firstPageRows.filter((row) => !!row.firstImageUrl);
+
+    const suggestions: string[] = [];
+    if ((imageRowsResult.count ?? 0) === 0) {
+      suggestions.push("No stone_images rows are visible to the server. The sync is not inserting image rows, or the image inserts are failing.");
+    }
+    if (staleFlagRows.length) {
+      suggestions.push("Some first-page stones have has_image=true but no image rows. Run the has_image repair SQL migration and rerun sync.");
+    }
+    if ((hasImageResult.count ?? 0) > 0 && rowsWithRenderableImage.length === 0) {
+      suggestions.push("The first page is sorted as if images exist, but the embedded image rows are empty. Check stone_images row creation and RLS/policies.");
+    }
+    if (!suggestions.length) {
+      suggestions.push("Media counts look structurally healthy for the sampled page. If images still do not display, check whether the URLs load directly in the browser.");
+    }
+
+    return {
+      error,
+      page,
+      pageSize: PAGE_SIZE,
+      counts: {
+        availableStones: totalResult.count ?? 0,
+        stonesFlaggedWithImage: hasImageResult.count ?? 0,
+        stonesFlaggedWithoutImage: noImageResult.count ?? 0,
+        totalStoneImageRows: imageRowsResult.count ?? 0,
+      },
+      firstPage: {
+        sampled: firstPageRows.length,
+        rowsWithRenderableImage: rowsWithRenderableImage.length,
+        staleHasImageFlags: staleFlagRows.length,
+        rowsWithImagesButFlagFalse: hiddenImageRows.length,
+        examples: firstPageRows.slice(0, 8),
+      },
+      suggestions,
     };
   });
