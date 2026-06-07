@@ -313,16 +313,16 @@ export const saveWhatsAppDraftFn = createServerFn({ method: "POST" })
       const { data: existing } = await context.supabase
         .from("stones")
         .select("id, status")
-        .eq("dealer_id", context.user.id)
+        .eq("dealer_id", context.userId)
         .eq("cert_number", data.cert_number)
         .maybeSingle();
 
       if (existing) {
         // Log the duplicate attempt
         await context.supabase.from("whatsapp_intake_log").insert({
-          dealer_id: context.user.id,
+          dealer_id: context.userId,
           raw_message: data.raw_message,
-          extracted_json: data.extracted_json,
+          extracted_json: data.extracted_json as never,
           confidence: data.confidence,
           warnings: data.warnings,
           raw_price_text: data.raw_price_text,
@@ -347,7 +347,7 @@ export const saveWhatsAppDraftFn = createServerFn({ method: "POST" })
     const { data: row, error: insertError } = await context.supabase
       .from("stones")
       .insert({
-        dealer_id:           context.user.id,
+        dealer_id:           context.userId,
         stone_type:          data.stone_type,
         shape:               data.shape,
         carat_weight:        data.carat_weight,
@@ -383,9 +383,9 @@ export const saveWhatsAppDraftFn = createServerFn({ method: "POST" })
     const { data: log, error: logError } = await context.supabase
       .from("whatsapp_intake_log")
       .insert({
-        dealer_id:         context.user.id,
+        dealer_id:         context.userId,
         raw_message:       data.raw_message,
-        extracted_json:    data.extracted_json,
+        extracted_json:    data.extracted_json as never,
         confidence:        data.confidence,
         warnings:          data.warnings,
         raw_price_text:    data.raw_price_text,
@@ -418,7 +418,7 @@ export const approveWhatsAppStoneFn = createServerFn({ method: "POST" })
     const { data: profile } = await context.supabase
       .from("profiles")
       .select("account_type")
-      .eq("id", context.user.id)
+      .eq("id", context.userId)
       .single();
 
     if (profile?.account_type !== "admin") {
@@ -455,7 +455,7 @@ export const rejectWhatsAppStoneFn = createServerFn({ method: "POST" })
     const { data: profile } = await context.supabase
       .from("profiles")
       .select("account_type")
-      .eq("id", context.user.id)
+      .eq("id", context.userId)
       .single();
 
     if (profile?.account_type !== "admin") {
