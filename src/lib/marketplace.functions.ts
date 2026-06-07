@@ -7,6 +7,9 @@ export const PAGE_SIZE = 48;
 const STONE_SELECT =
   "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, cut_grade, polish, symmetry, fluorescence, fluorescence_colour, colour_hue, colour_tone, colour_saturation, treatment, phenomenon, status, listing_type, parcel_quantity, matching_pair, has_video, has_360, view_count, bulk_pricing_available, enhancement, girdle, culet_size, milky, eye_clean, black_inclusion, provenance_report, measurements_length, measurements_width, measurements_height, lw_ratio, depth_pct, table_pct, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
 
+const CORE_STONE_SELECT =
+  "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, cert_number, cert_url, wholesale_price_usd, colour_grade, clarity_grade, status, matching_pair, has_video, has_360, view_count, created_at, updated_at, stone_images(storage_url, external_image_url, is_primary, sort_order), profiles:dealer_id(country, is_verified)";
+
 export type SearchInput = {
   filters: Partial<FilterState>;
   page: number;
@@ -147,6 +150,25 @@ async function getMarketplaceTotal(): Promise<number> {
   return count ?? 0;
 }
 
+async function getMarketplaceVisibilityTotals() {
+  const [all, available, visible] = await Promise.all([
+    supabaseAdmin.from("stones").select("id", { count: "planned", head: true }),
+    supabaseAdmin.from("stones").select("id", { count: "planned", head: true }).eq("status", "available"),
+    supabaseAdmin
+      .from("stones")
+      .select("id", { count: "planned", head: true })
+      .eq("is_test", false)
+      .eq("feed_inactive", false)
+      .eq("status", "available"),
+  ]);
+  return {
+    all: all.count ?? 0,
+    available: available.count ?? 0,
+    publicVisible: visible.count ?? 0,
+    error: all.error?.message ?? available.error?.message ?? visible.error?.message ?? null,
+  };
+}
+
 function shapeValuesForFilter(shape: string): string[] {
   const map: Record<string, string[]> = {
     round: ["Round", "Round Brilliant", "Brilliant Round", "RD"],
@@ -181,6 +203,21 @@ function shapeValuesForFilter(shape: string): string[] {
   return uniqueValues([shape, titleCase(shape), ...(map[shape] ?? [])].flatMap(filterValueVariants));
 }
 
+function mapMarketplaceRows(rows: any[]) {
+  return (rows ?? []).map((s: any) => {
+    const sortedImgs = [...(s.stone_images ?? [])].sort(
+      (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
+    );
+    const primaryImg = sortedImgs.find((i: any) => i.is_primary) ?? sortedImgs[0];
+    return {
+      ...s,
+      image: (primaryImg?.storage_url || primaryImg?.external_image_url) ?? null,
+      dealer_country: s.profiles?.country ?? null,
+      dealer_verified: !!s.profiles?.is_verified,
+    };
+  });
+}
+
 export const searchMarketplace = createServerFn({ method: "POST" })
   .inputValidator((input: SearchInput) => input)
   .handler(async ({ data }) => {
@@ -189,6 +226,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const marketTotalPromise = getMarketplaceTotal();
+    const visibilityTotalsPromise = getMarketplaceVisibilityTotals();
 
     let q = supabaseAdmin
       .from("stones")
@@ -342,25 +380,55 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const { data: rows, count, error } = await q;
     if (error) {
       console.error("[marketplace search]", error);
-      return { stones: [], total: 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: error.message };
+      const fallback = await supabaseAdmin
+        .from("stones")
+        .select(CORE_STONE_SELECT, { count: "planned" })
+        .eq("is_test", false)
+        .eq("feed_inactive", false)
+        .in("status", availability as readonly ("available" | "reserved" | "sold")[])
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (fallback.error) {
+        return {
+          stones: [],
+          total: 0,
+          marketTotal: await marketTotalPromise,
+          visibilityTotals: await visibilityTotalsPromise,
+          page,
+          pageSize: PAGE_SIZE,
+          error: `Marketplace query failed: ${error.message}. Fallback query also failed: ${fallback.error.message}`,
+        };
+      }
+
+      const fallbackStones = mapMarketplaceRows(fallback.data ?? [])
+        .filter((s: any) => !f.hasImages || !!s.image)
+        .sort((a: any, b: any) => Number(!!b.image) - Number(!!a.image));
+
+      return {
+        stones: fallbackStones,
+        total: fallback.count ?? fallbackStones.length,
+        marketTotal: await marketTotalPromise,
+        visibilityTotals: await visibilityTotalsPromise,
+        page,
+        pageSize: PAGE_SIZE,
+        error: `Advanced marketplace query failed, so Chaos showed a simpler fallback listing. Original error: ${error.message}`,
+      };
     }
 
-    const stones = (rows ?? []).map((s: any) => {
-      const sortedImgs = [...(s.stone_images ?? [])].sort(
-        (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
-      );
-      const primaryImg = sortedImgs.find((i: any) => i.is_primary) ?? sortedImgs[0];
-      return {
-        ...s,
-        image: (primaryImg?.storage_url || primaryImg?.external_image_url) ?? null,
-        dealer_country: s.profiles?.country ?? null,
-        dealer_verified: !!s.profiles?.is_verified,
-      };
-    })
+    const stones = mapMarketplaceRows(rows ?? [])
       .filter((s: any) => !f.hasImages || !!s.image)
       .sort((a: any, b: any) => Number(!!b.image) - Number(!!a.image));
 
-    return { stones, total: count ?? 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: null };
+    return {
+      stones,
+      total: count ?? 0,
+      marketTotal: await marketTotalPromise,
+      visibilityTotals: await visibilityTotalsPromise,
+      page,
+      pageSize: PAGE_SIZE,
+      error: null,
+    };
   });
 
 export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" })

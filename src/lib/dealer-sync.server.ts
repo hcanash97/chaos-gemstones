@@ -94,6 +94,50 @@ function summarizeDiagnostics(errors: SyncDiagnostic[]): SyncDiagnostic[] {
   ];
 }
 
+function syncOutcomeDiagnostics({
+  candidates,
+  existing,
+  created,
+  updated,
+  markedInactive,
+  usedPrivateIdentity,
+}: {
+  candidates: number;
+  existing: number;
+  created: number;
+  updated: number;
+  markedInactive: number;
+  usedPrivateIdentity: boolean;
+}): SyncDiagnostic[] {
+  const diagnostics: SyncDiagnostic[] = [
+    diagnostic("success", `Sync write summary: ${created} new, ${updated} updated, ${markedInactive} marked inactive from ${candidates} feed rows.`, {
+      field: "_summary",
+    }),
+  ];
+
+  if (existing === 0 && created > 0) {
+    diagnostics.push(diagnostic("info", "Chaos found no existing stones for this dealer before writing, so this run was treated as a fresh rebuild. That is expected immediately after using Clear Imported Inventory. On the next sync, these same rows should mostly show as updated rather than new.", {
+      field: "_summary",
+    }));
+  } else if (existing > 0 && updated > created) {
+    diagnostics.push(diagnostic("success", "Healthy repeat sync pattern: most feed rows matched existing stones and were updated instead of duplicated.", {
+      field: "_summary",
+    }));
+  } else if (existing > 0 && created > updated && created > candidates * 0.25) {
+    diagnostics.push(diagnostic("warning", "This sync created many new rows even though existing stones were loaded. If this was not expected new stock, check whether the dealer changed certificate/stock numbers or whether older rows were imported under a different dealer account.", {
+      field: "_summary",
+    }));
+  }
+
+  if (!usedPrivateIdentity) {
+    diagnostics.push(diagnostic("info", "Private API identity columns are still not visible to the live Supabase schema cache, so Chaos used legacy certificate/stock-key matching. The run can still be safe, but applying the API identity SQL migrations will make future sync matching cleaner.", {
+      field: "external_sync_key",
+    }));
+  }
+
+  return diagnostics;
+}
+
 function assertSafeFeedUrl(urlStr: string): void {
   const target = new URL(urlStr);
   if (target.protocol !== "https:" && target.protocol !== "http:") {
@@ -502,6 +546,17 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         data: {
           ...result.data,
           dealer_id: dealerId,
+          status: result.data.status ?? "available",
+          is_test: false,
+          feed_inactive: false,
+          has_video: result.data.has_video ?? false,
+          has_360: result.data.has_360 ?? false,
+          matching_pair: result.data.matching_pair ?? false,
+          bulk_pricing_available: result.data.bulk_pricing_available ?? false,
+          available_qty: result.data.available_qty ?? 1,
+          minimum_order_qty: result.data.minimum_order_qty ?? 1,
+          listing_type: result.data.listing_type ?? "single",
+          price_currency: result.data.price_currency ?? "USD",
           ...(useImportIdentityColumns
             ? {
                 cert_number: originalCert ?? null,
@@ -512,7 +567,6 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
                 raw_import_row: sourceRow,
               }
             : { cert_number: syncKey }),
-          feed_inactive: false,
         },
         image_url: mapped.image_url,
         existedBefore: !!existingId,
@@ -664,7 +718,19 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       }
     }
 
-    const allDiagnostics = [...diagnostics, ...summarizeDiagnostics(errors), ...errors];
+    const allDiagnostics = [
+      ...diagnostics,
+      ...syncOutcomeDiagnostics({
+        candidates: candidates.length,
+        existing: existing.length,
+        created,
+        updated,
+        markedInactive,
+        usedPrivateIdentity: useImportIdentityColumns,
+      }),
+      ...summarizeDiagnostics(errors),
+      ...errors,
+    ];
     await supabaseAdmin.from("sync_logs").update({
       status: errors.length ? "partial" : "success",
       finished_at: new Date().toISOString(),
