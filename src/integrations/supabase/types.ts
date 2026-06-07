@@ -1121,6 +1121,7 @@ export type Database = {
           dealer_id: string
           depth_pct: number | null
           enhancement: string | null
+          external_sync_key: string | null
           eye_clean: string | null
           featured: boolean
           feed_inactive: boolean
@@ -1130,6 +1131,7 @@ export type Database = {
           has_360: boolean
           has_video: boolean
           id: string
+          intake_source: string | null
           is_test: boolean
           lead_time_days: number | null
           listing_type: string
@@ -1152,6 +1154,7 @@ export type Database = {
           shade: string | null
           shape: string | null
           share_count: number
+          source_stock_no: string | null
           status: Database["public"]["Enums"]["stone_status"]
           stone_type: string
           symmetry: string | null
@@ -1184,6 +1187,7 @@ export type Database = {
           dealer_id: string
           depth_pct?: number | null
           enhancement?: string | null
+          external_sync_key?: string | null
           eye_clean?: string | null
           featured?: boolean
           feed_inactive?: boolean
@@ -1193,6 +1197,7 @@ export type Database = {
           has_360?: boolean
           has_video?: boolean
           id?: string
+          intake_source?: string | null
           is_test?: boolean
           lead_time_days?: number | null
           listing_type?: string
@@ -1215,6 +1220,7 @@ export type Database = {
           shade?: string | null
           shape?: string | null
           share_count?: number
+          source_stock_no?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type: string
           symmetry?: string | null
@@ -1247,6 +1253,7 @@ export type Database = {
           dealer_id?: string
           depth_pct?: number | null
           enhancement?: string | null
+          external_sync_key?: string | null
           eye_clean?: string | null
           featured?: boolean
           feed_inactive?: boolean
@@ -1256,6 +1263,7 @@ export type Database = {
           has_360?: boolean
           has_video?: boolean
           id?: string
+          intake_source?: string | null
           is_test?: boolean
           lead_time_days?: number | null
           listing_type?: string
@@ -1278,6 +1286,7 @@ export type Database = {
           shade?: string | null
           shape?: string | null
           share_count?: number
+          source_stock_no?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type?: string
           symmetry?: string | null
@@ -1391,6 +1400,51 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_intake_log: {
+        Row: {
+          confidence: string
+          created_at: string
+          dealer_id: string
+          extracted_json: Json
+          id: string
+          original_currency: string | null
+          processed_at: string | null
+          raw_message: string
+          raw_price_text: string | null
+          status: string
+          stone_id: string | null
+          warnings: string[]
+        }
+        Insert: {
+          confidence?: string
+          created_at?: string
+          dealer_id: string
+          extracted_json?: Json
+          id?: string
+          original_currency?: string | null
+          processed_at?: string | null
+          raw_message: string
+          raw_price_text?: string | null
+          status?: string
+          stone_id?: string | null
+          warnings?: string[]
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          dealer_id?: string
+          extracted_json?: Json
+          id?: string
+          original_currency?: string | null
+          processed_at?: string | null
+          raw_message?: string
+          raw_price_text?: string | null
+          status?: string
+          stone_id?: string | null
+          warnings?: string[]
         }
         Relationships: []
       }
