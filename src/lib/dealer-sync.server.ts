@@ -6,7 +6,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { validateStonePayload } from "@/lib/dealer-api-validate";
 import { detectPreset, mapRow } from "@/lib/dealer-feed-mappings";
-import { normaliseValue, FIELD_MAP } from "@/lib/import-fields";
+import { extractVirtualFields, normaliseValue, resolveFieldKey, FIELD_MAP } from "@/lib/import-fields";
 
 const SYNC_BATCH_SIZE = 200;
 const IMAGE_INSERT_BATCH_SIZE = 200;
@@ -45,6 +45,18 @@ type ExistingSyncRow = {
   external_sync_key?: string | null;
   source_stock_no?: string | null;
 };
+
+function canonicaliseGenericFeedRow(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [header, value] of Object.entries(row)) {
+    const key = resolveFieldKey(header);
+    if (key === "__skip__") continue;
+    if (out[key] === undefined || out[key] === null || out[key] === "") {
+      out[key] = value;
+    }
+  }
+  return out;
+}
 
 function isMissingImportIdentityColumn(error: unknown) {
   const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
@@ -474,12 +486,20 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       const sourceRow = raw as Record<string, unknown>;
       const rowNumber = idx + 1;
       const stockNo = stockRef(sourceRow);
-      const mapped = mapRow(sourceRow, preset);
+      const mappedBase = mapRow(sourceRow, preset);
+      const mappedStone = preset ? mappedBase.stone : canonicaliseGenericFeedRow(mappedBase.stone);
+      const virtualFields = extractVirtualFields(mappedStone);
+      const mapped = {
+        ...mappedBase,
+        stone: mappedStone,
+        image_url: mappedBase.image_url ?? virtualFields.image_url ?? undefined,
+      };
       if (!cityFromFeed && mapped.city) cityFromFeed = mapped.city;
       const rawPayload = mapped.stone;
       const payload: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(rawPayload)) {
         const fieldDef = FIELD_MAP[k];
+        if (fieldDef?.virtual) continue;
         let coerced = fieldDef ? normaliseValue(fieldDef, v) : v;
         if (NUMERIC_FIELDS.has(k) && coerced !== null && coerced !== undefined && coerced !== "") {
           const numericText = String(coerced).replace(/,/g, "").trim();
