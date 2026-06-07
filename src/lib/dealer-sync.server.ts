@@ -48,7 +48,7 @@ type ExistingSyncRow = {
 function isMissingImportIdentityColumn(error: unknown) {
   const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
   const text = `${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`;
-  return err?.code === "42703" || /external_sync_key|source_stock_no|raw_import_row|last_imported_at|schema cache/i.test(text);
+  return err?.code === "42703" || err?.code === "PGRST204" || /external_source|external_sync_key|source_stock_no|raw_import_row|last_imported_at|schema cache/i.test(text);
 }
 
 function isMissingConflictTarget(error: unknown) {
@@ -311,10 +311,13 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     let existing: ExistingSyncRow[] | null = null;
     const existingWithIdentity = await supabaseAdmin
       .from("stones")
-      .select("id, cert_number, external_sync_key, source_stock_no")
+      .select("id, cert_number, external_source, external_sync_key, source_stock_no, last_imported_at, raw_import_row")
       .eq("dealer_id", dealerId);
     if (existingWithIdentity.error && isMissingImportIdentityColumn(existingWithIdentity.error)) {
       useImportIdentityColumns = false;
+      diagnostics.push(diagnostic("warning", "Live Supabase schema cache is missing one or more private API sync columns. Chaos is falling back to legacy cert-number sync for this run. Apply migration 20260607093000_repair_api_identity_schema_cache.sql, then rerun sync for the safer private-key path.", {
+        field: "external_sync_key",
+      }));
       const legacyExisting = await supabaseAdmin
         .from("stones")
         .select("id, cert_number")

@@ -8,7 +8,7 @@ import { runDealerSyncForUser } from "@/lib/dealer-sync.server";
 function isMissingImportIdentityColumn(error: unknown) {
   const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
   const text = `${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`;
-  return err?.code === "42703" || /external_sync_key|source_stock_no|schema cache/i.test(text);
+  return err?.code === "42703" || err?.code === "PGRST204" || /external_source|external_sync_key|source_stock_no|raw_import_row|last_imported_at|schema cache/i.test(text);
 }
 
 async function ensureApprovedDealer(supabase: any, userId: string) {
