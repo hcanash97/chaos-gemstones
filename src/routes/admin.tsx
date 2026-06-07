@@ -17,7 +17,7 @@ import { approveWhatsAppStoneFn, rejectWhatsAppStoneFn } from "@/lib/whatsapp-in
 import { StatsPanel } from "@/components/admin/StatsPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { adminBulkUpdateAccounts, adminGenerateQuickApproveLink } from "@/lib/admin.functions";
-import { adminGetDealerHealth } from "@/lib/admin-dealer.functions";
+import { adminGetDealerHealth, adminGetProfileDataQuality, adminRepairProfileLocations } from "@/lib/admin-dealer.functions";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/ui/info-tooltip";
 import { DEFAULT_SITE_THEME, HOMEPAGE_BLOCK_LABELS, normalizeSiteTheme, type HomepageSectionCopy, type SiteThemeSettings } from "@/lib/site-theme";
@@ -1800,6 +1800,57 @@ function ReportsPanel() {
 function DataCleanupPanel() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [scanningProfiles, setScanningProfiles] = useState(false);
+  const [repairingProfiles, setRepairingProfiles] = useState(false);
+  const [profileQuality, setProfileQuality] = useState<{
+    scanned: number;
+    repairable: number;
+    bySeverity: { error: number; warning: number };
+    byField: Record<string, number>;
+    issues: Array<{
+      id: string;
+      accountType: string | null;
+      companyName: string | null;
+      fullName: string | null;
+      email: string | null;
+      city: string | null;
+      country: string | null;
+      severity: "error" | "warning";
+      field: string;
+      message: string;
+      suggestedCountry: string | null;
+      href: string | null;
+    }>;
+  } | null>(null);
+  const scanProfiles = useServerFn(adminGetProfileDataQuality);
+  const repairProfileLocations = useServerFn(adminRepairProfileLocations);
+
+  async function runProfileScan() {
+    setScanningProfiles(true);
+    try {
+      const scan = await scanProfiles({});
+      setProfileQuality(scan);
+      toast.success(`Scanned ${scan.scanned} profiles`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Profile scan failed");
+    } finally {
+      setScanningProfiles(false);
+    }
+  }
+
+  async function repairLocations() {
+    if (!confirm("Auto-fix obvious city/country mismatches, such as Surat → India?")) return;
+    setRepairingProfiles(true);
+    try {
+      const res = await repairProfileLocations({});
+      toast.success(`Repaired ${res.repaired.length} profile location${res.repaired.length === 1 ? "" : "s"}`);
+      await runProfileScan();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Profile repair failed");
+    } finally {
+      setRepairingProfiles(false);
+    }
+  }
 
   async function runCleanup() {
     setRunning(true);
@@ -1869,8 +1920,119 @@ function DataCleanupPanel() {
   }
 
   return (
-    <div className="mt-8 rounded-md border border-border bg-card p-5">
-      <h3 className="font-serif text-lg">Data Cleanup</h3>
+    <div className="mt-8 space-y-5 rounded-md border border-border bg-card p-5">
+      <div>
+        <h3 className="font-serif text-lg">Data Cleanup</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Cleans imported stone data and scans account profiles for country/city mismatches, missing company names,
+          and thin public profile details.
+        </p>
+      </div>
+
+      <div className="rounded-md border border-border bg-background p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium">Profile data quality</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Finds bad country values like Europe, city/country mismatches like Surat + Europe,
+              missing company names, and incomplete public profiles.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={runProfileScan} disabled={scanningProfiles || repairingProfiles} size="sm" variant="outline">
+              {scanningProfiles ? "Scanning..." : "Scan profiles"}
+            </Button>
+            <Button
+              onClick={repairLocations}
+              disabled={repairingProfiles || scanningProfiles || !profileQuality?.repairable}
+              size="sm"
+            >
+              {repairingProfiles ? "Repairing..." : `Auto-fix ${profileQuality?.repairable ?? 0}`}
+            </Button>
+          </div>
+        </div>
+
+        {profileQuality && (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-2 text-xs sm:grid-cols-4">
+              <div className="rounded border border-border bg-muted/30 p-3">
+                <div className="uppercase tracking-wider text-muted-foreground">Scanned</div>
+                <div className="mt-1 text-lg font-medium">{profileQuality.scanned}</div>
+              </div>
+              <div className="rounded border border-red-200 bg-red-50 p-3 text-red-900">
+                <div className="uppercase tracking-wider">Errors</div>
+                <div className="mt-1 text-lg font-medium">{profileQuality.bySeverity.error}</div>
+              </div>
+              <div className="rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                <div className="uppercase tracking-wider">Warnings</div>
+                <div className="mt-1 text-lg font-medium">{profileQuality.bySeverity.warning}</div>
+              </div>
+              <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-emerald-900">
+                <div className="uppercase tracking-wider">Auto-fixable</div>
+                <div className="mt-1 text-lg font-medium">{profileQuality.repairable}</div>
+              </div>
+            </div>
+
+            {profileQuality.issues.length === 0 ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                No profile data issues found.
+              </div>
+            ) : (
+              <div className="max-h-80 overflow-auto rounded-md border border-border">
+                <table className="w-full min-w-[720px] text-xs">
+                  <thead className="border-b border-border bg-muted/30 text-left uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2">Severity</th>
+                      <th className="px-3 py-2">Account</th>
+                      <th className="px-3 py-2">Location</th>
+                      <th className="px-3 py-2">Issue</th>
+                      <th className="px-3 py-2 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profileQuality.issues.slice(0, 80).map((issue, index) => (
+                      <tr key={`${issue.id}-${issue.field}-${index}`} className="border-b border-border last:border-0">
+                        <td className="px-3 py-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ${
+                            issue.severity === "error"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}>
+                            {issue.severity}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="font-medium">{issue.companyName || issue.fullName || issue.email || issue.id.slice(0, 8)}</div>
+                          <div className="text-muted-foreground">{issue.accountType || "account"}</div>
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {[issue.city, issue.country].filter(Boolean).join(", ") || "—"}
+                          {issue.suggestedCountry && (
+                            <div className="text-emerald-700">Suggest: {issue.suggestedCountry}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">{issue.message}</td>
+                        <td className="px-3 py-2 text-right">
+                          {issue.href ? (
+                            <a href={issue.href} className="text-primary underline">
+                              Edit
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">Manual</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-md border border-border bg-background p-4">
+        <div className="text-sm font-medium">Stone import cleanup</div>
       <p className="mt-1 text-sm text-muted-foreground">
         Cleans up invalid values from CSV imports (like &quot;nan&quot; stored as text),
         corrects video/360° flags, and features top stones on the homepage.
@@ -1883,6 +2045,7 @@ function DataCleanupPanel() {
       {result && (
         <pre className="mt-3 whitespace-pre-wrap rounded bg-muted p-3 text-xs">{result}</pre>
       )}
+      </div>
     </div>
   );
 }

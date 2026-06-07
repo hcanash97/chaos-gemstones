@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { inferCountryFromCity, normalizeCountryName, normalizeProfileLocation } from "@/lib/countries";
 
 async function requireAdmin(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -13,6 +14,118 @@ async function requireAdmin(userId: string) {
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Admin access required.");
   return supabaseAdmin;
+}
+
+type ProfileQualityIssue = {
+  id: string;
+  accountType: string | null;
+  companyName: string | null;
+  fullName: string | null;
+  email: string | null;
+  city: string | null;
+  country: string | null;
+  severity: "error" | "warning";
+  field: "country" | "city" | "company_name" | "dealer_profile" | "jeweller_profile";
+  message: string;
+  suggestedCountry: string | null;
+  href: string | null;
+};
+
+function profileHref(id: string, accountType?: string | null) {
+  return accountType === "dealer" ? `/admin/dealer/${id}` : null;
+}
+
+function profileLabel(p: { company_name: string | null; full_name: string | null; email: string | null; id: string }) {
+  return p.company_name || p.full_name || p.email || p.id.slice(0, 8);
+}
+
+function locationIssuesForProfile(p: {
+  id: string;
+  account_type: string | null;
+  company_name: string | null;
+  full_name: string | null;
+  email: string | null;
+  city: string | null;
+  country: string | null;
+}): ProfileQualityIssue[] {
+  const issues: ProfileQualityIssue[] = [];
+  const normalizedCountry = normalizeCountryName(p.country);
+  const inferredCountry = inferCountryFromCity(p.city);
+  const rawCountry = (p.country ?? "").trim();
+  const rawCountryLower = rawCountry.toLowerCase();
+  const href = profileHref(p.id, p.account_type);
+
+  if (!p.company_name?.trim()) {
+    issues.push({
+      id: p.id,
+      accountType: p.account_type,
+      companyName: p.company_name,
+      fullName: p.full_name,
+      email: p.email,
+      city: p.city,
+      country: p.country,
+      severity: "warning",
+      field: "company_name",
+      message: `${profileLabel(p)} is missing a company name.`,
+      suggestedCountry: null,
+      href,
+    });
+  }
+
+  if (!rawCountry) {
+    issues.push({
+      id: p.id,
+      accountType: p.account_type,
+      companyName: p.company_name,
+      fullName: p.full_name,
+      email: p.email,
+      city: p.city,
+      country: p.country,
+      severity: inferredCountry ? "error" : "warning",
+      field: "country",
+      message: inferredCountry
+        ? `${profileLabel(p)} has city ${p.city} but no country. Suggested country: ${inferredCountry}.`
+        : `${profileLabel(p)} is missing a country.`,
+      suggestedCountry: inferredCountry,
+      href,
+    });
+  }
+
+  if (rawCountryLower === "europe" || rawCountryLower === "asia" || rawCountryLower === "south asia" || rawCountryLower === "middle east") {
+    issues.push({
+      id: p.id,
+      accountType: p.account_type,
+      companyName: p.company_name,
+      fullName: p.full_name,
+      email: p.email,
+      city: p.city,
+      country: p.country,
+      severity: "error",
+      field: "country",
+      message: `${profileLabel(p)} has "${rawCountry}" saved as country, but that is a region.`,
+      suggestedCountry: inferredCountry,
+      href,
+    });
+  }
+
+  if (inferredCountry && normalizedCountry && inferredCountry !== normalizedCountry) {
+    issues.push({
+      id: p.id,
+      accountType: p.account_type,
+      companyName: p.company_name,
+      fullName: p.full_name,
+      email: p.email,
+      city: p.city,
+      country: p.country,
+      severity: "error",
+      field: "country",
+      message: `${profileLabel(p)} says city ${p.city}, but country is ${normalizedCountry}. Suggested country: ${inferredCountry}.`,
+      suggestedCountry: inferredCountry,
+      href,
+    });
+  }
+
+  return issues;
 }
 
 /**
@@ -172,6 +285,139 @@ export const adminGetDealerDetail = createServerFn({ method: "POST" })
     };
   });
 
+export const adminGetProfileDataQuality = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = await requireAdmin(context.userId);
+
+    const [{ data: profiles, error: profilesError }, { data: dealerProfiles }, { data: jewellerProfiles }] = await Promise.all([
+      sb
+        .from("profiles")
+        .select("id, account_type, full_name, company_name, email, city, country, is_approved, is_verified, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      (sb as any)
+        .from("dealer_profiles")
+        .select("id, slug, logo_url, tagline, story, whatsapp_first, supplier_services"),
+      (sb as any)
+        .from("jeweller_profiles")
+        .select("id, slug, logo_url, tagline, is_public, specialities"),
+    ]);
+
+    if (profilesError) throw new Error(profilesError.message);
+
+    const dealerMap = new Map((dealerProfiles ?? []).map((d: any) => [d.id, d]));
+    const jewellerMap = new Map((jewellerProfiles ?? []).map((j: any) => [j.id, j]));
+    const issues: ProfileQualityIssue[] = [];
+
+    for (const p of profiles ?? []) {
+      issues.push(...locationIssuesForProfile(p));
+
+      if (p.account_type === "dealer") {
+        const dealer = dealerMap.get(p.id);
+        if (!dealer?.slug) {
+          issues.push({
+            id: p.id,
+            accountType: p.account_type,
+            companyName: p.company_name,
+            fullName: p.full_name,
+            email: p.email,
+            city: p.city,
+            country: p.country,
+            severity: "warning",
+            field: "dealer_profile",
+            message: `${profileLabel(p)} is missing a vendor slug.`,
+            suggestedCountry: null,
+            href: profileHref(p.id, p.account_type),
+          });
+        }
+        if (!dealer?.tagline && !dealer?.story) {
+          issues.push({
+            id: p.id,
+            accountType: p.account_type,
+            companyName: p.company_name,
+            fullName: p.full_name,
+            email: p.email,
+            city: p.city,
+            country: p.country,
+            severity: "warning",
+            field: "dealer_profile",
+            message: `${profileLabel(p)} has a thin public vendor profile: no tagline or story.`,
+            suggestedCountry: null,
+            href: profileHref(p.id, p.account_type),
+          });
+        }
+      }
+
+      if (p.account_type === "jeweller") {
+        const jeweller = jewellerMap.get(p.id);
+        if (jeweller?.is_public && !jeweller?.slug) {
+          issues.push({
+            id: p.id,
+            accountType: p.account_type,
+            companyName: p.company_name,
+            fullName: p.full_name,
+            email: p.email,
+            city: p.city,
+            country: p.country,
+            severity: "warning",
+            field: "jeweller_profile",
+            message: `${profileLabel(p)} has a public jeweller profile without a slug.`,
+            suggestedCountry: null,
+            href: null,
+          });
+        }
+      }
+    }
+
+    const byField: Record<string, number> = {};
+    const bySeverity = { error: 0, warning: 0 };
+    for (const issue of issues) {
+      byField[issue.field] = (byField[issue.field] ?? 0) + 1;
+      bySeverity[issue.severity] += 1;
+    }
+
+    return {
+      scanned: profiles?.length ?? 0,
+      issues,
+      byField,
+      bySeverity,
+      repairable: issues.filter((i) => i.field === "country" && i.suggestedCountry).length,
+    };
+  });
+
+export const adminRepairProfileLocations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = await requireAdmin(context.userId);
+    const { data: profiles, error } = await sb
+      .from("profiles")
+      .select("id, account_type, full_name, company_name, email, city, country")
+      .limit(500);
+
+    if (error) throw new Error(error.message);
+
+    const repaired: Array<{ id: string; name: string; from: string | null; to: string }> = [];
+    for (const p of profiles ?? []) {
+      const normalized = normalizeProfileLocation({ city: p.city, country: p.country });
+      if (!normalized.country || normalized.country === p.country) continue;
+      if (!normalized.corrected) continue;
+      const { error: updateError } = await sb
+        .from("profiles")
+        .update({ country: normalized.country, city: normalized.city })
+        .eq("id", p.id);
+      if (updateError) throw new Error(updateError.message);
+      repaired.push({
+        id: p.id,
+        name: profileLabel(p),
+        from: p.country,
+        to: normalized.country,
+      });
+    }
+
+    return { repaired };
+  });
+
 /**
  * Admin-triggered feed sync for a given dealer. Reuses the same sync helper
  * as the dealer-self trigger, but marks the source as "admin".
@@ -210,6 +456,10 @@ export const adminUpdateDealerProfile = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => adminDealerProfileSchema.parse(input))
   .handler(async ({ context, data }) => {
     const sb = await requireAdmin(context.userId);
+    const location = normalizeProfileLocation({
+      city: data.profile.city,
+      country: data.profile.country,
+    });
     const { error: profileError } = await sb
       .from("profiles")
       .update({
@@ -217,8 +467,8 @@ export const adminUpdateDealerProfile = createServerFn({ method: "POST" })
         company_name: data.profile.company_name?.trim() || null,
         email: data.profile.email?.trim() || null,
         website: data.profile.website?.trim() || null,
-        country: data.profile.country?.trim() || null,
-        city: data.profile.city?.trim() || null,
+        country: location.country,
+        city: location.city,
         phone: data.profile.phone?.trim() || null,
       })
       .eq("id", data.dealerId);
@@ -237,7 +487,7 @@ export const adminUpdateDealerProfile = createServerFn({ method: "POST" })
       .eq("id", data.dealerId);
 
     if (dealerError) throw new Error(dealerError.message);
-    return { ok: true };
+    return { ok: true, locationWarning: location.warning };
   });
 
 export const adminCreateDealerCorrectionMessage = createServerFn({ method: "POST" })
