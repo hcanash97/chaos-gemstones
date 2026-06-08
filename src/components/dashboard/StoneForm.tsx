@@ -319,10 +319,6 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
       black_inclusion: values.black_inclusion.trim() || null,
       enhancement: values.enhancement.trim() || null,
       listing_type: values.listing_type,
-      source_type: values.source_type,
-      private_until: values.private_drop_enabled
-        ? new Date(Date.now() + Number(values.private_drop_duration_hours) * 60 * 60 * 1000).toISOString()
-        : null,
       parcel_quantity: values.parcel_quantity ? Number(values.parcel_quantity) : null,
       matching_pair: values.matching_pair,
       has_video: values.has_video,

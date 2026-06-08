@@ -972,7 +972,7 @@ export type Database = {
           is_primary: boolean
           sort_order: number
           stone_id: string
-          storage_url: string
+          storage_url: string | null
         }
         Insert: {
           external_image_url?: string | null
@@ -980,7 +980,7 @@ export type Database = {
           is_primary?: boolean
           sort_order?: number
           stone_id: string
-          storage_url: string
+          storage_url?: string | null
         }
         Update: {
           external_image_url?: string | null
@@ -988,7 +988,7 @@ export type Database = {
           is_primary?: boolean
           sort_order?: number
           stone_id?: string
-          storage_url?: string
+          storage_url?: string | null
         }
         Relationships: [
           {
@@ -1042,7 +1042,6 @@ export type Database = {
       stone_requests: {
         Row: {
           cert_lab: string | null
-          budget_usd_max: number | null
           colour_description: string | null
           created_at: string
           expires_at: string
@@ -1056,11 +1055,9 @@ export type Database = {
           status: string
           stone_type: string
           treatment: string | null
-          treatment_preference: string | null
         }
         Insert: {
           cert_lab?: string | null
-          budget_usd_max?: number | null
           colour_description?: string | null
           created_at?: string
           expires_at?: string
@@ -1074,11 +1071,9 @@ export type Database = {
           status?: string
           stone_type: string
           treatment?: string | null
-          treatment_preference?: string | null
         }
         Update: {
           cert_lab?: string | null
-          budget_usd_max?: number | null
           colour_description?: string | null
           created_at?: string
           expires_at?: string
@@ -1092,7 +1087,6 @@ export type Database = {
           status?: string
           stone_type?: string
           treatment?: string | null
-          treatment_preference?: string | null
         }
         Relationships: [
           {
@@ -1127,6 +1121,7 @@ export type Database = {
           dealer_id: string
           depth_pct: number | null
           enhancement: string | null
+          external_source: string | null
           external_sync_key: string | null
           eye_clean: string | null
           featured: boolean
@@ -1140,6 +1135,7 @@ export type Database = {
           id: string
           intake_source: string | null
           is_test: boolean
+          last_imported_at: string | null
           lead_time_days: number | null
           listing_type: string
           lw_ratio: number | null
@@ -1151,21 +1147,22 @@ export type Database = {
           minimum_order_qty: number
           notes_for_buyers: string | null
           origin: string | null
+          origin_lower: string | null
           parcel_quantity: number | null
           pavilion_angle: number | null
           phenomenon: string | null
           polish: string | null
           price_currency: string
-          private_until: string | null
           provenance_report: string | null
+          raw_import_row: Json | null
           report_date: string | null
           shade: string | null
           shape: string | null
           share_count: number
-          source_type: Database["public"]["Enums"]["stone_source_type"]
           source_stock_no: string | null
           status: Database["public"]["Enums"]["stone_status"]
           stone_type: string
+          stone_type_lower: string | null
           symmetry: string | null
           table_pct: number | null
           treatment: string | null
@@ -1196,6 +1193,7 @@ export type Database = {
           dealer_id: string
           depth_pct?: number | null
           enhancement?: string | null
+          external_source?: string | null
           external_sync_key?: string | null
           eye_clean?: string | null
           featured?: boolean
@@ -1209,6 +1207,7 @@ export type Database = {
           id?: string
           intake_source?: string | null
           is_test?: boolean
+          last_imported_at?: string | null
           lead_time_days?: number | null
           listing_type?: string
           lw_ratio?: number | null
@@ -1220,21 +1219,22 @@ export type Database = {
           minimum_order_qty?: number
           notes_for_buyers?: string | null
           origin?: string | null
+          origin_lower?: string | null
           parcel_quantity?: number | null
           pavilion_angle?: number | null
           phenomenon?: string | null
           polish?: string | null
           price_currency?: string
-          private_until?: string | null
           provenance_report?: string | null
+          raw_import_row?: Json | null
           report_date?: string | null
           shade?: string | null
           shape?: string | null
           share_count?: number
-          source_type?: Database["public"]["Enums"]["stone_source_type"]
           source_stock_no?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type: string
+          stone_type_lower?: string | null
           symmetry?: string | null
           table_pct?: number | null
           treatment?: string | null
@@ -1265,6 +1265,7 @@ export type Database = {
           dealer_id?: string
           depth_pct?: number | null
           enhancement?: string | null
+          external_source?: string | null
           external_sync_key?: string | null
           eye_clean?: string | null
           featured?: boolean
@@ -1278,6 +1279,7 @@ export type Database = {
           id?: string
           intake_source?: string | null
           is_test?: boolean
+          last_imported_at?: string | null
           lead_time_days?: number | null
           listing_type?: string
           lw_ratio?: number | null
@@ -1289,21 +1291,22 @@ export type Database = {
           minimum_order_qty?: number
           notes_for_buyers?: string | null
           origin?: string | null
+          origin_lower?: string | null
           parcel_quantity?: number | null
           pavilion_angle?: number | null
           phenomenon?: string | null
           polish?: string | null
           price_currency?: string
-          private_until?: string | null
           provenance_report?: string | null
+          raw_import_row?: Json | null
           report_date?: string | null
           shade?: string | null
           shape?: string | null
           share_count?: number
-          source_type?: Database["public"]["Enums"]["stone_source_type"]
           source_stock_no?: string | null
           status?: Database["public"]["Enums"]["stone_status"]
           stone_type?: string
+          stone_type_lower?: string | null
           symmetry?: string | null
           table_pct?: number | null
           treatment?: string | null
@@ -1523,6 +1526,11 @@ export type Database = {
         Args: { _code: string; _user_id: string }
         Returns: undefined
       }
+      chaos_extract_still_image_url: { Args: { raw: Json }; Returns: string }
+      chaos_is_trusted_image_field_url: {
+        Args: { value: string }
+        Returns: boolean
+      }
       has_account_type: {
         Args: { _check_type: string; _user_id: string }
         Returns: boolean
@@ -1544,11 +1552,12 @@ export type Database = {
         Args: { p_record_id: string; p_type: string }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       account_type: "dealer" | "jeweller" | "admin"
       app_role: "admin" | "moderator" | "user"
-      stone_source_type: "standard" | "direct_vault"
       stone_status: "available" | "reserved" | "sold"
     }
     CompositeTypes: {
@@ -1679,7 +1688,6 @@ export const Constants = {
     Enums: {
       account_type: ["dealer", "jeweller", "admin"],
       app_role: ["admin", "moderator", "user"],
-      stone_source_type: ["standard", "direct_vault"],
       stone_status: ["available", "reserved", "sold"],
     },
   },
