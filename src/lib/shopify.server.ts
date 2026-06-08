@@ -120,12 +120,12 @@ async function exchangeClientCredentials(
 ): Promise<{ token: string; expiresIn: number }> {
   const res = await fetch("https://api.shopify.com/auth/access_token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
       client_id: clientId,
       client_secret: clientSecret,
       grant_type: "client_credentials",
-    }),
+    }).toString(),
     signal: AbortSignal.timeout(15_000),
   });
   const text = await res.text();
