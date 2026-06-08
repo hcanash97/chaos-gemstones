@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as RetailRouteImport } from './routes/retail'
 import { Route as RequestsRouteImport } from './routes/requests'
@@ -24,6 +23,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorsIndexRouteImport } from './routes/vendors.index'
+import { Route as SignUpIndexRouteImport } from './routes/sign-up.index'
 import { Route as LearnIndexRouteImport } from './routes/learn.index'
 import { Route as JewellersIndexRouteImport } from './routes/jewellers.index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
@@ -84,11 +84,6 @@ import { Route as ApiDealerV1StonesIdMarkSoldRouteImport } from './routes/api/de
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignUpRoute = SignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
@@ -154,6 +149,11 @@ const IndexRoute = IndexRouteImport.update({
 const VendorsIndexRoute = VendorsIndexRouteImport.update({
   id: '/vendors/',
   path: '/vendors/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpIndexRoute = SignUpIndexRouteImport.update({
+  id: '/sign-up/',
+  path: '/sign-up/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LearnIndexRoute = LearnIndexRouteImport.update({
@@ -460,7 +460,6 @@ export interface FileRoutesByFullPath {
   '/requests': typeof RequestsRoute
   '/retail': typeof RetailRoute
   '/robots.txt': typeof RobotsDottxtRoute
-  '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -488,6 +487,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/jewellers/': typeof JewellersIndexRoute
   '/learn/': typeof LearnIndexRoute
+  '/sign-up/': typeof SignUpIndexRoute
   '/vendors/': typeof VendorsIndexRoute
   '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
@@ -532,7 +532,6 @@ export interface FileRoutesByTo {
   '/requests': typeof RequestsRoute
   '/retail': typeof RetailRoute
   '/robots.txt': typeof RobotsDottxtRoute
-  '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -560,6 +559,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/jewellers': typeof JewellersIndexRoute
   '/learn': typeof LearnIndexRoute
+  '/sign-up': typeof SignUpIndexRoute
   '/vendors': typeof VendorsIndexRoute
   '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
@@ -606,7 +606,6 @@ export interface FileRoutesById {
   '/requests': typeof RequestsRoute
   '/retail': typeof RetailRoute
   '/robots.txt': typeof RobotsDottxtRoute
-  '/sign-up': typeof SignUpRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
@@ -634,6 +633,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/jewellers/': typeof JewellersIndexRoute
   '/learn/': typeof LearnIndexRoute
+  '/sign-up/': typeof SignUpIndexRoute
   '/vendors/': typeof VendorsIndexRoute
   '/admin/dealer/$id': typeof AdminDealerIdRouteWithChildren
   '/api/public/chaos.js': typeof ApiPublicChaosDotjsRoute
@@ -681,7 +681,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/retail'
     | '/robots.txt'
-    | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -709,6 +708,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/jewellers/'
     | '/learn/'
+    | '/sign-up/'
     | '/vendors/'
     | '/admin/dealer/$id'
     | '/api/public/chaos.js'
@@ -753,7 +753,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/retail'
     | '/robots.txt'
-    | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -781,6 +780,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/jewellers'
     | '/learn'
+    | '/sign-up'
     | '/vendors'
     | '/admin/dealer/$id'
     | '/api/public/chaos.js'
@@ -826,7 +826,6 @@ export interface FileRouteTypes {
     | '/requests'
     | '/retail'
     | '/robots.txt'
-    | '/sign-up'
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
@@ -854,6 +853,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/jewellers/'
     | '/learn/'
+    | '/sign-up/'
     | '/vendors/'
     | '/admin/dealer/$id'
     | '/api/public/chaos.js'
@@ -900,7 +900,6 @@ export interface RootRouteChildren {
   RequestsRoute: typeof RequestsRoute
   RetailRoute: typeof RetailRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
-  SignUpRoute: typeof SignUpRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
   DocsDealerApiRoute: typeof DocsDealerApiRoute
@@ -916,6 +915,7 @@ export interface RootRouteChildren {
   VendorsSlugRoute: typeof VendorsSlugRoute
   JewellersIndexRoute: typeof JewellersIndexRoute
   LearnIndexRoute: typeof LearnIndexRoute
+  SignUpIndexRoute: typeof SignUpIndexRoute
   VendorsIndexRoute: typeof VendorsIndexRoute
   ApiPublicChaosDotjsRoute: typeof ApiPublicChaosDotjsRoute
   ApiPublicFeedRoute: typeof ApiPublicFeedRoute
@@ -936,13 +936,6 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sign-up': {
-      id: '/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/robots.txt': {
@@ -1034,6 +1027,13 @@ declare module '@tanstack/react-router' {
       path: '/vendors'
       fullPath: '/vendors/'
       preLoaderRoute: typeof VendorsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up/': {
+      id: '/sign-up/'
+      path: '/sign-up'
+      fullPath: '/sign-up/'
+      preLoaderRoute: typeof SignUpIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/learn/': {
@@ -1523,19 +1523,6 @@ const MarketplaceRouteWithChildren = MarketplaceRoute._addFileChildren(
   MarketplaceRouteChildren,
 )
 
-interface SignUpRouteChildren {
-  SignUpDealerRoute: typeof SignUpDealerRoute
-  SignUpJewellerRoute: typeof SignUpJewellerRoute
-}
-
-const SignUpRouteChildren: SignUpRouteChildren = {
-  SignUpDealerRoute: SignUpDealerRoute,
-  SignUpJewellerRoute: SignUpJewellerRoute,
-}
-
-const SignUpRouteWithChildren =
-  SignUpRoute._addFileChildren(SignUpRouteChildren)
-
 interface ApiDealerV1StonesIdRouteChildren {
   ApiDealerV1StonesIdMarkSoldRoute: typeof ApiDealerV1StonesIdMarkSoldRoute
 }
@@ -1573,7 +1560,6 @@ const rootRouteChildren: RootRouteChildren = {
   RequestsRoute: RequestsRoute,
   RetailRoute: RetailRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
-  SignUpRoute: SignUpRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,
   DocsDealerApiRoute: DocsDealerApiRoute,
@@ -1589,6 +1575,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendorsSlugRoute: VendorsSlugRoute,
   JewellersIndexRoute: JewellersIndexRoute,
   LearnIndexRoute: LearnIndexRoute,
+  SignUpIndexRoute: SignUpIndexRoute,
   VendorsIndexRoute: VendorsIndexRoute,
   ApiPublicChaosDotjsRoute: ApiPublicChaosDotjsRoute,
   ApiPublicFeedRoute: ApiPublicFeedRoute,
@@ -1604,3 +1591,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
