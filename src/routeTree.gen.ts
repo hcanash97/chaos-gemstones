@@ -47,6 +47,7 @@ import { Route as DashboardReferralsRouteImport } from './routes/dashboard.refer
 import { Route as DashboardImportRouteImport } from './routes/dashboard.import'
 import { Route as DashboardEnquiriesRouteImport } from './routes/dashboard.enquiries'
 import { Route as DashboardAccountRouteImport } from './routes/dashboard.account'
+import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminQuickApproveRouteImport } from './routes/admin.quick-approve'
 import { Route as AdminImportTestRouteImport } from './routes/admin.import-test'
 import { Route as DashboardStonesIndexRouteImport } from './routes/dashboard.stones.index'
@@ -269,6 +270,11 @@ const DashboardAccountRoute = DashboardAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => DashboardRoute,
 } as any)
+const AdminRequestsRoute = AdminRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminQuickApproveRoute = AdminQuickApproveRouteImport.update({
   id: '/quick-approve',
   path: '/quick-approve',
@@ -451,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
+  '/admin/requests': typeof AdminRequestsRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
@@ -521,6 +528,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
+  '/admin/requests': typeof AdminRequestsRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
@@ -593,6 +601,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
   '/admin/quick-approve': typeof AdminQuickApproveRoute
+  '/admin/requests': typeof AdminRequestsRoute
   '/dashboard/account': typeof DashboardAccountRoute
   '/dashboard/enquiries': typeof DashboardEnquiriesRoute
   '/dashboard/import': typeof DashboardImportRoute
@@ -666,6 +675,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
+    | '/admin/requests'
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
@@ -736,6 +746,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
+    | '/admin/requests'
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
@@ -807,6 +818,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin/import-test'
     | '/admin/quick-approve'
+    | '/admin/requests'
     | '/dashboard/account'
     | '/dashboard/enquiries'
     | '/dashboard/import'
@@ -1171,6 +1183,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAccountRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/admin/requests': {
+      id: '/admin/requests'
+      path: '/requests'
+      fullPath: '/admin/requests'
+      preLoaderRoute: typeof AdminRequestsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/quick-approve': {
       id: '/admin/quick-approve'
       path: '/quick-approve'
@@ -1406,12 +1425,14 @@ const AdminDealerIdRouteWithChildren = AdminDealerIdRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminImportTestRoute: typeof AdminImportTestRoute
   AdminQuickApproveRoute: typeof AdminQuickApproveRoute
+  AdminRequestsRoute: typeof AdminRequestsRoute
   AdminDealerIdRoute: typeof AdminDealerIdRouteWithChildren
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminImportTestRoute: AdminImportTestRoute,
   AdminQuickApproveRoute: AdminQuickApproveRoute,
+  AdminRequestsRoute: AdminRequestsRoute,
   AdminDealerIdRoute: AdminDealerIdRouteWithChildren,
 }
 
@@ -1561,3 +1582,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
