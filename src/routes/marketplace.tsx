@@ -1418,24 +1418,31 @@ function EmptyMarketplace({
 
   if (hasFilters) {
     return (
-      <div className="rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground md:p-10">
+      <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-sm text-muted-foreground md:p-12">
         <div className="text-center">
-          <h2 className="font-serif text-2xl text-foreground">No matching stones yet</h2>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-gold)]/15 text-2xl text-[var(--color-gold-foreground)]">
+            ◆
+          </div>
+          <h2 className="font-serif text-2xl text-foreground">No stones currently match this precise combination.</h2>
           <p className="mx-auto mt-2 max-w-md">
-            Try clearing one or two filters, or use diagnostics to see the exact values currently stored in Chaos for shape, lab, colour, and treatment.
+            Clear your filters or request this specific brief via our Buyer Concierge.
           </p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={onClearFilters}>
-            Clear all filters
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-4"
-            onClick={loadDiagnostics}
-            disabled={diagnosticsLoading}
-          >
-            {diagnosticsLoading ? "Checking values..." : "Show filter diagnostics"}
-          </Button>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button onClick={onClearFilters} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+              Reset Filters
+            </Button>
+            <ConciergeRequestModal
+              trigger={<Button variant="outline">Request via Buyer Concierge →</Button>}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadDiagnostics}
+              disabled={diagnosticsLoading}
+            >
+              {diagnosticsLoading ? "Checking values…" : "Show filter diagnostics"}
+            </Button>
+          </div>
         </div>
         {diagnostics && (
           <div className="mt-6 rounded-md border border-border bg-card text-left">
