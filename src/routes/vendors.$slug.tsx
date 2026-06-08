@@ -103,11 +103,12 @@ function VendorProfile() {
     queryFn: async () => {
       const from = (cataloguePage - 1) * VENDOR_CATALOGUE_PAGE_SIZE;
       const to = from + VENDOR_CATALOGUE_PAGE_SIZE - 1;
-      const { data: vendor } = await supabase
+      const { data: vendorRaw } = await supabase
         .from("dealer_profiles")
-        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, whatsapp_first, supplier_services, supplier_note, profiles!inner(company_name, city, country, website, is_verified, created_at)")
+        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
+      const vendor = vendorRaw as any;
       if (!vendor) return { vendor: null, stones: [], totalStones: 0 };
       const { data: stones, count: totalStones } = await supabase
         .from("stones")
