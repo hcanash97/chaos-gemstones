@@ -6,7 +6,7 @@ import { GemParticles } from "@/components/site/GemParticles";
 import { motion } from "framer-motion";
 import { Gem, Store, Layers, ArrowRight, Check } from "lucide-react";
 
-export const Route = createFileRoute("/sign-up")({
+export const Route = createFileRoute("/sign-up/")({
   component: SignUpChoice,
   head: () => ({
     meta: [
