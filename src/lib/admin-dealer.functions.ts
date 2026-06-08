@@ -404,7 +404,7 @@ export const adminGetProfileDataQuality = createServerFn({ method: "GET" })
         .limit(500),
       (sb as any)
         .from("dealer_profiles")
-        .select("id, slug, bio, logo_url, tagline, story, specialities, external_feed_url, whatsapp_first, supplier_services, years_trading, response_time_hours"),
+        .select("id, slug, bio, logo_url, tagline, story, specialities, external_feed_url, years_trading, response_time_hours"),
       (sb as any)
         .from("jeweller_profiles")
         .select("id, slug, bio, logo_url, tagline, is_public, specialities"),
@@ -430,8 +430,8 @@ export const adminGetProfileDataQuality = createServerFn({ method: "GET" })
 
     for (const p of profiles ?? []) {
       issues.push(...locationIssuesForProfile(p));
-      const dealer = dealerMap.get(p.id);
-      const jeweller = jewellerMap.get(p.id);
+      const dealer = dealerMap.get(p.id) as any;
+      const jeweller = jewellerMap.get(p.id) as any;
       completeness.push(scoreProfileCompleteness({
         profile: p,
         dealer,

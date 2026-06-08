@@ -24,6 +24,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { isJeweller as checkJ, isDealer as checkD } from "@/lib/auth.utils";
@@ -414,7 +415,7 @@ function PostRequestForm({ onPosted }: { onPosted: () => void }) {
           <div className="flex items-start gap-3">
             <Checkbox
               checked={allowWhatsApp}
-              onCheckedChange={(v) => {
+              onCheckedChange={(v: boolean | "indeterminate") => {
                 const next = !!v;
                 setAllowWhatsApp(next);
                 if (next && responseChannel === "chaos") setResponseChannel("whatsapp_ok");

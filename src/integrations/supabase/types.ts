@@ -994,7 +994,7 @@ export type Database = {
           {
             foreignKeyName: "stone_images_stone_id_fkey"
             columns: ["stone_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "stones"
             referencedColumns: ["id"]
           },
