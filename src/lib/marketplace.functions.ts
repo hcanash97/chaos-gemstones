@@ -374,7 +374,14 @@ export const searchMarketplace = createServerFn({ method: "POST" })
 
     const { data: rows, count, error } = await q;
     if (error) {
-      console.error("[marketplace search]", error);
+      console.error("[marketplace search] supabase error", {
+        message: error.message,
+        details: (error as any).details,
+        hint: (error as any).hint,
+        code: (error as any).code,
+        page,
+        activeFilters: activeFilterSnapshot,
+      });
       return { stones: [], total: 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: error.message };
     }
 
@@ -407,6 +414,22 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     }
 
     return { stones, total: count ?? 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: null };
+    } catch (err: any) {
+      console.error("[marketplace search] unexpected exception", {
+        message: err?.message ?? String(err),
+        stack: err?.stack,
+        page,
+        activeFilters: activeFilterSnapshot,
+      });
+      return {
+        stones: [],
+        total: 0,
+        marketTotal: await marketTotalPromise.catch(() => 0),
+        page,
+        pageSize: PAGE_SIZE,
+        error: err?.message ?? "Unknown server error while searching the marketplace",
+      };
+    }
   });
 
 export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" })
