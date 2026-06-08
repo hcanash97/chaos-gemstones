@@ -43,8 +43,8 @@ async function countAvailableStones(dealerIds?: string[], extra?: { sourceType?:
     if (dealerIds.length === 0) return 0;
     query = query.in("dealer_id", dealerIds);
   }
-  if (extra?.sourceType) query = query.eq("source_type", extra.sourceType);
-  if (extra?.earlyAccess) query = query.gte("private_until", new Date().toISOString());
+  if (extra?.sourceType) query = (query as any).eq("source_type", extra.sourceType);
+  if (extra?.earlyAccess) query = (query as any).gte("private_until", new Date().toISOString());
 
   const { count, error } = await query;
   if (error) throw error;
