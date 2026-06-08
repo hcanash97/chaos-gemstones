@@ -430,8 +430,8 @@ export const adminGetProfileDataQuality = createServerFn({ method: "GET" })
 
     for (const p of profiles ?? []) {
       issues.push(...locationIssuesForProfile(p));
-      const dealer = dealerMap.get(p.id);
-      const jeweller = jewellerMap.get(p.id);
+      const dealer = dealerMap.get(p.id) as any;
+      const jeweller = jewellerMap.get(p.id) as any;
       completeness.push(scoreProfileCompleteness({
         profile: p,
         dealer,
