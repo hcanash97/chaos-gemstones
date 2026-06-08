@@ -210,6 +210,15 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const marketTotalPromise = getMarketplaceTotal();
+    // Snapshot of *active* (non-default) filter keys for diagnostics on failure.
+    const activeFilterSnapshot: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(f)) {
+      if (v === null || v === undefined) continue;
+      if (Array.isArray(v) && v.length === 0) continue;
+      if (typeof v === "string" && v === "") continue;
+      activeFilterSnapshot[k] = v;
+    }
+    try {
 
     let q = supabaseAdmin
       .from("stones")
