@@ -10,7 +10,7 @@ export const PAGE_SIZE = 24; // was 48 — halving gives ~2× faster page loads
 const STONE_SELECT =
   "id, dealer_id, stone_type, shape, carat_weight, origin, country_of_origin, " +
   "cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, " +
-  "treatment, status, listing_type, matching_pair, has_video, has_360, has_image, " +
+  "treatment, status, listing_type, matching_pair, has_video, has_360, " +
   "created_at, updated_at, " +
   "stone_images(storage_url, external_image_url, is_primary, sort_order), " +
   "profiles:dealer_id(country, is_verified)";
@@ -49,10 +49,6 @@ export type SearchInput = {
 
 export type FilterDiagnosticsInput = {
   filters: Partial<FilterState>;
-};
-
-export type MediaDiagnosticsInput = {
-  page?: number;
 };
 
 const DIAGNOSTIC_FIELDS = [
@@ -228,24 +224,20 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     // Dealer
     if (f.dealerId && f.dealerId !== "all") q = q.eq("dealer_id", f.dealerId);
 
-    // Stone types — use generated lowercase column for exact match (no case variants needed)
+    // Stone type filter — uses the original stone_type column with case variants.
+    // Avoids dependency on stone_type_lower generated column which may not exist in production.
     if (f.types && f.types.length) {
       const wantsDiamondNat = f.types.includes("diamond-natural");
       const wantsDiamondLab = f.types.includes("diamond-lab");
       const others = f.types.filter((t) => t !== "diamond-natural" && t !== "diamond-lab");
-
-      // Normalise to lowercase for the generated column
-      const typeValues: string[] = others.map((t) => t.toLowerCase());
-      if (wantsDiamondNat || wantsDiamondLab) typeValues.push("diamond");
-
-      q = q.in("stone_type_lower", uniqueValues(typeValues));
-
-      // Origin sub-filter for diamond natural/lab split
+      const expanded: string[] = [...others];
+      if (wantsDiamondNat || wantsDiamondLab) expanded.push("diamond");
+      q = q.in("stone_type", uniqueValues(expanded.flatMap(stoneTypeValuesForFilter)));
       if (wantsDiamondNat && !wantsDiamondLab) {
-        q = q.or("origin_lower.is.null,origin_lower.in.(natural)");
+        q = q.or("origin.is.null,origin.in.(natural,Natural,NATURAL)");
       }
       if (wantsDiamondLab && !wantsDiamondNat) {
-        q = q.in("origin_lower", ["lab-grown", "lab grown", "lab", "cvd", "hpht"]);
+        q = q.in("origin", originValuesForFilter("lab-grown"));
       }
     }
 
@@ -253,13 +245,7 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     if (f.labs && f.labs.length) q = q.in("cert_lab", uniqueValues(f.labs.flatMap(filterValueVariants)));
     if (f.certNumber && f.certNumber.trim()) q = q.ilike("cert_number", `%${f.certNumber.trim()}%`);
     if (f.countries && f.countries.length) q = q.in("country_of_origin", f.countries);
-    if (f.origin && f.origin !== "all") {
-      if (f.origin === "lab-grown") {
-        q = q.in("origin_lower", ["lab-grown", "lab grown", "lab", "cvd", "hpht"]);
-      } else {
-        q = q.in("origin_lower", ["natural"]);
-      }
-    }
+    if (f.origin && f.origin !== "all") q = q.in("origin", originValuesForFilter(f.origin));
     if (f.listingType && f.listingType !== "all") q = q.eq("listing_type", f.listingType);
     if (f.bulkPricingOnly) q = q.eq("bulk_pricing_available", true);
 
@@ -279,10 +265,10 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       if (priceMinActive) q = q.gte("wholesale_price_usd", f.priceMin);
       if (priceMaxActive) q = q.lte("wholesale_price_usd", f.priceMax);
     } else if (priceMinActive || priceMaxActive) {
-      // Uses generated DB column from 20260607190000_marketplace_price_per_carat_column.sql.
-      // This keeps pagination and counts accurate for /ct filtering.
-      if (priceMinActive) q = q.gte("wholesale_price_per_carat", f.priceMin);
-      if (priceMaxActive) q = q.lte("wholesale_price_per_carat", f.priceMax);
+      // PostgREST cannot easily filter calculated price-per-carat here without
+      // an RPC, so fetch candidates server-side without pretending the current
+      // page is the complete matching set.
+      if (priceMinActive) q = q.gte("wholesale_price_usd", 0);
     }
 
     // Search (or across fields)
@@ -333,7 +319,6 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     }
 
     // Media
-    if (f.hasImages) q = q.eq("has_image", true);
     if (f.hasVideo) q = q.eq("has_video", true);
     if (f.has360) q = q.eq("has_360", true);
     if (f.hasCertScan) q = q.not("cert_url", "is", null);
@@ -352,16 +337,10 @@ export const searchMarketplace = createServerFn({ method: "POST" })
     // Sort
     switch (f.sort) {
       case "price-asc":
-        q = q.order((f.priceMode ?? "per_stone") === "per_carat" ? "wholesale_price_per_carat" : "wholesale_price_usd", {
-          ascending: true,
-          nullsFirst: false,
-        });
+        q = q.order("wholesale_price_usd", { ascending: true, nullsFirst: false });
         break;
       case "price-desc":
-        q = q.order((f.priceMode ?? "per_stone") === "per_carat" ? "wholesale_price_per_carat" : "wholesale_price_usd", {
-          ascending: false,
-          nullsFirst: false,
-        });
+        q = q.order("wholesale_price_usd", { ascending: false, nullsFirst: false });
         break;
       case "carat":
         q = q.order("carat_weight", { ascending: false, nullsFirst: false });
@@ -373,11 +352,12 @@ export const searchMarketplace = createServerFn({ method: "POST" })
         q = q.order("updated_at", { ascending: false });
         break;
       default:
-        // Image-first: stones with at least one image always precede imageless ones.
-        // Within each tier, newest first. 360/video media should not lift a
-        // photo-less listing ahead of other normal marketplace cards.
+        // Sort by has_360/has_video (both definitely exist), then newest.
+        // Image-first sorting is done client-side after fetch using the
+        // stone_images join array, which doesn't require a DB column.
         q = q
-          .order("has_image", { ascending: false, nullsFirst: false })
+          .order("has_360",   { ascending: false, nullsFirst: false })
+          .order("has_video", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false });
     }
 
@@ -396,11 +376,26 @@ export const searchMarketplace = createServerFn({ method: "POST" })
       const primaryImg = sortedImgs.find((i: any) => i.is_primary) ?? sortedImgs[0];
       return {
         ...s,
+        // Derive image presence from the join — no has_image column needed
+        has_image: sortedImgs.some(
+          (i: any) => (i.storage_url && i.storage_url !== "") ||
+                      (i.external_image_url && i.external_image_url !== ""),
+        ),
         image: (primaryImg?.storage_url || primaryImg?.external_image_url) ?? null,
         dealer_country: s.profiles?.country ?? null,
         dealer_verified: !!s.profiles?.is_verified,
       };
     });
+
+    // Client-side image-first sort for the default "newest" view.
+    // Doing this after fetch means we never depend on a has_image DB column.
+    if (!f.sort || f.sort === "newest") {
+      stones.sort((a: any, b: any) => {
+        const aScore = a.has_image ? 2 : (a.has_360 || a.has_video ? 1 : 0);
+        const bScore = b.has_image ? 2 : (b.has_360 || b.has_video ? 1 : 0);
+        return bScore - aScore;
+      });
+    }
 
     return { stones, total: count ?? 0, marketTotal: await marketTotalPromise, page, pageSize: PAGE_SIZE, error: null };
   });
@@ -455,113 +450,5 @@ export const getMarketplaceFilterDiagnostics = createServerFn({ method: "POST" }
         treatments: f.treatments ?? [],
       },
       fields,
-    };
-  });
-
-export const getMarketplaceMediaDiagnostics = createServerFn({ method: "POST" })
-  .inputValidator((input: MediaDiagnosticsInput) => input ?? {})
-  .handler(async ({ data }) => {
-    const page = Math.max(1, Number(data?.page ?? 1));
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
-    const [totalResult, hasImageResult, noImageResult, imageRowsResult, firstPageResult] = await Promise.all([
-      supabaseAdmin
-        .from("stones")
-        .select("id", { count: "planned", head: true })
-        .eq("is_test", false)
-        .eq("feed_inactive", false)
-        .eq("status", "available"),
-      supabaseAdmin
-        .from("stones")
-        .select("id", { count: "planned", head: true })
-        .eq("is_test", false)
-        .eq("feed_inactive", false)
-        .eq("status", "available")
-        .eq("has_image", true),
-      supabaseAdmin
-        .from("stones")
-        .select("id", { count: "planned", head: true })
-        .eq("is_test", false)
-        .eq("feed_inactive", false)
-        .eq("status", "available")
-        .eq("has_image", false),
-      supabaseAdmin
-        .from("stone_images")
-        .select("id", { count: "planned", head: true }),
-      supabaseAdmin
-        .from("stones")
-        .select(
-          "id, stone_type, shape, carat_weight, has_image, has_360, has_video, created_at, stone_images(storage_url, external_image_url, is_primary, sort_order)",
-        )
-        .eq("is_test", false)
-        .eq("feed_inactive", false)
-        .eq("status", "available")
-        .order("has_image", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .range(from, to),
-    ]);
-
-    const error =
-      totalResult.error?.message ??
-      hasImageResult.error?.message ??
-      noImageResult.error?.message ??
-      imageRowsResult.error?.message ??
-      firstPageResult.error?.message ??
-      null;
-
-    const firstPageRows = (firstPageResult.data ?? []).map((stone: any) => {
-      const images = [...(stone.stone_images ?? [])].sort((a: any, b: any) => {
-        if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
-        return (a.sort_order ?? 99) - (b.sort_order ?? 99);
-      });
-      const firstImage = images.find((image: any) => image.storage_url || image.external_image_url) ?? null;
-      return {
-        id: stone.id,
-        title: `${stone.carat_weight ?? ""}ct ${stone.shape ?? ""} ${stone.stone_type ?? "stone"}`.replace(/\s+/g, " ").trim(),
-        hasImageFlag: !!stone.has_image,
-        imageRows: images.length,
-        firstImageUrl: firstImage?.storage_url || firstImage?.external_image_url || null,
-        has360: !!stone.has_360,
-        hasVideo: !!stone.has_video,
-      };
-    });
-
-    const staleFlagRows = firstPageRows.filter((row) => row.hasImageFlag && row.imageRows === 0);
-    const hiddenImageRows = firstPageRows.filter((row) => !row.hasImageFlag && row.imageRows > 0);
-    const rowsWithRenderableImage = firstPageRows.filter((row) => !!row.firstImageUrl);
-
-    const suggestions: string[] = [];
-    if ((imageRowsResult.count ?? 0) === 0) {
-      suggestions.push("No stone_images rows are visible to the server. The sync is not inserting image rows, or the image inserts are failing.");
-    }
-    if (staleFlagRows.length) {
-      suggestions.push("Some first-page stones have has_image=true but no image rows. Run the has_image repair SQL migration and rerun sync.");
-    }
-    if ((hasImageResult.count ?? 0) > 0 && rowsWithRenderableImage.length === 0) {
-      suggestions.push("The first page is sorted as if images exist, but the embedded image rows are empty. Check stone_images row creation and RLS/policies.");
-    }
-    if (!suggestions.length) {
-      suggestions.push("Media counts look structurally healthy for the sampled page. If images still do not display, check whether the URLs load directly in the browser.");
-    }
-
-    return {
-      error,
-      page,
-      pageSize: PAGE_SIZE,
-      counts: {
-        availableStones: totalResult.count ?? 0,
-        stonesFlaggedWithImage: hasImageResult.count ?? 0,
-        stonesFlaggedWithoutImage: noImageResult.count ?? 0,
-        totalStoneImageRows: imageRowsResult.count ?? 0,
-      },
-      firstPage: {
-        sampled: firstPageRows.length,
-        rowsWithRenderableImage: rowsWithRenderableImage.length,
-        staleHasImageFlags: staleFlagRows.length,
-        rowsWithImagesButFlagFalse: hiddenImageRows.length,
-        examples: firstPageRows.slice(0, 8),
-      },
-      suggestions,
     };
   });

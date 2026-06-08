@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useReducer, useState, type FormEvent } from "react";
 import { useQuery, keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMarketplaceFilterDiagnostics, getMarketplaceMediaDiagnostics, searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
+import { getMarketplaceFilterDiagnostics, searchMarketplace, PAGE_SIZE } from "@/lib/marketplace.functions";
 import { joinWaitlist } from "@/lib/waitlist.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
@@ -22,10 +22,9 @@ import { StaggerGroup } from "@/components/anim/Motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { isAdmin as checkAdmin, isJeweller as checkJ } from "@/lib/auth.utils";
+import { isJeweller as checkJ } from "@/lib/auth.utils";
 import { useRetailMode } from "@/hooks/useRetailMode";
 import { SEO_MARKETPLACE_PAGES } from "@/lib/seo-marketplace";
-import { ConciergeRequestModal } from "@/components/marketplace/ConciergeRequestModal";
 import {
   defaultFilters,
   activeFilterCount,
@@ -67,8 +66,6 @@ import {
   type FilterState,
 } from "@/lib/marketplace/filters";
 
-const SITE_URL = "https://chaosgemstones.com";
-
 export const Route = createFileRoute("/marketplace")({
   component: Marketplace,
   head: () => ({
@@ -85,10 +82,10 @@ export const Route = createFileRoute("/marketplace")({
         content:
           "Search certified natural and lab-grown diamonds and coloured gemstones from verified dealers worldwide.",
       },
-      { property: "og:url", content: `${SITE_URL}/marketplace` },
+      { property: "og:url", content: "/marketplace" },
       { name: "keywords", content: "buy loose gemstones wholesale, certified diamonds wholesale, sapphire wholesale UK, ruby wholesale, emerald wholesale, loose stones for jewellers, coloured gemstone marketplace" },
     ],
-    links: [{ rel: "canonical", href: `${SITE_URL}/marketplace` }],
+    links: [{ rel: "canonical", href: "/marketplace" }],
   }),
 });
 
@@ -115,10 +112,6 @@ function Marketplace() {
         const parsed = JSON.parse(decodeURIComponent(raw));
         return { ...defaultFilters, ...parsed };
       }
-      const search = sp.get("search") ?? sp.get("q");
-      if (search?.trim()) {
-        return { ...defaultFilters, search: search.trim() };
-      }
     } catch {
       /* ignore */
     }
@@ -129,9 +122,6 @@ function Marketplace() {
   const [page, setPage] = useState(1);
   const [debouncedF, setDebouncedF] = useState<FilterState>(initialFromUrl);
   const { retailMode, setRetailMode } = useRetailMode();
-  const isJewellerUser = checkJ(profile);
-  const isApprovedJeweller = isJewellerUser && !!profile?.is_approved;
-  const isAdminUser = checkAdmin(profile);
   const set = (patch: Partial<FilterState>) => dispatch({ type: "set", patch });
   const toggle = (key: keyof FilterState, value: string) => dispatch({ type: "toggle", key, value });
   const clearFilters = () => dispatch({ type: "reset" });
@@ -170,21 +160,50 @@ function Marketplace() {
   }, [debouncedF]);
 
   const search = useServerFn(searchMarketplace);
-  const getMediaDiagnostics = useServerFn(getMarketplaceMediaDiagnostics);
   const queryClient = useQueryClient();
-  const [mediaDiagnostics, setMediaDiagnostics] = useState<any>(null);
-  const [mediaDiagnosticsLoading, setMediaDiagnosticsLoading] = useState(false);
 
-  async function loadMediaDiagnostics() {
-    setMediaDiagnosticsLoading(true);
-    try {
-      setMediaDiagnostics(await getMediaDiagnostics({ data: { page } }));
-    } finally {
-      setMediaDiagnosticsLoading(false);
-    }
-  }
+  const { data: result, isFetching } = useQuery({
+    queryKey: ["marketplace-search", debouncedF, page],
+    queryFn: () => search({ data: { filters: debouncedF, page } }),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,       // don't refetch for 30s — covers tab switches, back nav
+    gcTime:    5 * 60_000,   // keep in cache 5 min so back button is instant
+  });
 
-  // Followed dealer ids drive private-drop visibility and the "In feed" badge.
+  // Prefetch next page while user is reading the current one
+  useEffect(() => {
+    if (!result || page >= Math.ceil((result.total ?? 0) / PAGE_SIZE)) return;
+    queryClient.prefetchQuery({
+      queryKey: ["marketplace-search", debouncedF, page + 1],
+      queryFn: () => search({ data: { filters: debouncedF, page: page + 1 } }),
+      staleTime: 30_000,
+    });
+  }, [result, page, debouncedF, queryClient, search]);
+
+  const rawStones = result?.stones ?? [];
+  const total = result?.total ?? 0;
+  const marketTotal = result?.marketTotal ?? total;
+  const isLoading = isFetching && !result;
+  const searchError = result?.error ?? null;
+
+  const isJewellerUser = checkJ(profile);
+  const isApprovedJeweller = isJewellerUser && !!profile?.is_approved;
+
+  // Single bulk fetch of the jeweller's wishlist (replaces N+1 per-card queries).
+  const { data: wishlistIds } = useQuery({
+    queryKey: ["wishlist-ids", user?.id],
+    enabled: !!user && isApprovedJeweller,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("wishlists")
+        .select("stone_id")
+        .eq("jeweller_id", user!.id);
+      return new Set((data ?? []).map((w: any) => w.stone_id as string));
+    },
+  });
+
+  // Followed dealer ids (drives the "In feed" badge).
   const { data: followedDealerIds } = useQuery({
     queryKey: ["followed-dealers", user?.id],
     enabled: !!user && isApprovedJeweller,
@@ -207,49 +226,19 @@ function Marketplace() {
     },
   });
 
-  const { data: result, isFetching } = useQuery({
-    queryKey: ["marketplace-search", debouncedF, page, user?.id],
-    queryFn: () => search({ data: { filters: debouncedF, page } }),
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,       // don't refetch for 30s — covers tab switches, back nav
-    gcTime:    5 * 60_000,   // keep in cache 5 min so back button is instant
-  });
-
-  // Prefetch next page while user is reading the current one
-  useEffect(() => {
-    if (!result || page >= Math.ceil((result.total ?? 0) / PAGE_SIZE)) return;
-    queryClient.prefetchQuery({
-      queryKey: ["marketplace-search", debouncedF, page + 1, user?.id],
-      queryFn: () => search({ data: { filters: debouncedF, page: page + 1 } }),
-      staleTime: 30_000,
-    });
-  }, [result, page, debouncedF, queryClient, search, user?.id]);
-
-  const rawStones = result?.stones ?? [];
-  const total = result?.total ?? 0;
-  const marketTotal = result?.marketTotal ?? total;
-  const isLoading = isFetching && !result;
-
-  // Single bulk fetch of the jeweller's wishlist (replaces N+1 per-card queries).
-  const { data: wishlistIds } = useQuery({
-    queryKey: ["wishlist-ids", user?.id],
-    enabled: !!user && isApprovedJeweller,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("wishlists")
-        .select("stone_id")
-        .eq("jeweller_id", user!.id);
-      return new Set((data ?? []).map((w: any) => w.stone_id as string));
-    },
-  });
-
-  // Price filtering is handled server-side. In per-carat mode this uses the
-  // generated `wholesale_price_per_carat` DB column so counts and pagination stay accurate.
+  // Per-carat price mode: server filters per_stone; refine current page client-side.
   const visible = useMemo(() => {
-    if (!wishlistIds) return rawStones;
-    return rawStones.map((s: any) => ({ ...s, isWishlisted: wishlistIds.has(s.id) }));
-  }, [rawStones, wishlistIds]);
+    const list = debouncedF.priceMode !== "per_carat"
+      ? rawStones
+      : rawStones.filter((s: any) => {
+      const price = Number(s.wholesale_price_usd ?? 0);
+      const c = Number(s.carat_weight ?? 1) || 1;
+      const v = price / c;
+      return v >= debouncedF.priceMin && v <= debouncedF.priceMax;
+    });
+    if (!wishlistIds) return list;
+    return list.map((s: any) => ({ ...s, isWishlisted: wishlistIds.has(s.id) }));
+  }, [rawStones, debouncedF.priceMode, debouncedF.priceMin, debouncedF.priceMax, wishlistIds]);
 
   const { data: dealers } = useQuery({
     queryKey: ["marketplace-dealers"],
@@ -860,13 +849,6 @@ function Marketplace() {
                 Clear filters
               </Button>
             )}
-            <ConciergeRequestModal
-              trigger={
-                <Button variant="outline" size="sm">
-                  Can&apos;t find it? Request it
-                </Button>
-              }
-            />
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" size="sm" className="lg:hidden">
@@ -881,11 +863,6 @@ function Marketplace() {
               </SheetContent>
             </Sheet>
             {isJeweller && <SaveSearchDialog filters={f} userId={user!.id} />}
-            {isAdminUser && (
-              <Button variant="ghost" size="sm" onClick={loadMediaDiagnostics} disabled={mediaDiagnosticsLoading}>
-                {mediaDiagnosticsLoading ? "Checking media..." : "Media diagnostics"}
-              </Button>
-            )}
             <div className="flex rounded-md border border-border">
               <button
                 onClick={() => set({ view: "grid" })}
@@ -917,50 +894,6 @@ function Marketplace() {
             </Select>
           </div>
         </div>
-
-        {isAdminUser && mediaDiagnostics && (
-          <div className="mt-4 rounded-md border border-border bg-card p-4 text-xs">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium text-foreground">Marketplace Media Diagnostics</div>
-                <div className="mt-1 text-muted-foreground">
-                  Page {mediaDiagnostics.page} sampled {mediaDiagnostics.firstPage?.sampled ?? 0} cards.
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigator.clipboard?.writeText(JSON.stringify(mediaDiagnostics, null, 2))}
-              >
-                Copy JSON
-              </Button>
-            </div>
-            {mediaDiagnostics.error ? (
-              <div className="mt-3 rounded border border-destructive/30 bg-destructive/10 p-3 text-destructive">
-                {mediaDiagnostics.error}
-              </div>
-            ) : (
-              <>
-                <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                  <MediaStat label="Available stones" value={mediaDiagnostics.counts?.availableStones} />
-                  <MediaStat label="Flagged with image" value={mediaDiagnostics.counts?.stonesFlaggedWithImage} />
-                  <MediaStat label="Flagged without image" value={mediaDiagnostics.counts?.stonesFlaggedWithoutImage} />
-                  <MediaStat label="Image rows" value={mediaDiagnostics.counts?.totalStoneImageRows} />
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <MediaStat label="Page cards with image URL" value={mediaDiagnostics.firstPage?.rowsWithRenderableImage} />
-                  <MediaStat label="Stale image flags on page" value={mediaDiagnostics.firstPage?.staleHasImageFlags} />
-                  <MediaStat label="Image rows but flag false" value={mediaDiagnostics.firstPage?.rowsWithImagesButFlagFalse} />
-                </div>
-                <div className="mt-3 space-y-1 text-muted-foreground">
-                  {(mediaDiagnostics.suggestions ?? []).map((suggestion: string) => (
-                    <div key={suggestion}>• {suggestion}</div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
 
         {filterCount > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
@@ -1058,7 +991,16 @@ function Marketplace() {
                 onPageChange={goToPage}
               />
             )}
-            {!isLoading && total === 0 && (
+            {!isLoading && searchError && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                <p className="font-medium">Marketplace query failed — no stones can be displayed</p>
+                <p className="mt-1 font-mono text-xs">{searchError}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  If this mentions a missing column or schema cache, run the latest Supabase SQL migrations, then refresh the page.
+                </p>
+              </div>
+            )}
+            {!isLoading && total === 0 && !searchError && (
               <EmptyMarketplace
                 hasFilters={filterCount > 0}
                 filters={debouncedF}
@@ -1282,18 +1224,6 @@ function Chip({ label, onClear }: { label: string; onClear: () => void }) {
   );
 }
 
-function MediaStat({ label, value }: { label: string; value: unknown }) {
-  const n = typeof value === "number" ? value : Number(value ?? 0);
-  return (
-    <div className="rounded border border-border bg-background px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 font-mono text-sm font-semibold text-foreground">
-        {Number.isFinite(n) ? n.toLocaleString() : "0"}
-      </div>
-    </div>
-  );
-}
-
 function paginationItems(page: number, totalPages: number): Array<number | "..."> {
   const pages = new Set<number>([1, totalPages, page, page - 1, page + 1, page - 2, page + 2]);
   if (page <= 4) [2, 3, 4, 5].forEach((p) => pages.add(p));
@@ -1501,15 +1431,6 @@ function EmptyMarketplace({
           >
             {diagnosticsLoading ? "Checking values..." : "Show filter diagnostics"}
           </Button>
-          <div className="mt-3">
-            <ConciergeRequestModal
-              trigger={
-                <Button size="sm">
-                  Can&apos;t find it? Request it
-                </Button>
-              }
-            />
-          </div>
         </div>
         {diagnostics && (
           <div className="mt-6 rounded-md border border-border bg-card text-left">
