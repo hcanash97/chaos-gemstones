@@ -182,14 +182,14 @@ const StoneIdRoute = StoneIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignUpJewellerRoute = SignUpJewellerRouteImport.update({
-  id: '/jeweller',
-  path: '/jeweller',
-  getParentRoute: () => SignUpRoute,
+  id: '/sign-up/jeweller',
+  path: '/sign-up/jeweller',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const SignUpDealerRoute = SignUpDealerRouteImport.update({
-  id: '/dealer',
-  path: '/dealer',
-  getParentRoute: () => SignUpRoute,
+  id: '/sign-up/dealer',
+  path: '/sign-up/dealer',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MarketplaceSlugRoute = MarketplaceSlugRouteImport.update({
   id: '/$slug',
@@ -911,6 +911,8 @@ export interface RootRouteChildren {
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsDealersRoute: typeof LegalTermsDealersRoute
   LegalTermsJewellersRoute: typeof LegalTermsJewellersRoute
+  SignUpDealerRoute: typeof SignUpDealerRoute
+  SignUpJewellerRoute: typeof SignUpJewellerRoute
   StoneIdRoute: typeof StoneIdRoute
   VendorsSlugRoute: typeof VendorsSlugRoute
   JewellersIndexRoute: typeof JewellersIndexRoute
@@ -1073,17 +1075,17 @@ declare module '@tanstack/react-router' {
     }
     '/sign-up/jeweller': {
       id: '/sign-up/jeweller'
-      path: '/jeweller'
+      path: '/sign-up/jeweller'
       fullPath: '/sign-up/jeweller'
       preLoaderRoute: typeof SignUpJewellerRouteImport
-      parentRoute: typeof SignUpRoute
+      parentRoute: typeof rootRouteImport
     }
     '/sign-up/dealer': {
       id: '/sign-up/dealer'
-      path: '/dealer'
+      path: '/sign-up/dealer'
       fullPath: '/sign-up/dealer'
       preLoaderRoute: typeof SignUpDealerRouteImport
-      parentRoute: typeof SignUpRoute
+      parentRoute: typeof rootRouteImport
     }
     '/marketplace/$slug': {
       id: '/marketplace/$slug'
@@ -1571,6 +1573,8 @@ const rootRouteChildren: RootRouteChildren = {
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsDealersRoute: LegalTermsDealersRoute,
   LegalTermsJewellersRoute: LegalTermsJewellersRoute,
+  SignUpDealerRoute: SignUpDealerRoute,
+  SignUpJewellerRoute: SignUpJewellerRoute,
   StoneIdRoute: StoneIdRoute,
   VendorsSlugRoute: VendorsSlugRoute,
   JewellersIndexRoute: JewellersIndexRoute,
@@ -1591,13 +1595,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
