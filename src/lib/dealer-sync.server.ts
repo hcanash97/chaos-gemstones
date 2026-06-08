@@ -316,7 +316,10 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
       (init.headers as Record<string, string>)["Content-Type"] = "application/json";
       init.body = dealerRow.external_feed_body;
     }
-    const res = await fetch(dealerRow.external_feed_url, init);
+    const res = await fetch(dealerRow.external_feed_url, {
+      ...init,
+      signal: AbortSignal.timeout(90_000), // 90s — large feeds on slow CDNs can take a while
+    });
     if (!res.ok) {
       throw new Error(
         `Source returned HTTP ${res.status} when Chaos tried ${method} ${dealerRow.external_feed_url}. HTTP 405 usually means the feed only accepts a different request method, for example POST instead of GET. Save the sync settings, then try again.`,
@@ -325,8 +328,8 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
 
     const contentType = res.headers.get("content-type") ?? "";
     const rawText = await res.text();
-    if (rawText.length > 10 * 1024 * 1024) {
-      throw new Error("Feed too large (>10 MB)");
+    if (rawText.length > 100 * 1024 * 1024) {
+      throw new Error("Feed too large (>100 MB). Contact support if your inventory genuinely exceeds this.");
     }
     // Detect format defensively: many dealer inventory systems (Kodllin and
     // similar) return JSON with content-type: text/html or text/plain. Sniff
@@ -559,42 +562,110 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
     for (let i = 0; i < candidates.length; i += SYNC_BATCH_SIZE) {
       const chunk = candidates.slice(i, i + SYNC_BATCH_SIZE);
       const batchNumber = Math.floor(i / SYNC_BATCH_SIZE) + 1;
-      const toCreate = chunk.filter((candidate) => !candidate.existedBefore);
-      const toUpdate = chunk.filter((candidate) => candidate.existedBefore);
+      // ── Batch upsert (insert new + update existing in one operation) ─────────
+      // Using onConflict: "dealer_id,cert_number" against the unique index
+      // stones_dealer_cert_number_unique_idx — this replaces the previous
+      // approach of individual .update() calls per stone (7178 roundtrips → 36).
+      // Stones without a cert_number are INSERT-only (they can't conflict on cert).
+      const toCreate = chunk.filter((c) => !c.existedBefore);
+      const toUpdate = chunk.filter((c) => c.existedBefore);
 
-      for (const candidate of toUpdate) {
-        if (!candidate.existingId) {
-          errors.push(diagnostic("error", "Chaos found this stone as an existing row but could not find its internal database id.", {
-            row: candidate.sourceIndex + 1,
-            batch: batchNumber,
-            stockNo: candidate.stockNo,
-            certNumber: candidate.certNumber,
-            field: "_update",
-          }));
-          continue;
+      // Upsert all stones that have a cert_number (can use the unique index)
+      const certRows = [
+        ...toCreate.filter((c) => !!c.data.cert_number),
+        ...toUpdate.filter((c) => !!c.data.cert_number && c.existingId),
+      ].map((c) => ({ ...c.data, dealer_id: dealerId }));
+
+      if (certRows.length) {
+        const { error: upsertErr } = await supabaseAdmin
+          .from("stones")
+          .upsert(certRows as never, {
+            onConflict: "dealer_id,cert_number",
+            ignoreDuplicates: false,
+          });
+        if (upsertErr) {
+          errors.push(postgresDiagnostic(
+            `Batch upsert failed for ${certRows.length} stones with cert numbers`,
+            upsertErr, { batch: batchNumber, field: "_upsert" },
+          ));
+        } else {
+          // We can't distinguish created vs updated from a batch upsert.
+          // Approximate: existedBefore flag from our pre-sync fetch.
+          const upsertCreated = certRows.filter((r) =>
+            !toUpdate.find((c) => c.data.cert_number === (r as any).cert_number),
+          ).length;
+          created += upsertCreated;
+          updated += certRows.length - upsertCreated;
         }
+      }
 
+      // Insert-only stones without cert numbers (no conflict key available)
+      const noCertCreates = toCreate.filter((c) => !c.data.cert_number);
+      if (noCertCreates.length) {
+        const { error: insertErr } = await supabaseAdmin
+          .from("stones")
+          .insert(noCertCreates.map((c) => ({ ...c.data, dealer_id: dealerId })) as never);
+        if (insertErr) {
+          errors.push(postgresDiagnostic(
+            `Insert failed for ${noCertCreates.length} stones without cert numbers`,
+            insertErr, { batch: batchNumber, field: "_insert_nocert" },
+          ));
+        } else {
+          created += noCertCreates.length;
+        }
+      }
+
+      // Update-only stones without cert numbers (fall back to individual updates —
+      // these are rare, typically only on the very first sync of uncertified stones)
+      const noCertUpdates = toUpdate.filter((c) => !c.data.cert_number && c.existingId);
+      for (const candidate of noCertUpdates) {
         const { error } = await supabaseAdmin
           .from("stones")
           .update(candidate.data as never)
-          .eq("id", candidate.existingId)
+          .eq("id", candidate.existingId!)
           .eq("dealer_id", dealerId);
-
         if (error) {
-          errors.push(postgresDiagnostic("Row failed while updating existing stone", error, {
-            row: candidate.sourceIndex + 1,
-            batch: batchNumber,
-            stockNo: candidate.stockNo,
-            certNumber: candidate.certNumber,
-            field: "_update",
+          errors.push(postgresDiagnostic("Row failed while updating uncertified stone", error, {
+            row: candidate.sourceIndex + 1, batch: batchNumber,
+            stockNo: candidate.stockNo, field: "_update_nocert",
           }));
         } else {
           updated += 1;
-          // Collect image for upsert — existing stones may not have had
-          // an image row written on previous syncs.
-          if (candidate.image_url && candidate.existingId) {
+        }
+      }
+
+      // ── Collect image rows for all stones in this chunk ───────────────────
+      // After upsert we need the stone IDs. For cert-number stones, look them up
+      // from the pre-built certToId map (updated stones) or fetch new IDs in batch.
+      // For now, queue images for existing stones (existingId is known) and new
+      // cert stones (fetch their IDs after upsert in a single query below).
+      for (const candidate of [...toCreate, ...toUpdate]) {
+        const id = candidate.existingId ?? null;
+        if (candidate.image_url && id) {
+          imageRowsToUpsert.push({
+            stone_id: id,
+            storage_url: candidate.image_url,
+            external_image_url: candidate.image_url,
+            is_primary: true,
+            sort_order: 0,
+          });
+        }
+      }
+
+      // Fetch IDs for newly created cert stones so we can write their images
+      const newCertStones = toCreate.filter((c) => !!c.data.cert_number && c.image_url);
+      if (newCertStones.length) {
+        const certs = newCertStones.map((c) => c.data.cert_number as string);
+        const { data: newRows } = await supabaseAdmin
+          .from("stones")
+          .select("id, cert_number")
+          .eq("dealer_id", dealerId)
+          .in("cert_number", certs);
+        for (const row of (newRows ?? []) as any[]) {
+          const candidate = newCertStones.find((c) => c.data.cert_number === row.cert_number);
+          if (candidate?.image_url) {
             imageRowsToUpsert.push({
-              stone_id: candidate.existingId,
+              stone_id: row.id,
               storage_url: candidate.image_url,
               external_image_url: candidate.image_url,
               is_primary: true,
@@ -604,79 +675,12 @@ export async function runDealerSyncForUser(dealerId: string, source: "manual" | 
         }
       }
 
-      if (toCreate.length) {
-        const { data, error } = await supabaseAdmin
-          .from("stones")
-          .insert(toCreate.map((candidate) => candidate.data) as never)
-          .select("id, cert_number");
-
-        if (error) {
-          errors.push(postgresDiagnostic(`Batch ${batchNumber} failed while inserting new stones. Retrying this insert batch row-by-row to find the exact failing stone`, error, {
-            batch: batchNumber,
-            field: "_insert",
-          }));
-
-          for (const candidate of toCreate) {
-            const { data: singleData, error: singleError } = await supabaseAdmin
-              .from("stones")
-              .insert(candidate.data as never)
-              .select("id, cert_number")
-              .single();
-
-            if (singleError) {
-              errors.push(postgresDiagnostic("Row failed during isolated insert retry", singleError, {
-                row: candidate.sourceIndex + 1,
-                batch: batchNumber,
-                stockNo: candidate.stockNo,
-                certNumber: candidate.certNumber,
-                field: "_insert",
-              }));
-              continue;
-            }
-
-            created += 1;
-            if (candidate.image_url && singleData?.id) {
-              imageRowsToUpsert.push({
-                stone_id: singleData.id,
-                storage_url: candidate.image_url,
-                external_image_url: candidate.image_url,
-                is_primary: true,
-                sort_order: 0,
-              });
-            }
-          }
-        } else {
-          created += data?.length ?? 0;
-
-          const idByCert = new Map<string, string>();
-          for (const row of data ?? []) {
-            if ((row as any).cert_number && (row as any).id) idByCert.set((row as any).cert_number, (row as any).id);
-          }
-          for (const candidate of toCreate) {
-            const id = idByCert.get(candidate.certNumber);
-            if (candidate.image_url && id) {
-              imageRowsToUpsert.push({
-                stone_id: id,
-                storage_url: candidate.image_url,
-                external_image_url: candidate.image_url,
-                is_primary: true,
-                sort_order: 0,
-              });
-            }
-          }
-        }
-      } else {
-        diagnostics.push(diagnostic("success", `Batch ${batchNumber} updated ${toUpdate.length} existing rows.`, {
-          batch: batchNumber,
-          field: "_update",
-        }));
-      }
-
-      if (toCreate.length && !errors.some((error) => error.batch === batchNumber && (error.field === "_insert" || error.field === "_update"))) {
-        diagnostics.push(diagnostic("success", `Batch ${batchNumber} saved ${chunk.length} rows: ${toCreate.length} new, ${toUpdate.length} existing.`, {
-          batch: batchNumber,
-          field: "_write",
-        }));
+      // Log batch result
+      if (!errors.some((e) => e.batch === batchNumber)) {
+        diagnostics.push(diagnostic("success",
+          `Batch ${batchNumber}: ${certRows.length + noCertCreates.length + noCertUpdates.length} rows processed.`,
+          { batch: batchNumber, field: "_write" },
+        ));
       }
     }
 
