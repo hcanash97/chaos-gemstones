@@ -256,7 +256,11 @@ function Marketplace() {
 
   const filterCount = activeFilterCount(f);
   const displayTotal = filterCount > 0 ? total : marketTotal;
-  const totalPages = Math.max(1, Math.ceil(displayTotal / PAGE_SIZE));
+  // Pagination must follow the *actual* filtered query count, not the
+  // unfiltered marketTotal — the server query always filters by availability
+  // ('available' by default), so marketTotal can exceed `total` and lead
+  // users to empty pages beyond the real result set.
+  const totalPages = Math.max(1, Math.ceil((total || 0) / PAGE_SIZE));
   const pageStart = displayTotal > 0 ? (page - 1) * PAGE_SIZE + 1 : 0;
   const pageEnd = Math.min((page - 1) * PAGE_SIZE + visible.length, displayTotal);
   const resultSummary =
