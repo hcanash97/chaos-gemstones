@@ -74,6 +74,7 @@ import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
 import { Route as ApiPublicAdminQuickApproveRouteImport } from './routes/api/public/admin/quick-approve'
 import { Route as ApiDealerV1StonesRouteImport } from './routes/api/dealer/v1/stones'
+import { Route as ApiPublicHooksShopifyEventsRouteImport } from './routes/api/public/hooks/shopify/events'
 import { Route as ApiPublicHooksEmailNotifyRouteImport } from './routes/api/public/hooks/email/notify'
 import { Route as ApiDealerV1StonesBulkRouteImport } from './routes/api/dealer/v1/stones/bulk'
 import { Route as ApiDealerV1StonesIdRouteImport } from './routes/api/dealer/v1/stones/$id'
@@ -412,6 +413,12 @@ const ApiDealerV1StonesRoute = ApiDealerV1StonesRouteImport.update({
   path: '/api/dealer/v1/stones',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksShopifyEventsRoute =
+  ApiPublicHooksShopifyEventsRouteImport.update({
+    id: '/api/public/hooks/shopify/events',
+    path: '/api/public/hooks/shopify/events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksEmailNotifyRoute =
   ApiPublicHooksEmailNotifyRouteImport.update({
     id: '/api/public/hooks/email/notify',
@@ -510,6 +517,7 @@ export interface FileRoutesByFullPath {
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
+  '/api/public/hooks/shopify/events': typeof ApiPublicHooksShopifyEventsRoute
   '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
 export interface FileRoutesByTo {
@@ -581,6 +589,7 @@ export interface FileRoutesByTo {
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
+  '/api/public/hooks/shopify/events': typeof ApiPublicHooksShopifyEventsRoute
   '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
 export interface FileRoutesById {
@@ -654,6 +663,7 @@ export interface FileRoutesById {
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
   '/api/public/hooks/email/notify': typeof ApiPublicHooksEmailNotifyRoute
+  '/api/public/hooks/shopify/events': typeof ApiPublicHooksShopifyEventsRoute
   '/api/dealer/v1/stones/$id/mark-sold': typeof ApiDealerV1StonesIdMarkSoldRoute
 }
 export interface FileRouteTypes {
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
+    | '/api/public/hooks/shopify/events'
     | '/api/dealer/v1/stones/$id/mark-sold'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -799,6 +810,7 @@ export interface FileRouteTypes {
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
+    | '/api/public/hooks/shopify/events'
     | '/api/dealer/v1/stones/$id/mark-sold'
   id:
     | '__root__'
@@ -871,6 +883,7 @@ export interface FileRouteTypes {
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
     | '/api/public/hooks/email/notify'
+    | '/api/public/hooks/shopify/events'
     | '/api/dealer/v1/stones/$id/mark-sold'
   fileRoutesById: FileRoutesById
 }
@@ -913,6 +926,7 @@ export interface RootRouteChildren {
   ApiPublicCronSavedSearchDigestRoute: typeof ApiPublicCronSavedSearchDigestRoute
   ApiPublicCronShopifySyncRoute: typeof ApiPublicCronShopifySyncRoute
   ApiPublicHooksEmailNotifyRoute: typeof ApiPublicHooksEmailNotifyRoute
+  ApiPublicHooksShopifyEventsRoute: typeof ApiPublicHooksShopifyEventsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1372,6 +1386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDealerV1StonesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/shopify/events': {
+      id: '/api/public/hooks/shopify/events'
+      path: '/api/public/hooks/shopify/events'
+      fullPath: '/api/public/hooks/shopify/events'
+      preLoaderRoute: typeof ApiPublicHooksShopifyEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/email/notify': {
       id: '/api/public/hooks/email/notify'
       path: '/api/public/hooks/email/notify'
@@ -1578,6 +1599,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronSavedSearchDigestRoute: ApiPublicCronSavedSearchDigestRoute,
   ApiPublicCronShopifySyncRoute: ApiPublicCronShopifySyncRoute,
   ApiPublicHooksEmailNotifyRoute: ApiPublicHooksEmailNotifyRoute,
+  ApiPublicHooksShopifyEventsRoute: ApiPublicHooksShopifyEventsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
