@@ -23,7 +23,7 @@ export const Route = createFileRoute("/vendors/$slug")({
   loader: async ({ params }) => {
     const { data } = await supabase
       .from("dealer_profiles")
-      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, whatsapp_first, supplier_services, supplier_note, profiles!inner(company_name, city, country, is_approved)")
+      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, profiles!inner(company_name, city, country, is_approved)")
       .eq("slug", params.slug)
       .maybeSingle();
     return { vendor: data as any };
