@@ -249,9 +249,8 @@ function ConnectForm(props: {
       <div className="rounded-md border border-border bg-card p-5">
         <h2 className="font-serif text-xl">Connect your Shopify store</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your store URL and the Client ID and Secret from your Shopify
-          dev app. Both values are encrypted before storage and never exposed
-          to the browser.
+          Enter your store URL and the Admin API Access Token from your Shopify Custom App.
+          The token is encrypted before storage and never exposed to the browser.
         </p>
         <div className="mt-4 space-y-3">
           <div>
@@ -264,23 +263,17 @@ function ConnectForm(props: {
             />
           </div>
           <div>
-            <Label htmlFor="client-id">Client ID</Label>
+            <Label htmlFor="access-token">Admin API Access Token</Label>
             <Input
-              id="client-id"
-              placeholder="97aae9603a18bd1e4e0ce703c0206380"
-              value={props.clientId}
-              onChange={(e) => props.setClientId(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="client-secret">Client Secret</Label>
-            <Input
-              id="client-secret"
+              id="access-token"
               type="password"
-              placeholder="Your app's secret key"
+              placeholder="shpat_xxxxxxxxxxxxxxxxxxxx"
               value={props.clientSecret}
               onChange={(e) => props.setClientSecret(e.target.value)}
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Found in Shopify Admin → Apps → Develop apps → your app → API credentials → Admin API access token. Starts with <code>shpat_</code>.
+            </p>
           </div>
           <Button
             onClick={props.onConnect}
@@ -292,7 +285,7 @@ function ConnectForm(props: {
         </div>
       </div>
       <div className="rounded-md border border-border bg-muted/30 p-5 text-sm">
-        <h2 className="font-serif text-xl">How to get your Client ID and Secret</h2>
+        <h2 className="font-serif text-xl">How to get your Access Token</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5">
           <li>Go to <a className="underline" href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> → find your "Chaos Gemstones Feed" app.</li>
           <li>Click the app → go to <strong>Settings</strong>.</li>

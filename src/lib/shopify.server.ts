@@ -98,7 +98,8 @@ export async function testShopifyConnection(
   }
 }
 
-// --- OAuth client-credentials token exchange ----------------------------
+// --- Custom App: direct Admin API Access Token -------------------------
+// Shopify Custom Apps have a permanent Admin API Access Token.
 
 export type ShopifyConnectionRow = {
   id: string;
@@ -108,109 +109,29 @@ export type ShopifyConnectionRow = {
   access_token: string | null;
   token_expires_at: string | null;
 };
-
-async function exchangeClientCredentials(
-  shop: string,
-  clientId: string,
-  clientSecret: string,
-): Promise<{ token: string; expiresIn: number }> {
-  console.log(`[shopify] Attempting token exchange for shop: ${shop}`);
-  const url = `https://${shop}/admin/oauth/access_token`;
-  const attempt = async (body: Record<string, string>) => {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-        "User-Agent": "ChaosGemstones/1.0 (https://chaosgemstones.com)",
-      },
-      body: new URLSearchParams(body).toString(),
-    });
-    const text = await r.text().catch(() => "");
-    console.log(`[shopify] Token exchange response status: ${r.status}`);
-    console.log(`[shopify] Token exchange response body: ${text.slice(0, 500)}`);
-    if (!r.ok) {
-      console.error(`[shopify] Token exchange failed for ${shop}: status=${r.status} body=${text.slice(0, 500)}`);
-    }
-    return { status: r.status, ok: r.ok, text };
-  };
-  // Primary attempt: with grant_type
-  let res = await attempt({
-    client_id: clientId,
-    client_secret: clientSecret,
-    grant_type: "client_credentials",
-  });
-  // Fallback: without grant_type (some Dev Dashboard apps reject the field)
-  if (!res.ok) {
-    console.log(`[shopify] Primary token exchange failed (${res.status}); trying fallback without grant_type`);
-    res = await attempt({ client_id: clientId, client_secret: clientSecret });
-  }
-  if (!res.ok) {
-    const reason = mapTokenError(res.status, res.text);
-    throw new Error(reason);
-  }
-  let json: { access_token?: string; expires_in?: number };
-  try {
-    json = JSON.parse(res.text);
-  } catch {
-    throw new Error(`Shopify returned non-JSON response: ${res.text.slice(0, 200)}`);
-  }
-  if (!json.access_token) {
-    throw new Error("Shopify token exchange returned no access_token");
-  }
-  const expiresIn = json.expires_in ?? 86399;
-  console.log(`[shopify] Token exchange success — expires in ${expiresIn}s`);
-  return { token: json.access_token, expiresIn };
-}
-
-function mapTokenError(status: number, body: string): string {
-  const lower = body.toLowerCase();
-  if (status === 401 || lower.includes("invalid_client") || lower.includes("invalid client")) {
-    return "Invalid credentials — your Client ID or Secret is wrong.";
-  }
-  if (status === 404 || lower.includes("not found")) {
-    return "Shop not found — check your store domain (should be your-store.myshopify.com).";
-  }
-  if (lower.includes("scope")) {
-    return "Scopes missing — enable write_products on your Shopify app.";
-  }
-  if (lower.includes("not installed") || lower.includes("uninstalled")) {
-    return "App not installed — install your Shopify app on this store first.";
-  }
-  return `Shopify token exchange failed: ${status} ${body.slice(0, 200)}`;
-}
+// We store it encrypted — no OAuth exchange needed, no Cloudflare 403.
+// The old exchangeClientCredentials path is removed; Custom App tokens
+// never expire so there is no refresh logic required.
 
 export async function mintAccessToken(
   shop: string,
-  clientIdPlain: string,
-  clientSecretPlain: string,
+  _clientId: string,
+  accessToken: string,
 ): Promise<{ token: string; expiresAt: string }> {
-  const { token, expiresIn } = await exchangeClientCredentials(shop, clientIdPlain, clientSecretPlain);
-  return { token, expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString() };
+  // For Custom Apps the "clientSecret" field in the UI holds the Admin API
+  // Access Token directly (shpat_...). We validate it works before storing.
+  const test = await testShopifyConnection(shop, accessToken);
+  if (!test.ok) throw new Error(test.error);
+  // Use a far-future expiry — Custom App tokens don't expire.
+  const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  return { token: accessToken, expiresAt };
 }
 
 export async function getValidAccessToken(conn: ShopifyConnectionRow): Promise<string> {
-  if (conn.access_token && conn.token_expires_at) {
-    const expiresAt = new Date(conn.token_expires_at).getTime();
-    if (Date.now() < expiresAt - 5 * 60 * 1000) {
-      return await decryptToken(conn.access_token);
-    }
+  if (!conn.access_token) {
+    throw new Error("No access token stored — please reconnect your Shopify store.");
   }
-  if (!conn.client_id || !conn.client_secret) {
-    throw new Error("Shopify credentials missing — please reconnect your store.");
-  }
-  const clientId = await decryptToken(conn.client_id);
-  const clientSecret = await decryptToken(conn.client_secret);
-  const { token, expiresIn } = await exchangeClientCredentials(conn.shop_domain, clientId, clientSecret);
-  const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-  await supabaseAdmin
-    .from("shopify_connections")
-    .update({
-      access_token: await encryptToken(token),
-      token_expires_at: expiresAt,
-    })
-    .eq("id", conn.id);
-  return token;
+  return decryptToken(conn.access_token);
 }
 
 // --- Stone -> Shopify product formatting --------------------------------
