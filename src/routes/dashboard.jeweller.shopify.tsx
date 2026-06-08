@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, RefreshCw, Unlink, XCircle, Eye, Plug } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,7 +35,7 @@ function ShopifyPage() {
   const testConn = useServerFn(testShopifyConnectionFn);
   const dryRun = useServerFn(dryRunShopifySyncFn);
 
-  const [shop, setShop] = useState("");
+  const [shop, setShop] = useState("aviediamonds.myshopify.com");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,6 +65,23 @@ function ShopifyPage() {
     queryFn: () => status(),
   });
 
+  // Handle OAuth callback redirect params (?connected=1 or ?error=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const err = params.get("error");
+    if (connected === "1") {
+      toast.success("Shopify connected successfully!");
+      setConnectStatus({ kind: "success", shopName: "your store" });
+      refetch();
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (err) {
+      toast.error(err);
+      setConnectStatus({ kind: "error", message: err });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   if (!isJeweller) return <div>Jewellers only.</div>;
 
   const conn = data?.connection;
@@ -84,12 +101,13 @@ function ShopifyPage() {
           clientId: clientId.trim(),
           clientSecret: clientSecret.trim(),
         },
-      });
-      toast.success(`Connected to ${res.shopName}`);
-      setConnectStatus({ kind: "success", shopName: res.shopName });
-      setShop("");
-      setClientId("");
-      setClientSecret("");
+      }) as any;
+      // OAuth redirect — takes user to Shopify to authorise
+      if (res?.authorizeUrl) {
+        window.location.href = res.authorizeUrl;
+        return;
+      }
+      toast.success("Connected.");
       await refetch();
       qc.invalidateQueries({ queryKey: ["shopify-status"] });
     } catch (e) {

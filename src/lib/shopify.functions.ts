@@ -51,49 +51,56 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
     return { connection: conn ?? null, logs: logs ?? [] };
   });
 
-const connectSchema = z.object({
+// ── Step 1: Start OAuth — returns the URL to redirect the user to ─────────
+
+const startOAuthSchema = z.object({
   shopDomain: z.string().min(3).max(255),
   clientId: z.string().min(10).max(255),
   clientSecret: z.string().min(10).max(512),
 });
 
-export const connectShopify = createServerFn({ method: "POST" })
+export const startShopifyOAuth = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => connectSchema.parse(input))
+  .inputValidator((input: unknown) => startOAuthSchema.parse(input))
   .handler(async ({ context, data }) => {
     const { userId, supabase } = context;
     await assertJeweller(supabase, userId);
 
     const shop = normaliseShopDomain(data.shopDomain);
-    // Exchange client credentials for a 24-hour access token
-    const { token, expiresAt } = await mintAccessToken(shop, data.clientId, data.clientSecret);
-    // Verify token actually works against this store
-    const test = await testShopifyConnection(shop, token);
-    if (!test.ok) throw new Error(test.error);
+    const state = crypto.randomUUID();
+    const redirectUri = `${process.env.VITE_SUPABASE_URL ? "https://chaosgemstones.com" : "http://localhost:5173"}/api/public/shopify/callback`;
 
-    const [encClientId, encClientSecret, encAccessToken] = await Promise.all([
+    // Store credentials + state so the callback can complete the exchange
+    const [encClientId, encClientSecret] = await Promise.all([
       encryptToken(data.clientId),
       encryptToken(data.clientSecret),
-      encryptToken(token),
     ]);
-    const { error } = await supabaseAdmin
-      .from("shopify_connections")
-      .upsert(
-        {
-          jeweller_id: userId,
-          shop_domain: shop,
-          shop_name: test.name,
-          client_id: encClientId,
-          client_secret: encClientSecret,
-          access_token: encAccessToken,
-          token_expires_at: expiresAt,
-          is_active: true,
-        },
-        { onConflict: "jeweller_id" },
-      );
-    if (error) throw new Error(error.message);
-    return { ok: true, shopName: test.name, shop };
+
+    await supabaseAdmin.from("shopify_connections").upsert(
+      {
+        jeweller_id: userId,
+        shop_domain: shop,
+        client_id: encClientId,
+        client_secret: encClientSecret,
+        is_active: false,  // not active until callback completes
+      },
+      { onConflict: "jeweller_id" },
+    );
+
+    // Store state in a short-lived DB row keyed to the jeweller
+    await supabaseAdmin.from("shopify_oauth_states").upsert(
+      { jeweller_id: userId, state, shop_domain: shop, expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() },
+      { onConflict: "jeweller_id" },
+    );
+
+    const authorizeUrl = buildAuthorizeUrl(shop, data.clientId, redirectUri, state);
+    return { authorizeUrl };
   });
+
+// ── Step 2: Callback handler (server route) ───────────────────────────────
+// This is handled in /api/public/shopify/callback.ts (separate file)
+
+export const connectShopify = startShopifyOAuth; // alias for backward compat
 
 export const disconnectShopify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
