@@ -249,30 +249,42 @@ function ConnectForm(props: {
       <div className="rounded-md border border-border bg-card p-5">
         <h2 className="font-serif text-xl">Connect your Shopify store</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your store URL and the Admin API Access Token from your Shopify Custom App.
-          The token is encrypted before storage and never exposed to the browser.
+          Enter your store URL and the credentials from your Shopify Dev Dashboard app.
+          Both values are encrypted before storage and never exposed to the browser.
         </p>
         <div className="mt-4 space-y-3">
           <div>
             <Label htmlFor="shop">Store domain</Label>
             <Input
               id="shop"
-              placeholder="your-store.myshopify.com"
+              placeholder="aviediamonds.myshopify.com"
               value={props.shop}
               onChange={(e) => props.setShop(e.target.value)}
             />
           </div>
           <div>
-            <Label htmlFor="access-token">Admin API Access Token</Label>
+            <Label htmlFor="client-id">Client ID</Label>
             <Input
-              id="access-token"
+              id="client-id"
+              placeholder="97aae9603a18bd1e4e0ce703c0206380"
+              value={props.clientId}
+              onChange={(e) => props.setClientId(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Found in dev.shopify.com → your app → Settings → Credentials → Client ID
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="client-secret">Client Secret</Label>
+            <Input
+              id="client-secret"
               type="password"
-              placeholder="shpat_xxxxxxxxxxxxxxxxxxxx"
+              placeholder="shpss_..."
               value={props.clientSecret}
               onChange={(e) => props.setClientSecret(e.target.value)}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Found in Shopify Admin → Apps → Develop apps → your app → API credentials → Admin API access token. Starts with <code>shpat_</code>.
+              Found in dev.shopify.com → your app → Settings → Credentials → Secret (click the eye icon)
             </p>
           </div>
           <Button
@@ -285,7 +297,7 @@ function ConnectForm(props: {
         </div>
       </div>
       <div className="rounded-md border border-border bg-muted/30 p-5 text-sm">
-        <h2 className="font-serif text-xl">How to get your Access Token</h2>
+        <h2 className="font-serif text-xl">Where to find your credentials</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5">
           <li>Go to <a className="underline" href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> → find your "Chaos Gemstones Feed" app.</li>
           <li>Click the app → go to <strong>Settings</strong>.</li>

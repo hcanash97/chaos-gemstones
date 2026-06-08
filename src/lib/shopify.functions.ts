@@ -53,11 +53,8 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
 
 const connectSchema = z.object({
   shopDomain: z.string().min(3).max(255),
-  // For Custom Apps, clientId is still stored for reference but the
-  // accessToken field (mapped from the "clientSecret" UI field) is what
-  // actually authenticates API calls.
-  clientId: z.string().max(255).optional().default(""),
-  clientSecret: z.string().min(10).max(512), // This holds the shpat_... access token
+  clientId: z.string().min(10).max(255),
+  clientSecret: z.string().min(10).max(512),
 });
 
 export const connectShopify = createServerFn({ method: "POST" })
@@ -68,16 +65,17 @@ export const connectShopify = createServerFn({ method: "POST" })
     await assertJeweller(supabase, userId);
 
     const shop = normaliseShopDomain(data.shopDomain);
-    const accessToken = data.clientSecret.trim(); // Custom App Admin API Access Token
-
-    // Validate the token works before storing
-    const test = await testShopifyConnection(shop, accessToken);
+    // Exchange client credentials for a 24-hour access token
+    const { token, expiresAt } = await mintAccessToken(shop, data.clientId, data.clientSecret);
+    // Verify token actually works against this store
+    const test = await testShopifyConnection(shop, token);
     if (!test.ok) throw new Error(test.error);
 
-    const encAccessToken = await encryptToken(accessToken);
-    // Store client_id if provided, otherwise store empty
-    const encClientId = data.clientId ? await encryptToken(data.clientId) : null;
-
+    const [encClientId, encClientSecret, encAccessToken] = await Promise.all([
+      encryptToken(data.clientId),
+      encryptToken(data.clientSecret),
+      encryptToken(token),
+    ]);
     const { error } = await supabaseAdmin
       .from("shopify_connections")
       .upsert(
@@ -86,9 +84,9 @@ export const connectShopify = createServerFn({ method: "POST" })
           shop_domain: shop,
           shop_name: test.name,
           client_id: encClientId,
-          client_secret: null, // not needed for Custom App
+          client_secret: encClientSecret,
           access_token: encAccessToken,
-          token_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          token_expires_at: expiresAt,
           is_active: true,
         },
         { onConflict: "jeweller_id" },
