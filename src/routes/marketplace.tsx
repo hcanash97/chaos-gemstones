@@ -7,6 +7,7 @@ import { joinWaitlist } from "@/lib/waitlist.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
+import { ConciergeRequestModal } from "@/components/marketplace/ConciergeRequestModal";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
