@@ -21,6 +21,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         const code = url.searchParams.get("code") ?? "";
         const shop = url.searchParams.get("shop") ?? "";
         const error = url.searchParams.get("error") ?? "";
+        const state = url.searchParams.get("state") ?? "";
 
         const CHAOS = "https://chaosgemstones.com";
         const fail = (msg: string) =>
@@ -35,17 +36,44 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
 
         const normShop = normaliseShopDomain(shop);
 
-        const { data: rows } = await supabaseAdmin
-          .from("shopify_connections")
-          .select("id, jeweller_id, client_id, client_secret")
-          .eq("shop_domain", normShop)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        const conn = rows?.[0] ?? null;
+        // Look up the connection by state (tied to the jeweller who started
+        // the flow). This is robust to Shopify substituting a different shop
+        // (e.g. a Partner dev store) for the one originally entered.
+        let jewellerId: string | null = null;
+        if (state) {
+          const { data: st } = await supabaseAdmin
+            .from("shopify_oauth_states")
+            .select("jeweller_id, expires_at")
+            .eq("state", state)
+            .maybeSingle();
+          if (st && new Date(st.expires_at).getTime() > Date.now()) {
+            jewellerId = st.jeweller_id;
+          }
+        }
+
+        let conn: { id: string; jeweller_id: string; client_id: string | null; client_secret: string | null } | null = null;
+        if (jewellerId) {
+          const { data } = await supabaseAdmin
+            .from("shopify_connections")
+            .select("id, jeweller_id, client_id, client_secret")
+            .eq("jeweller_id", jewellerId)
+            .maybeSingle();
+          conn = data ?? null;
+        }
+        if (!conn) {
+          // Fallback: try matching by the shop domain Shopify returned.
+          const { data: rows } = await supabaseAdmin
+            .from("shopify_connections")
+            .select("id, jeweller_id, client_id, client_secret")
+            .eq("shop_domain", normShop)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          conn = rows?.[0] ?? null;
+        }
 
         if (!conn) {
           return fail(
-            `No connection record found for ${normShop}. Please fill in the form and click Connect again.`,
+            `No connection record found for ${normShop}. Please return to Chaos, click Disconnect, then Connect again — and authorise on your real store (not a Shopify development store).`,
           );
         }
         if (!conn.client_id || !conn.client_secret) {
@@ -82,6 +110,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
             access_token: encToken,
             token_expires_at: null,
             is_active: true,
+            shop_domain: normShop,
           })
           .eq("id", conn.id);
         if (dbErr) return fail(`Failed to save token: ${dbErr.message}`);
