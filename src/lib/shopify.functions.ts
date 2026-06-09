@@ -103,6 +103,49 @@ export const startShopifyOAuth = createServerFn({ method: "POST" })
 
 export const connectShopify = startShopifyOAuth; // alias for backward compat
 
+// ── Direct Access Token connect (Custom App `shpat_...`) ─────────────────
+// For jewellers who already have a Shopify Custom App and just want to
+// paste their Admin API access token. This is the most reliable path —
+// it skips OAuth entirely and stores the permanent token directly.
+
+const tokenConnectSchema = z.object({
+  shopDomain: z.string().min(3).max(255),
+  accessToken: z.string().min(10).max(512),
+});
+
+export const connectShopifyWithToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => tokenConnectSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const { userId, supabase } = context;
+    await assertJeweller(supabase, userId);
+
+    const shop = normaliseShopDomain(data.shopDomain);
+    const token = data.accessToken.trim();
+
+    // Validate the token by calling /shop.json before persisting
+    const test = await testShopifyConnection(shop, token);
+    if (!test.ok) {
+      throw new Error(`Could not verify token: ${test.error}`);
+    }
+
+    const encToken = await encryptToken(token);
+
+    const { error } = await supabaseAdmin.from("shopify_connections").upsert(
+      {
+        jeweller_id: userId,
+        shop_domain: shop,
+        shop_name: test.name,
+        access_token: encToken,
+        token_expires_at: null,
+        is_active: true,
+      },
+      { onConflict: "jeweller_id" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, shopName: test.name };
+  });
+
 export const disconnectShopify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
