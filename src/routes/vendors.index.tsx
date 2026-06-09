@@ -45,7 +45,7 @@ function Vendors() {
     queryFn: async () => {
       const { data } = await supabase
         .from("dealer_profiles")
-        .select("id, slug, bio, logo_url, tagline, story, specialities, years_trading, response_time_hours, profiles!inner(company_name, city, country, is_verified)")
+        .select("id, slug, bio, logo_url, tagline, story, specialities, years_trading, response_time_hours, profiles:dealer_profiles_public!inner(company_name, city, country, is_verified)")
         .order("featured", { ascending: false });
       return data ?? [];
     },

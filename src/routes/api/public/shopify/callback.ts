@@ -112,8 +112,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
             .from("shopify_connections")
             .update({ shop_name: test.name })
             .eq("id", conn.id)
-            .then(() => {})
-            .catch(() => {});
+            .then(() => {}, () => {});
         }
 
         // ── 6. Clean up state rows if they exist ────────────────────────────
@@ -121,8 +120,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
           .from("shopify_oauth_states")
           .delete()
           .eq("jeweller_id", conn.jeweller_id)
-          .then(() => {})
-          .catch(() => {});
+          .then(() => {}, () => {});
 
         return Response.redirect(
           `${CHAOS}/dashboard/jeweller/shopify?connected=1`,

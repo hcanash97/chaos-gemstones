@@ -248,6 +248,10 @@ function ShopifyPage() {
           onPreview={handlePreview}
           testStatus={testStatus}
           previewStatus={previewStatus}
+          syncProgress={syncProgress}
+          lastSyncResult={lastSyncResult}
+          expandedErrors={expandedErrors}
+          setExpandedErrors={setExpandedErrors}
         />
       ) : (
         <ConnectForm
@@ -357,6 +361,10 @@ function ConnectedView({
   onPreview,
   testStatus,
   previewStatus,
+  syncProgress,
+  lastSyncResult,
+  expandedErrors,
+  setExpandedErrors,
 }: {
   conn: any;
   logs: any[];
@@ -377,6 +385,10 @@ function ConnectedView({
     feedStoneCount: number;
     errors: string[];
   } | null;
+  syncProgress: SyncProgress | null;
+  lastSyncResult: SyncResult | null;
+  expandedErrors: boolean;
+  setExpandedErrors: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const tokenValid =
     conn.token_expires_at && new Date(conn.token_expires_at).getTime() > Date.now();

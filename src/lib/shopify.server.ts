@@ -526,7 +526,7 @@ export async function runShopifySync(
         stones_failed_count: p.errors,
         total_stones_detected: p.stones_total,
         error_manifest: result.error_manifest,
-      }).eq("id", logId).then(() => {}).catch(() => {});
+      }).eq("id", logId).then(() => {}, () => {});
     }
   };
 

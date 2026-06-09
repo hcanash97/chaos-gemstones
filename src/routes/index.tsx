@@ -180,7 +180,7 @@ function Home() {
     queryFn: async () => {
       const { data } = await supabase
         .from("dealer_profiles")
-        .select("id, slug, specialities, years_trading, bio, profiles!inner(company_name, city, country, is_verified)")
+        .select("id, slug, specialities, years_trading, bio, profiles:dealer_profiles_public!inner(company_name, city, country, is_verified)")
         .eq("featured", true)
         .limit(3);
       return data ?? [];
