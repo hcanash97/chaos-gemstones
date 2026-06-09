@@ -115,7 +115,8 @@ export type ShopifyConnectionRow = {
   id: string;
   shop_domain: string;
   client_id: string | null;
-  encrypted_client_secret: string | null;
+  client_secret: string | null;
+  access_token: string | null;
   token_expires_at: string | null;
 };
 
@@ -141,13 +142,12 @@ export function buildAuthorizeUrl(
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
 }
 
-/** Mint a short-lived access token via Client Credentials Exchange.
- * Shopify's modern 2026 flow: POST {shop}/admin/oauth/access_token
- * with grant_type=client_credentials, client_id, client_secret. */
-export async function mintAccessToken(
+/** Step 2: Exchange the authorization code for a permanent offline token. */
+export async function exchangeCodeForToken(
   shop: string,
   clientId: string,
   clientSecret: string,
+  code: string,
 ): Promise<string> {
   const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: "POST",
@@ -156,15 +156,15 @@ export async function mintAccessToken(
       Accept: "application/json",
     },
     body: new URLSearchParams({
-      grant_type: "client_credentials",
       client_id: clientId,
       client_secret: clientSecret,
+      code,
     }).toString(),
     signal: AbortSignal.timeout(15_000),
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`Shopify token mint failed (${res.status}): ${text.slice(0, 300)}`);
+    throw new Error(`Shopify code exchange failed (${res.status}): ${text.slice(0, 300)}`);
   }
   let json: { access_token?: string };
   try { json = JSON.parse(text); }
@@ -173,13 +173,21 @@ export async function mintAccessToken(
   return json.access_token;
 }
 
-/** Mint a fresh access token for the stored credentials. */
+/** Kept for compatibility — returns the stored permanent token directly. */
 export async function getValidAccessToken(conn: ShopifyConnectionRow): Promise<string> {
-  if (!conn.client_id || !conn.encrypted_client_secret) {
-    throw new Error("No Shopify credentials stored — please reconnect.");
+  if (!conn.access_token) {
+    throw new Error("No access token stored — please reconnect your Shopify store.");
   }
-  const secret = await decryptToken(conn.encrypted_client_secret);
-  return mintAccessToken(conn.shop_domain, conn.client_id, secret);
+  return decryptToken(conn.access_token);
+}
+
+/** mintAccessToken shim — kept so existing code compiles. */
+export async function mintAccessToken(
+  _shop: string,
+  _clientId: string,
+  _secret: string,
+): Promise<{ token: string; expiresAt: string }> {
+  throw new Error("Use the OAuth flow to connect a production store.");
 }
 
 // --- Stone -> Shopify product formatting --------------------------------
@@ -190,6 +198,9 @@ type StoneRow = {
   shape: string | null;
   carat_weight: number | null;
   colour_grade: string | null;
+  colour_hue: string | null;
+  colour_tone: string | null;
+  colour_saturation: string | null;
   clarity_grade: string | null;
   cut_grade: string | null;
   origin: string | null;
@@ -197,12 +208,22 @@ type StoneRow = {
   treatment: string | null;
   cert_lab: string | null;
   cert_number: string | null;
+  cert_url: string | null;
   measurements_length: number | null;
   measurements_width: number | null;
   measurements_height: number | null;
+  depth_pct: number | null;
+  table_pct: number | null;
+  lw_ratio: number | null;
+  girdle: string | null;
+  culet_size: string | null;
   fluorescence: string | null;
+  fluorescence_colour: string | null;
   polish: string | null;
   symmetry: string | null;
+  eye_clean: string | null;
+  has_video: boolean;
+  video_url: string | null;
   notes_for_buyers: string | null;
   wholesale_price_usd: number | null;
   status: string;
@@ -263,43 +284,169 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// ── Helpers for À Vie metafield mapping ──────────────────────────────────────
+
+/** Derive diamond_colour_type from stone data.
+ *  White = colourless/near-colourless. Fancy = naturally coloured. Treated = colour-enhanced. */
+function colourType(s: StoneRow): "White" | "Fancy" | "Treated" | null {
+  if (s.stone_type?.toLowerCase() !== "diamond") return null;
+  const treatment = (s.treatment ?? "").toLowerCase();
+  if (treatment.includes("treated") || treatment.includes("irrad") ||
+      treatment.includes("hpht") || treatment.includes("coating")) return "Treated";
+  if (s.colour_hue) return "Fancy";
+  return "White";
+}
+
+/** Combine fluorescence + fluorescence_colour into À Vie's intensity format.
+ *  e.g. "Medium" + "Blue" → "Medium Blue". "None" → "None". */
+function fluorescenceIntensity(s: StoneRow): string | null {
+  const intensity = s.fluorescence?.trim();
+  if (!intensity) return null;
+  if (intensity.toLowerCase() === "none" || intensity.toLowerCase() === "nil") return "None";
+  const colour = s.fluorescence_colour?.trim();
+  if (colour) return `${cap(intensity)} ${cap(colour)}`;
+  return cap(intensity);
+}
+
+/** Map carat weight to À Vie's bucket format. */
+function caratRange(ct: number | null): string | null {
+  if (!ct) return null;
+  if (ct < 0.30) return "0.00–0.29";
+  if (ct < 0.40) return "0.30–0.39";
+  if (ct < 0.50) return "0.40–0.49";
+  if (ct < 0.60) return "0.50–0.59";
+  if (ct < 0.70) return "0.60–0.69";
+  if (ct < 0.80) return "0.70–0.79";
+  if (ct < 0.90) return "0.80–0.89";
+  if (ct < 1.00) return "0.90–0.99";
+  if (ct < 1.50) return "1.00–1.49";
+  if (ct < 2.00) return "1.50–1.99";
+  if (ct < 3.00) return "2.00–2.99";
+  if (ct < 4.00) return "3.00–3.99";
+  if (ct < 5.00) return "4.00–4.99";
+  if (ct < 6.00) return "5.00–5.99";
+  if (ct < 10.00) return "6.00–9.99";
+  return "10.00+";
+}
+
+/** Whether the origin indicates lab-grown. */
+function isLabGrown(s: StoneRow): boolean {
+  const o = (s.origin ?? s.country_of_origin ?? "").toLowerCase();
+  return o.includes("lab") || o.includes("cvd") || o.includes("hpht") || o.includes("synthetic");
+}
+
+/** Build a single metafield object — skip if value is null/empty. */
+function mf(
+  key: string,
+  value: string | number | boolean | null | undefined,
+  type: string = "single_line_text_field",
+): { namespace: string; key: string; type: string; value: string } | null {
+  if (value === null || value === undefined || value === "") return null;
+  return { namespace: "custom", key, type, value: String(value) };
+}
+
 function buildProductPayload(
   s: StoneRow,
   images: StoneImageRow[],
   retailPrice: number | null,
 ) {
+  const isDiamond = s.stone_type?.toLowerCase() === "diamond";
+  const labGrown = isLabGrown(s);
+  const ct = colourType(s);
+  const measurements = s.measurements_length && s.measurements_width
+    ? `${s.measurements_length} × ${s.measurements_width}${s.measurements_height ? ` × ${s.measurements_height}` : ""} mm`
+    : null;
+
+  // ── Tags ───────────────────────────────────────────────────────────────────
+  // Normalise to lowercase-hyphenated so they match À Vie's collection conditions.
+  const tagSet = new Set<string>();
+
+  // Shape (e.g. "round", "oval") — used for shape filter & future smart collections
+  if (s.shape) tagSet.add(s.shape.toLowerCase().replace(/\s+/g, "-"));
+
+  // Origin: these drive the existing smart collections
+  if (labGrown) {
+    tagSet.add("lab-grown");
+    tagSet.add("lab");
+  } else {
+    tagSet.add("natural");
+  }
+
+  // Colour type — drives "fancy-colour" collection
+  if (ct === "Fancy") tagSet.add("fancy-colour");
+  if (ct === "Treated") tagSet.add("treated-colour");
+
+  // Cert lab (e.g. "gia", "igi")
+  if (s.cert_lab) tagSet.add(s.cert_lab.toLowerCase());
+
+  // Treatment (e.g. "unheated")
+  if (s.treatment) tagSet.add(s.treatment.toLowerCase().replace(/\s+/g, "-"));
+
+  // Chaos source tag for easy identification
+  tagSet.add("chaos-sync");
+
+  // ── Metafields: full À Vie diamond grading schema ─────────────────────────
+  const metafields = [
+    // Core grading
+    mf("diamond_shape",          cap(s.shape)),
+    mf("diamond_carat",          s.carat_weight?.toFixed(2), "number_decimal"),
+    mf("diamond_carat_range",    caratRange(s.carat_weight)),
+    mf("diamond_colour_type",    ct),
+    // White diamond colour (D–M scale)
+    ct === "White" ? mf("diamond_colour", s.colour_grade?.toUpperCase()) : null,
+    mf("diamond_clarity",        s.clarity_grade?.toUpperCase()),
+    mf("diamond_cut_grade",      cap(s.cut_grade)),
+    // Polish / symmetry / fluorescence
+    mf("diamond_polish",         cap(s.polish)),
+    mf("diamond_symmetry",       cap(s.symmetry)),
+    mf("diamond_fluorescence_intensity", fluorescenceIntensity(s)),
+    // Fancy colour fields
+    ct === "Fancy" ? mf("fancy_colour_hue",       cap(s.colour_hue)) : null,
+    ct === "Fancy" ? mf("fancy_colour_intensity",  cap(s.colour_tone)) : null,
+    // Treated colour
+    ct === "Treated" ? mf("treated_colour_hue",   cap(s.colour_hue)) : null,
+    // Measurements
+    mf("diamond_measurements",   measurements),
+    mf("diamond_depth",          s.depth_pct, "number_decimal"),
+    mf("diamond_table",          s.table_pct, "number_decimal"),
+    mf("diamond_length_to_width_ratio_l_w_ratio", s.lw_ratio, "number_decimal"),
+    mf("diamond_girdle",         cap(s.girdle)),
+    mf("diamond_cutlet",         cap(s.culet_size)),
+    // Certification
+    mf("diamond_certification_number", s.cert_number),
+    mf("diamond_certification_link_url", s.cert_url, "url"),
+    // Recommended additions from the metafield reference
+    mf("diamond_origin",         labGrown ? "Lab-grown" : "Natural"),
+    mf("diamond_certificate_lab", s.cert_lab?.toUpperCase()),
+    mf("eye_clean",              s.eye_clean === "yes" || s.eye_clean === "true" ? "true" : null, "boolean"),
+    mf("diamond_video_url",      s.has_video && s.video_url ? s.video_url : null, "url"),
+    // Chaos internal reference
+    { namespace: "chaos", key: "stone_id", type: "single_line_text_field", value: s.id },
+  ].filter(Boolean) as { namespace: string; key: string; type: string; value: string }[];
+
   return {
     product: {
       title: titleFor(s),
       body_html: bodyHtml(s),
-      vendor: "Chaos Gemstones",
+      vendor: "À Vie Diamonds",
       product_type: cap(s.stone_type),
-      tags: [s.shape, s.origin || s.country_of_origin, s.cert_lab, s.treatment]
-        .filter(Boolean)
-        .map((t) => String(t))
-        .join(", "),
+      tags: [...tagSet].join(", "),
       status: "active",
       images: images
         .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
         .slice(0, 10)
-        .map((img) => ({ src: img.external_image_url || img.storage_url })),
+        .map((img) => ({ src: img.external_image_url || img.storage_url }))
+        .filter((i) => i.src),
       variants: [
         {
           price: retailPrice ? retailPrice.toFixed(2) : "0.00",
           inventory_management: null,
-          sku: `CHAOS-${s.id.slice(0, 8).toUpperCase()}`,
+          sku: `AV-CHAOS-${s.id.slice(0, 8).toUpperCase()}`,
           requires_shipping: true,
           taxable: true,
         },
       ],
-      metafields: [
-        {
-          namespace: "chaos",
-          key: "stone_id",
-          type: "single_line_text_field",
-          value: s.id,
-        },
-      ],
+      metafields,
     },
   };
 }
@@ -326,7 +473,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   try {
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
-      .select("id, shop_domain, client_id, encrypted_client_secret, token_expires_at, is_active")
+      .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
       .eq("jeweller_id", jewellerId)
       .maybeSingle();
 
@@ -352,7 +499,15 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
     const pins = (sels ?? []).filter((s: any) => s.selection_type === "stone_pin");
 
     const stoneFields =
-      "id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cut_grade, origin, country_of_origin, treatment, cert_lab, cert_number, measurements_length, measurements_width, measurements_height, fluorescence, polish, symmetry, notes_for_buyers, wholesale_price_usd, status, dealer_id";
+      "id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cut_grade, " +
+      "colour_hue, colour_tone, colour_saturation, " +
+      "origin, country_of_origin, treatment, " +
+      "cert_lab, cert_number, cert_url, " +
+      "measurements_length, measurements_width, measurements_height, " +
+      "depth_pct, table_pct, lw_ratio, girdle, culet_size, " +
+      "fluorescence, fluorescence_colour, " +
+      "polish, symmetry, eye_clean, has_video, video_url, " +
+      "notes_for_buyers, wholesale_price_usd, status, dealer_id";
 
     type FedStone = StoneRow & { dealer_id: string; markup: number };
     const stoneMap = new Map<string, FedStone>();
@@ -559,7 +714,7 @@ export async function testConnectionForJeweller(
 > {
   const { data: conn } = await supabaseAdmin
     .from("shopify_connections")
-    .select("id, shop_domain, client_id, encrypted_client_secret, token_expires_at, is_active")
+    .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
     .eq("jeweller_id", jewellerId)
     .maybeSingle();
   if (!conn) return { ok: false, error: "No Shopify connection saved." };
