@@ -115,8 +115,7 @@ export type ShopifyConnectionRow = {
   id: string;
   shop_domain: string;
   client_id: string | null;
-  client_secret: string | null;
-  access_token: string | null;
+  encrypted_client_secret: string | null;
   token_expires_at: string | null;
 };
 
@@ -142,12 +141,13 @@ export function buildAuthorizeUrl(
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
 }
 
-/** Step 2: Exchange the authorization code for a permanent offline token. */
-export async function exchangeCodeForToken(
+/** Mint a short-lived access token via Client Credentials Exchange.
+ * Shopify's modern 2026 flow: POST {shop}/admin/oauth/access_token
+ * with grant_type=client_credentials, client_id, client_secret. */
+export async function mintAccessToken(
   shop: string,
   clientId: string,
   clientSecret: string,
-  code: string,
 ): Promise<string> {
   const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
     method: "POST",
@@ -156,15 +156,15 @@ export async function exchangeCodeForToken(
       Accept: "application/json",
     },
     body: new URLSearchParams({
+      grant_type: "client_credentials",
       client_id: clientId,
       client_secret: clientSecret,
-      code,
     }).toString(),
     signal: AbortSignal.timeout(15_000),
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`Shopify code exchange failed (${res.status}): ${text.slice(0, 300)}`);
+    throw new Error(`Shopify token mint failed (${res.status}): ${text.slice(0, 300)}`);
   }
   let json: { access_token?: string };
   try { json = JSON.parse(text); }
@@ -173,21 +173,13 @@ export async function exchangeCodeForToken(
   return json.access_token;
 }
 
-/** Kept for compatibility — returns the stored permanent token directly. */
+/** Mint a fresh access token for the stored credentials. */
 export async function getValidAccessToken(conn: ShopifyConnectionRow): Promise<string> {
-  if (!conn.access_token) {
-    throw new Error("No access token stored — please reconnect your Shopify store.");
+  if (!conn.client_id || !conn.encrypted_client_secret) {
+    throw new Error("No Shopify credentials stored — please reconnect.");
   }
-  return decryptToken(conn.access_token);
-}
-
-/** mintAccessToken shim — kept so existing code compiles. */
-export async function mintAccessToken(
-  _shop: string,
-  _clientId: string,
-  _secret: string,
-): Promise<{ token: string; expiresAt: string }> {
-  throw new Error("Use the OAuth flow to connect a production store.");
+  const secret = await decryptToken(conn.encrypted_client_secret);
+  return mintAccessToken(conn.shop_domain, conn.client_id, secret);
 }
 
 // --- Stone -> Shopify product formatting --------------------------------
