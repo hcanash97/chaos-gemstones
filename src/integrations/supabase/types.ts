@@ -792,8 +792,10 @@ export type Database = {
       }
       shopify_connections: {
         Row: {
+          access_token: string | null
           auto_sync: boolean
           client_id: string | null
+          client_secret: string | null
           created_at: string
           encrypted_client_secret: string | null
           id: string
@@ -808,8 +810,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_token?: string | null
           auto_sync?: boolean
           client_id?: string | null
+          client_secret?: string | null
           created_at?: string
           encrypted_client_secret?: string | null
           id?: string
@@ -824,8 +828,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_token?: string | null
           auto_sync?: boolean
           client_id?: string | null
+          client_secret?: string | null
           created_at?: string
           encrypted_client_secret?: string | null
           id?: string

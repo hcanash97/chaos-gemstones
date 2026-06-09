@@ -102,6 +102,11 @@ function ShopifyPage() {
           clientSecret: clientSecret.trim(),
         },
       });
+      if (res.authorizeUrl) {
+        toast.success("Redirecting to Shopify to authorise…");
+        window.location.href = res.authorizeUrl;
+        return;
+      }
       toast.success(`Connected to ${res.shopName}`);
       setConnectStatus({ kind: "success", shopName: res.shopName });
       await refetch();
@@ -368,23 +373,32 @@ function ConnectedView({
     errors: string[];
   } | null;
 }) {
-  const tokenValid =
-    conn.token_expires_at && new Date(conn.token_expires_at).getTime() > Date.now();
-  const incomplete = !conn.shop_name || !conn.shop_domain;
+  const hasToken = !!conn.has_token;
+  const incomplete = !hasToken;
   return (
     <>
       {incomplete && (
         <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
           <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
-          <div>Connection details incomplete — try reconnecting.</div>
+          <div>
+            Connection details incomplete — access token missing. Click
+            Disconnect, then Connect store again to complete the Shopify
+            authorisation flow.
+          </div>
         </div>
       )}
       <div className="rounded-md border border-border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-emerald-600">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Connected
-            </div>
+            {hasToken ? (
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-emerald-600">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Connected
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-amber-600">
+                <AlertTriangle className="h-3.5 w-3.5" /> Awaiting authorisation
+              </div>
+            )}
             <div className="mt-1 font-serif text-xl">{conn.shop_name || conn.shop_domain}</div>
             <div className="text-xs text-muted-foreground">{conn.shop_domain}</div>
           </div>
@@ -416,13 +430,7 @@ function ConnectedView({
           <Stat label="Products synced" value={String(conn.products_synced ?? 0)} />
           <Stat
             label="Token"
-            value={
-              conn.token_expires_at
-                ? tokenValid
-                  ? `Valid until ${new Date(conn.token_expires_at).toLocaleTimeString()}`
-                  : "Expired (click Sync to refresh)"
-                : "—"
-            }
+            value={hasToken ? "Stored ✓" : "Missing — reconnect"}
           />
         </div>
         <div className="mt-4 flex items-center justify-between rounded-md border border-border bg-muted/30 p-3">
