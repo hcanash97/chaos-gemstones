@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   connectShopify,
-  connectShopifyWithToken,
   disconnectShopify,
   getShopifyStatus,
   setShopifyAutoSync,
@@ -30,7 +29,6 @@ function ShopifyPage() {
   const qc = useQueryClient();
   const status = useServerFn(getShopifyStatus);
   const connect = useServerFn(connectShopify);
-  const connectWithToken = useServerFn(connectShopifyWithToken);
   const disconnect = useServerFn(disconnectShopify);
   const sync = useServerFn(syncShopifyNow);
   const toggleAuto = useServerFn(setShopifyAutoSync);
@@ -40,7 +38,6 @@ function ShopifyPage() {
   const [shop, setShop] = useState("aviediamonds.myshopify.com");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
-  const [accessToken, setAccessToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [connectStatus, setConnectStatus] = useState<
     | { kind: "success"; shopName: string }
@@ -104,42 +101,9 @@ function ShopifyPage() {
           clientId: clientId.trim(),
           clientSecret: clientSecret.trim(),
         },
-      }) as any;
-      // OAuth redirect — takes user to Shopify to authorise
-      if (res?.authorizeUrl) {
-        window.location.href = res.authorizeUrl;
-        return;
-      }
-      toast.success("Connected.");
-      await refetch();
-      qc.invalidateQueries({ queryKey: ["shopify-status"] });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Could not connect";
-      toast.error(message);
-      setConnectStatus({ kind: "error", message });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleConnectWithToken() {
-    if (!shop.trim() || !accessToken.trim()) {
-      toast.error("Enter your store domain and Admin API access token.");
-      return;
-    }
-    if (!/^shpat_/.test(accessToken.trim())) {
-      toast.error("Access token should start with 'shpat_'.");
-      return;
-    }
-    setBusy(true);
-    setConnectStatus(null);
-    try {
-      const res = await connectWithToken({
-        data: { shopDomain: shop.trim(), accessToken: accessToken.trim() },
       });
       toast.success(`Connected to ${res.shopName}`);
       setConnectStatus({ kind: "success", shopName: res.shopName });
-      setAccessToken("");
       await refetch();
       qc.invalidateQueries({ queryKey: ["shopify-status"] });
     } catch (e) {
@@ -276,11 +240,8 @@ function ShopifyPage() {
           setClientId={setClientId}
           clientSecret={clientSecret}
           setClientSecret={setClientSecret}
-          accessToken={accessToken}
-          setAccessToken={setAccessToken}
           busy={busy}
           onConnect={handleConnect}
-          onConnectWithToken={handleConnectWithToken}
         />
       )}
     </div>
