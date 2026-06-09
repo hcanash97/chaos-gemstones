@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
-  buildAuthorizeUrl,
   encryptToken,
   getValidAccessToken,
   mintAccessToken,
@@ -52,91 +51,48 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
     return { connection: conn ?? null, logs: logs ?? [] };
   });
 
-// ── Step 1: Start OAuth — returns the URL to redirect the user to ─────────
+// ── Connect with Client ID + Secret (Client Credentials Exchange) ─────────
+// Modern Shopify 2026 flow: mint a fresh access token via
+//   POST {shop}/admin/oauth/access_token?grant_type=client_credentials
+// No browser redirect needed. We store the encrypted client_secret and mint
+// short-lived tokens on every sync/test.
 
-const startOAuthSchema = z.object({
+const connectSchema = z.object({
   shopDomain: z.string().min(3).max(255),
   clientId: z.string().min(10).max(255),
   clientSecret: z.string().min(10).max(512),
 });
 
-export const startShopifyOAuth = createServerFn({ method: "POST" })
+export const connectShopify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => startOAuthSchema.parse(input))
+  .inputValidator((input: unknown) => connectSchema.parse(input))
   .handler(async ({ context, data }) => {
     const { userId, supabase } = context;
     await assertJeweller(supabase, userId);
 
     const shop = normaliseShopDomain(data.shopDomain);
-    const state = crypto.randomUUID();
-    const redirectUri = `${process.env.VITE_SUPABASE_URL ? "https://chaosgemstones.com" : "http://localhost:5173"}/api/public/shopify/callback`;
 
-    // Store credentials + state so the callback can complete the exchange
-    const [encClientId, encClientSecret] = await Promise.all([
-      encryptToken(data.clientId),
-      encryptToken(data.clientSecret),
-    ]);
-
-    await supabaseAdmin.from("shopify_connections").upsert(
-      {
-        jeweller_id: userId,
-        shop_domain: shop,
-        client_id: encClientId,
-        client_secret: encClientSecret,
-        is_active: false,  // not active until callback completes
-      },
-      { onConflict: "jeweller_id" },
-    );
-
-    // Store state in a short-lived DB row keyed to the jeweller
-    await supabaseAdmin.from("shopify_oauth_states").upsert(
-      { jeweller_id: userId, state, shop_domain: shop, expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() },
-      { onConflict: "jeweller_id" },
-    );
-
-    const authorizeUrl = buildAuthorizeUrl(shop, data.clientId, redirectUri, state);
-    return { authorizeUrl };
-  });
-
-// ── Step 2: Callback handler (server route) ───────────────────────────────
-// This is handled in /api/public/shopify/callback.ts (separate file)
-
-export const connectShopify = startShopifyOAuth; // alias for backward compat
-
-// ── Direct Access Token connect (Custom App `shpat_...`) ─────────────────
-// For jewellers who already have a Shopify Custom App and just want to
-// paste their Admin API access token. This is the most reliable path —
-// it skips OAuth entirely and stores the permanent token directly.
-
-const tokenConnectSchema = z.object({
-  shopDomain: z.string().min(3).max(255),
-  accessToken: z.string().min(10).max(512),
-});
-
-export const connectShopifyWithToken = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => tokenConnectSchema.parse(input))
-  .handler(async ({ context, data }) => {
-    const { userId, supabase } = context;
-    await assertJeweller(supabase, userId);
-
-    const shop = normaliseShopDomain(data.shopDomain);
-    const token = data.accessToken.trim();
-
-    // Validate the token by calling /shop.json before persisting
-    const test = await testShopifyConnection(shop, token);
-    if (!test.ok) {
-      throw new Error(`Could not verify token: ${test.error}`);
+    // Mint + verify the credentials before persisting anything
+    let token: string;
+    try {
+      token = await mintAccessToken(shop, data.clientId, data.clientSecret);
+    } catch (e) {
+      throw new Error(
+        `Could not authenticate with Shopify: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
+    const test = await testShopifyConnection(shop, token);
+    if (!test.ok) throw new Error(`Connection test failed: ${test.error}`);
 
-    const encToken = await encryptToken(token);
+    const encSecret = await encryptToken(data.clientSecret);
 
     const { error } = await supabaseAdmin.from("shopify_connections").upsert(
       {
         jeweller_id: userId,
         shop_domain: shop,
         shop_name: test.name,
-        access_token: encToken,
+        client_id: data.clientId,
+        encrypted_client_secret: encSecret,
         token_expires_at: null,
         is_active: true,
       },
@@ -145,6 +101,8 @@ export const connectShopifyWithToken = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, shopName: test.name };
   });
+
+export const connectShopifyWithToken = connectShopify; // back-compat alias
 
 export const disconnectShopify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
