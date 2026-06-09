@@ -358,7 +358,7 @@ function VendorProfile() {
               <Badge key={m} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)]">{m}</Badge>
             ))}
           </div>
-          <div className="mt-6 max-w-xs">
+          <div className="mt-6 flex flex-wrap gap-3">
             <EnquireDialog
               dealerId={v.id}
               context={`Enquiry for ${v.profiles.company_name}`}
@@ -368,6 +368,24 @@ function VendorProfile() {
                 </Button>
               }
             />
+            {isApprovedJeweller && (
+              <Button
+                variant={isFollowing ? "outline" : "default"}
+                disabled={followBusy}
+                onClick={onToggleFollow}
+                className={
+                  isFollowing
+                    ? "border-[var(--color-gold)] bg-transparent text-[var(--color-gold)] hover:bg-[var(--color-gold)]/10"
+                    : "bg-white text-primary hover:bg-white/90"
+                }
+              >
+                {isFollowing ? (
+                  <><HeartOff className="mr-2 h-4 w-4" /> Following — Unfollow</>
+                ) : (
+                  <><Heart className="mr-2 h-4 w-4" /> Follow vendor — list their stones</>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </section>
