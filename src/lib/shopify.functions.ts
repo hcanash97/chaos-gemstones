@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -69,7 +70,17 @@ export const startShopifyOAuth = createServerFn({ method: "POST" })
 
     const shop = normaliseShopDomain(data.shopDomain);
     const state = crypto.randomUUID();
-    const redirectUri = `${process.env.VITE_SUPABASE_URL ? "https://chaosgemstones.com" : "http://localhost:5173"}/api/public/shopify/callback`;
+    // Derive the redirect URI from the current request origin so the OAuth
+    // round-trip works on prod, preview, lovableproject.com, and localhost.
+    let origin = "https://chaosgemstones.com";
+    try {
+      const req = getRequest();
+      const u = new URL(req.url);
+      origin = `${u.protocol}//${u.host}`;
+    } catch {
+      // fall back to the production origin
+    }
+    const redirectUri = `${origin}/api/public/shopify/callback`;
 
     // Store credentials + state so the callback can complete the exchange
     const [encClientId, encClientSecret] = await Promise.all([
