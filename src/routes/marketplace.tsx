@@ -953,15 +953,6 @@ function Marketplace() {
           </aside>
 
           <div>
-            {!isLoading && totalPages > 1 && (
-              <MarketplacePagination
-                className="mb-5"
-                page={page}
-                totalPages={totalPages}
-                disabled={isFetching}
-                onPageChange={goToPage}
-              />
-            )}
             {isLoading ? (
               <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
