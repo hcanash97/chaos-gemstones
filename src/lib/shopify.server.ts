@@ -326,7 +326,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   try {
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
-      .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
+      .select("id, shop_domain, client_id, encrypted_client_secret, token_expires_at, is_active")
       .eq("jeweller_id", jewellerId)
       .maybeSingle();
 
@@ -559,7 +559,7 @@ export async function testConnectionForJeweller(
 > {
   const { data: conn } = await supabaseAdmin
     .from("shopify_connections")
-    .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
+    .select("id, shop_domain, client_id, encrypted_client_secret, token_expires_at, is_active")
     .eq("jeweller_id", jewellerId)
     .maybeSingle();
   if (!conn) return { ok: false, error: "No Shopify connection saved." };
