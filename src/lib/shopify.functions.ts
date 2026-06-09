@@ -133,11 +133,10 @@ export const setShopifyAutoSync = createServerFn({ method: "POST" })
 
 export const syncShopifyNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ triggeredBy: z.enum(["manual_btn","cron_4hr"]).default("manual_btn") }).parse(input ?? {}))
-  .handler(async ({ context, data }) => {
+  .handler(async ({ context }) => {
     const { userId, supabase } = context;
     await assertJeweller(supabase, userId);
-    return runShopifySync(userId, data.triggeredBy);
+    return runShopifySync(userId);
   });
 
 export const testShopifyConnectionFn = createServerFn({ method: "POST" })

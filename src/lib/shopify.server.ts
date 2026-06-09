@@ -1,5 +1,4 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import type { SyncErrorEntry, SyncProgress, SyncResult } from "@/lib/shopify.types";
 
 // --- Token encryption (AES-GCM, key derived from service role secret) ----
 
@@ -454,81 +453,22 @@ function buildProductPayload(
 
 // --- Sync ---------------------------------------------------------------
 
-// ── Rate-limit-aware Shopify fetch ───────────────────────────────────────────
-// Shopify REST leaky bucket: 40-call capacity, drains at 2/sec.
-// We process 1 API call per product. With batches of 10 and a 600ms inter-batch
-// pause we use at most ~10 calls/sec burst then idle — comfortably within limits.
-// On 429 we back off by the Retry-After header value (or 2s default) and retry once.
+export type SyncResult = {
+  added: number;
+  updated: number;
+  archived: number;
+  errors: string[];
+};
 
-const BATCH_SIZE = 10;          // products per batch
-const INTER_BATCH_DELAY_MS = 600; // pause between batches (ms)
-const MAX_429_RETRIES = 3;       // times to retry a 429 before marking as error
+export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
+  const result: SyncResult = { added: 0, updated: 0, archived: 0, errors: [] };
 
-async function shopifyFetchWithRetry(
-  shop: string,
-  token: string,
-  path: string,
-  init: RequestInit = {},
-  retries = MAX_429_RETRIES,
-): Promise<Response> {
-  const res = await shopifyFetch(shop, token, path, init);
-  if (res.status === 429 && retries > 0) {
-    const retryAfter = Number(res.headers.get("Retry-After") ?? "2");
-    console.warn(`[shopify] 429 rate limit — waiting ${retryAfter}s before retry`);
-    await new Promise((r) => setTimeout(r, retryAfter * 1000));
-    return shopifyFetchWithRetry(shop, token, path, init, retries - 1);
-  }
-  return res;
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-// ── Sync types ────────────────────────────────────────────────────────────────
-
-
-export async function runShopifySync(
-  jewellerId: string,
-  triggeredBy: "manual_btn" | "cron_4hr" = "manual_btn",
-  onProgress?: (p: SyncProgress) => void,
-): Promise<SyncResult> {
-  const sessionId = crypto.randomUUID();
-  const result: SyncResult = {
-    added: 0, updated: 0, archived: 0,
-    errors: [], error_manifest: [], total_stones: 0, session_id: sessionId,
-  };
-
-  // Insert the sync log row immediately so status is visible during the run
   const { data: log } = await supabaseAdmin
     .from("shopify_sync_logs")
-    .insert({
-      jeweller_id: jewellerId,
-      status: "in_progress",
-      triggered_by: triggeredBy,
-      sync_session_id: sessionId,
-      started_at: new Date().toISOString(),
-      total_stones_detected: 0,
-      stones_added_successfully: 0,
-      stones_updated_successfully: 0,
-      stones_failed_count: 0,
-      error_manifest: [],
-    })
+    .insert({ jeweller_id: jewellerId, status: "running" })
     .select("id")
     .single();
   const logId = log?.id;
-
-  const emit = (p: SyncProgress) => {
-    onProgress?.(p);
-    // Persist partial progress to DB every 5th batch to keep log fresh
-    if (logId && (p.batch_current % 5 === 0 || p.phase === "done")) {
-      supabaseAdmin.from("shopify_sync_logs").update({
-        stones_added_successfully: p.added,
-        stones_updated_successfully: p.updated,
-        stones_failed_count: p.errors,
-        total_stones_detected: p.stones_total,
-        error_manifest: result.error_manifest,
-      }).eq("id", logId).then(() => {}).catch(() => {});
-    }
-  };
 
   try {
     const { data: conn } = await supabaseAdmin
@@ -541,17 +481,22 @@ export async function runShopifySync(
     const token = await getValidAccessToken(conn as ShopifyConnectionRow);
     const shop = conn.shop_domain;
 
-    emit({ phase: "preparing", batch_current: 0, batch_total: 0, stones_processed: 0, stones_total: 0, added: 0, updated: 0, archived: 0, errors: 0 });
-
-    // ── Fetch jeweller markup + feed selections ───────────────────────────
+    // Fetch jeweller markup + feed selections
     const [{ data: jp }, { data: sels }] = await Promise.all([
-      supabaseAdmin.from("jeweller_profiles").select("markup_global").eq("id", jewellerId).maybeSingle(),
-      supabaseAdmin.from("feed_selections").select("selection_type, dealer_id, stone_id, markup_override").eq("api_key_id", await activeApiKeyIdFor(jewellerId)),
+      supabaseAdmin
+        .from("jeweller_profiles")
+        .select("markup_global")
+        .eq("id", jewellerId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("feed_selections")
+        .select("selection_type, dealer_id, stone_id, markup_override")
+        .eq("api_key_id", await activeApiKeyIdFor(jewellerId)),
     ]);
 
     const globalMarkup = Number(jp?.markup_global ?? 2);
     const follows = (sels ?? []).filter((s: any) => s.selection_type === "dealer_follow");
-    const pins    = (sels ?? []).filter((s: any) => s.selection_type === "stone_pin");
+    const pins = (sels ?? []).filter((s: any) => s.selection_type === "stone_pin");
 
     const stoneFields =
       "id, stone_type, shape, carat_weight, colour_grade, clarity_grade, cut_grade, " +
@@ -568,35 +513,45 @@ export async function runShopifySync(
     const stoneMap = new Map<string, FedStone>();
 
     if (follows.length) {
-      const { data } = await supabaseAdmin.from("stones").select(stoneFields)
+      const { data } = await supabaseAdmin
+        .from("stones")
+        .select(stoneFields)
         .in("dealer_id", follows.map((f: any) => f.dealer_id as string))
-        .eq("status", "available").eq("feed_inactive", false);
+        .eq("status", "available")
+        .eq("feed_inactive", false);
       for (const s of data ?? []) {
         const ovr = follows.find((f: any) => f.dealer_id === (s as any).dealer_id)?.markup_override;
         stoneMap.set((s as any).id, { ...(s as any), markup: ovr != null ? Number(ovr) : globalMarkup });
       }
     }
     if (pins.length) {
-      const { data } = await supabaseAdmin.from("stones").select(stoneFields)
+      const { data } = await supabaseAdmin
+        .from("stones")
+        .select(stoneFields)
         .in("id", pins.map((p: any) => p.stone_id as string))
-        .eq("status", "available").eq("feed_inactive", false);
+        .eq("status", "available")
+        .eq("feed_inactive", false);
       for (const s of data ?? []) {
         const ovr = pins.find((p: any) => p.stone_id === (s as any).id)?.markup_override;
-        if (!stoneMap.has((s as any).id))
+        if (!stoneMap.has((s as any).id)) {
           stoneMap.set((s as any).id, { ...(s as any), markup: ovr != null ? Number(ovr) : globalMarkup });
+        }
       }
     }
 
     const stones = Array.from(stoneMap.values());
-    result.total_stones = stones.length;
-    console.log(`[shopify] Sync ${sessionId}: shop=${shop}, feed_stones=${stones.length}, triggered_by=${triggeredBy}`);
+    console.log(`[shopify] Sync starting for shop: ${shop}, feed stones: ${stones.length}`);
 
-    // ── Fetch images in one query ─────────────────────────────────────────
+    // Images
     const imagesByStone = new Map<string, StoneImageRow[]>();
     if (stones.length) {
-      const { data: imgs } = await supabaseAdmin.from("stone_images")
+      const { data: imgs } = await supabaseAdmin
+        .from("stone_images")
         .select("stone_id, storage_url, external_image_url, is_primary, sort_order")
-        .in("stone_id", stones.map((s) => s.id));
+        .in(
+          "stone_id",
+          stones.map((s) => s.id),
+        );
       for (const img of imgs ?? []) {
         const arr = imagesByStone.get(img.stone_id) ?? [];
         arr.push(img as StoneImageRow);
@@ -604,35 +559,27 @@ export async function runShopifySync(
       }
     }
 
-    // ── Existing Shopify product map ──────────────────────────────────────
-    const { data: existing } = await supabaseAdmin.from("shopify_product_map")
-      .select("stone_id, shopify_product_id, shopify_product_status").eq("jeweller_id", jewellerId);
+    // Existing maps for this jeweller
+    const { data: existing } = await supabaseAdmin
+      .from("shopify_product_map")
+      .select("stone_id, shopify_product_id, shopify_product_status")
+      .eq("jeweller_id", jewellerId);
     const existingMap = new Map<string, { id: string; status: string }>();
-    for (const e of existing ?? []) existingMap.set(e.stone_id, { id: e.shopify_product_id, status: e.shopify_product_status });
+    for (const e of existing ?? []) {
+      existingMap.set(e.stone_id, { id: e.shopify_product_id, status: e.shopify_product_status });
+    }
 
     const currentIds = new Set(stones.map((s) => s.id));
 
-    // ── Chunked upsert with rate-limit throttle ───────────────────────────
-    const batches: FedStone[][] = [];
-    for (let i = 0; i < stones.length; i += BATCH_SIZE) batches.push(stones.slice(i, i + BATCH_SIZE));
-    const batchTotal = batches.length;
+    // Upsert each stone — batched to respect Shopify rate limits
+    // (40-call leaky bucket, drains at 2/sec. Batches of 10 + 500ms pause = safe.)
+    const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    const CHUNK = 10;
 
-    for (let bIdx = 0; bIdx < batches.length; bIdx++) {
-      const batch = batches[bIdx];
+    for (let i = 0; i < stones.length; i += CHUNK) {
+      const chunk = stones.slice(i, i + CHUNK);
 
-      emit({
-        phase: "upsert",
-        batch_current: bIdx + 1,
-        batch_total: batchTotal,
-        stones_processed: bIdx * BATCH_SIZE,
-        stones_total: stones.length,
-        added: result.added,
-        updated: result.updated,
-        archived: result.archived,
-        errors: result.errors.length,
-      });
-
-      for (const s of batch) {
+      for (const s of chunk) {
         const retail = s.wholesale_price_usd ? Number(s.wholesale_price_usd) * s.markup : null;
         const images = imagesByStone.get(s.id) ?? [];
         const payload = buildProductPayload(s, images, retail);
@@ -640,171 +587,127 @@ export async function runShopifySync(
 
         try {
           if (existingEntry) {
-            // UPDATE existing product
-            const res = await shopifyFetchWithRetry(shop, token, `/products/${existingEntry.id}.json`, {
-              method: "PUT",
-              body: JSON.stringify({ product: { id: existingEntry.id, ...payload.product, status: "active" } }),
-            });
-            if (!res.ok) {
-              const errText = await res.text().catch(() => "");
-              const entry: SyncErrorEntry = {
-                stone_id: s.id, cert_number: s.cert_number ?? null,
-                action: "update", http_status: res.status,
-                error: errText.slice(0, 200),
-              };
-              result.error_manifest.push(entry);
-              result.errors.push(`Update ${s.cert_number ?? s.id}: HTTP ${res.status}`);
-              continue;
+            const res = await shopifyFetch(
+              shop, token, `/products/${existingEntry.id}.json`,
+              { method: "PUT", body: JSON.stringify({ product: { id: existingEntry.id, ...payload.product, status: "active" } }) },
+            );
+            // Back off and retry once on rate limit
+            if (res.status === 429) {
+              const wait = Number(res.headers.get("Retry-After") ?? "2") * 1000;
+              await sleep(wait);
+              const retry = await shopifyFetch(shop, token, `/products/${existingEntry.id}.json`,
+                { method: "PUT", body: JSON.stringify({ product: { id: existingEntry.id, ...payload.product, status: "active" } }) });
+              if (!retry.ok) { result.errors.push(`Update ${s.id}: ${retry.status}`); continue; }
+            } else if (!res.ok) {
+              result.errors.push(`Update ${s.id}: ${res.status}`); continue;
             }
-            await supabaseAdmin.from("shopify_product_map")
+            await supabaseAdmin
+              .from("shopify_product_map")
               .update({ shopify_product_status: "active", last_synced_at: new Date().toISOString() })
               .eq("jeweller_id", jewellerId).eq("stone_id", s.id);
             result.updated++;
           } else {
-            // CREATE new product
-            const res = await shopifyFetchWithRetry(shop, token, "/products.json", {
-              method: "POST",
-              body: JSON.stringify(payload),
+            const res = await shopifyFetch(shop, token, "/products.json", {
+              method: "POST", body: JSON.stringify(payload),
             });
-            if (!res.ok) {
-              const errText = await res.text().catch(() => "");
-              const entry: SyncErrorEntry = {
-                stone_id: s.id, cert_number: s.cert_number ?? null,
-                action: "create", http_status: res.status,
-                error: errText.slice(0, 200),
-              };
-              result.error_manifest.push(entry);
-              result.errors.push(`Create ${s.cert_number ?? s.id}: HTTP ${res.status}`);
+            if (res.status === 429) {
+              const wait = Number(res.headers.get("Retry-After") ?? "2") * 1000;
+              await sleep(wait);
+              const retry = await shopifyFetch(shop, token, "/products.json",
+                { method: "POST", body: JSON.stringify(payload) });
+              if (!retry.ok) {
+                const t = await retry.text();
+                result.errors.push(`Create ${s.id}: ${retry.status} ${t.slice(0, 120)}`); continue;
+              }
+              const body2 = (await retry.json()) as { product?: { id?: number | string; handle?: string } };
+              const pid2 = body2.product?.id ? String(body2.product.id) : null;
+              if (pid2) {
+                await supabaseAdmin.from("shopify_product_map").insert({ jeweller_id: jewellerId, stone_id: s.id, shopify_product_id: pid2, shopify_handle: body2.product?.handle ?? null, shopify_product_status: "active", last_synced_at: new Date().toISOString() });
+                result.added++;
+              }
               continue;
+            }
+            if (!res.ok) {
+              const t = await res.text();
+              result.errors.push(`Create ${s.id}: ${res.status} ${t.slice(0, 120)}`); continue;
             }
             const body = (await res.json()) as { product?: { id?: number | string; handle?: string } };
             const pid = body.product?.id ? String(body.product.id) : null;
             if (pid) {
-              await supabaseAdmin.from("shopify_product_map").insert({
-                jeweller_id: jewellerId, stone_id: s.id,
-                shopify_product_id: pid, shopify_handle: body.product?.handle ?? null,
-                shopify_product_status: "active", last_synced_at: new Date().toISOString(),
-              });
-              existingMap.set(s.id, { id: pid, status: "active" }); // prevent duplicate creates on re-run
+              await supabaseAdmin.from("shopify_product_map").insert({ jeweller_id: jewellerId, stone_id: s.id, shopify_product_id: pid, shopify_handle: body.product?.handle ?? null, shopify_product_status: "active", last_synced_at: new Date().toISOString() });
               result.added++;
             }
           }
         } catch (e) {
-          const entry: SyncErrorEntry = {
-            stone_id: s.id, cert_number: s.cert_number ?? null,
-            action: existingMap.has(s.id) ? "update" : "create",
-            http_status: null,
-            error: e instanceof Error ? e.message : String(e),
-          };
-          result.error_manifest.push(entry);
-          result.errors.push(`Stone ${s.cert_number ?? s.id}: ${entry.error}`);
+          result.errors.push(`Stone ${s.id}: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
 
-      // Inter-batch throttle pause (skip after last batch)
-      if (bIdx < batches.length - 1) await sleep(INTER_BATCH_DELAY_MS);
+      // Inter-batch pause — let the Shopify rate limit bucket recover
+      if (i + CHUNK < stones.length) await sleep(500);
     }
 
-    // ── Archive products no longer in feed ────────────────────────────────
-    const toArchive = [...existingMap.entries()].filter(
-      ([stoneId, e]) => !currentIds.has(stoneId) && e.status !== "draft",
-    );
-
-    const archiveBatches: [string, { id: string; status: string }][][] = [];
-    for (let i = 0; i < toArchive.length; i += BATCH_SIZE) archiveBatches.push(toArchive.slice(i, i + BATCH_SIZE));
-
-    for (let bIdx = 0; bIdx < archiveBatches.length; bIdx++) {
-      emit({
-        phase: "archive",
-        batch_current: bIdx + 1,
-        batch_total: archiveBatches.length,
-        stones_processed: stones.length,
-        stones_total: stones.length,
-        added: result.added,
-        updated: result.updated,
-        archived: result.archived,
-        errors: result.errors.length,
-      });
-
-      for (const [stoneId, entry] of archiveBatches[bIdx]) {
-        try {
-          const res = await shopifyFetchWithRetry(shop, token, `/products/${entry.id}.json`, {
-            method: "PUT",
-            body: JSON.stringify({ product: { id: entry.id, status: "draft" } }),
-          });
-          if (res.ok) {
-            await supabaseAdmin.from("shopify_product_map")
-              .update({ shopify_product_status: "draft", last_synced_at: new Date().toISOString() })
-              .eq("jeweller_id", jewellerId).eq("stone_id", stoneId);
-            result.archived++;
-          } else {
-            result.error_manifest.push({
-              stone_id: stoneId, cert_number: null,
-              action: "archive", http_status: res.status, error: `HTTP ${res.status}`,
-            });
-          }
-        } catch (e) {
-          result.error_manifest.push({
-            stone_id: stoneId, cert_number: null,
-            action: "archive", http_status: null,
-            error: e instanceof Error ? e.message : String(e),
-          });
+    // Archive products whose stones are no longer in the feed (or sold)
+    for (const [stoneId, entry] of existingMap.entries()) {
+      if (currentIds.has(stoneId)) continue;
+      if (entry.status === "draft") continue;
+      try {
+        const res = await shopifyFetch(shop, token, `/products/${entry.id}.json`, {
+          method: "PUT",
+          body: JSON.stringify({ product: { id: entry.id, status: "draft" } }),
+        });
+        if (res.ok) {
+          await supabaseAdmin
+            .from("shopify_product_map")
+            .update({ shopify_product_status: "draft", last_synced_at: new Date().toISOString() })
+            .eq("jeweller_id", jewellerId)
+            .eq("stone_id", stoneId);
+          result.archived++;
         }
+      } catch (e) {
+        result.errors.push(`Archive ${stoneId}: ${e instanceof Error ? e.message : String(e)}`);
       }
-
-      if (bIdx < archiveBatches.length - 1) await sleep(INTER_BATCH_DELAY_MS);
     }
 
-    // ── Update connection + finalise log ─────────────────────────────────
-    await supabaseAdmin.from("shopify_connections").update({
-      last_sync_at: new Date().toISOString(),
-      last_sync_status: result.errors.length ? "partial" : "ok",
-      products_synced: stones.length,
-    }).eq("jeweller_id", jewellerId);
-
-    const finalStatus = result.errors.length === 0
-      ? "completed"
-      : result.errors.length < result.total_stones
-        ? "failed_partial"
-        : "failed_critical";
+    await supabaseAdmin
+      .from("shopify_connections")
+      .update({
+        last_sync_at: new Date().toISOString(),
+        last_sync_status: result.errors.length ? "partial" : "ok",
+        products_synced: stones.length,
+      })
+      .eq("jeweller_id", jewellerId);
 
     if (logId) {
-      await supabaseAdmin.from("shopify_sync_logs").update({
-        completed_at: new Date().toISOString(),
-        status: finalStatus,
-        total_stones_detected: result.total_stones,
-        stones_added_successfully: result.added,
-        stones_updated_successfully: result.updated,
-        stones_failed_count: result.error_manifest.length,
-        error_manifest: result.error_manifest,
-      }).eq("id", logId);
+      await supabaseAdmin
+        .from("shopify_sync_logs")
+        .update({
+          completed_at: new Date().toISOString(),
+          status: result.errors.length ? "partial" : "ok",
+          stones_added: result.added,
+          stones_updated: result.updated,
+          stones_archived: result.archived,
+          error_message: result.errors.slice(0, 5).join(" | ") || null,
+        })
+        .eq("id", logId);
     }
 
-    emit({
-      phase: "done",
-      batch_current: batchTotal,
-      batch_total: batchTotal,
-      stones_processed: stones.length,
-      stones_total: stones.length,
-      added: result.added,
-      updated: result.updated,
-      archived: result.archived,
-      errors: result.errors.length,
-    });
-
-    console.log(`[shopify] Sync ${sessionId} complete: +${result.added} ~${result.updated} ↓${result.archived} ✗${result.errors.length}`);
+    console.log(`[shopify] Sync complete: ${result.added} added, ${result.updated} updated, ${result.archived} archived, ${result.errors.length} errors`);
     return result;
-
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (logId) {
-      await supabaseAdmin.from("shopify_sync_logs").update({
-        completed_at: new Date().toISOString(),
-        status: "failed_critical",
-        error_manifest: [{ stone_id: "—", cert_number: null, action: "create", http_status: null, error: msg }],
-      }).eq("id", logId);
+      await supabaseAdmin
+        .from("shopify_sync_logs")
+        .update({
+          completed_at: new Date().toISOString(),
+          status: "error",
+          error_message: msg,
+        })
+        .eq("id", logId);
     }
-    await supabaseAdmin.from("shopify_connections")
+    await supabaseAdmin
+      .from("shopify_connections")
       .update({ last_sync_at: new Date().toISOString(), last_sync_status: "error" })
       .eq("jeweller_id", jewellerId);
     throw e;
