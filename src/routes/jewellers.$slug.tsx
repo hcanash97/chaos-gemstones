@@ -14,7 +14,7 @@ export const Route = createFileRoute("/jewellers/$slug")({
       { title: `Jeweller profile — Chaos Gemstones` },
       { property: "og:url", content: `/jewellers/${params.slug}` },
     ],
-    links: [{ rel: "canonical", href: `/jewellers/${params.slug}` }],
+    links: [{ rel: "canonical", href: `https://chaosgemstones.com/jewellers/${params.slug}` }],
   }),
 });
 

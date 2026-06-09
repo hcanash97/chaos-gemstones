@@ -17,7 +17,7 @@ export const Route = createFileRoute("/how-it-works/payments")({
       { property: "og:description", content: "Direct dealer-to-jeweller payments. Free during launch beta." },
       { property: "og:url", content: "/how-it-works/payments" },
     ],
-    links: [{ rel: "canonical", href: "/how-it-works/payments" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/how-it-works/payments" }],
   }),
   component: PaymentsPage,
 });

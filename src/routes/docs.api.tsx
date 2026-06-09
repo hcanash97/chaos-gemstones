@@ -15,7 +15,7 @@ export const Route = createFileRoute("/docs/api")({
       { property: "og:title", content: "Chaos API & Embed Docs" },
       { property: "og:description", content: "Drop-in widget, raw JSON feed, and iframe embed for every website builder." },
     ],
-    links: [{ rel: "canonical", href: "/docs/api" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/docs/api" }],
   }),
 });
 

@@ -18,7 +18,6 @@ import { CompareBar } from "@/components/site/CompareBar";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SiteThemeBridge } from "@/components/site/SiteThemeBridge";
-import { DEFAULT_SITE_THEME } from "@/lib/site-theme";
 
 function NotFoundComponent() {
   return (
@@ -89,21 +88,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: DEFAULT_SITE_THEME.seo_title },
-      { name: "description", content: DEFAULT_SITE_THEME.seo_description },
-      { property: "og:site_name", content: DEFAULT_SITE_THEME.site_name.toUpperCase() },
-      { property: "og:title", content: DEFAULT_SITE_THEME.seo_title },
-      { property: "og:description", content: DEFAULT_SITE_THEME.seo_description },
+      { title: "CHAOS — Gemstone & Diamond Marketplace" },
+      { name: "description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
+      { property: "og:site_name", content: "CHAOS" },
+      { property: "og:title", content: "CHAOS — Gemstone & Diamond Marketplace" },
+      { property: "og:description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "theme-color", content: DEFAULT_SITE_THEME.accent_color },
+      { name: "theme-color", content: "#1B3A2D" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: DEFAULT_SITE_THEME.site_name.toUpperCase() },
-      { name: "twitter:title", content: DEFAULT_SITE_THEME.seo_title },
-      { name: "twitter:description", content: DEFAULT_SITE_THEME.seo_description },
-      { property: "og:image", content: DEFAULT_SITE_THEME.seo_image_url },
-      { name: "twitter:image", content: DEFAULT_SITE_THEME.seo_image_url },
+      { name: "apple-mobile-web-app-title", content: "CHAOS" },
+      { name: "twitter:title", content: "CHAOS — Gemstone & Diamond Marketplace" },
+      { name: "twitter:description", content: "The global B2B marketplace for independent gemstone and diamond dealers." },
+      { property: "og:image", content: "https://chaosgemstones.com/icons/icon-512.png" },
+      { name: "twitter:image", content: "https://chaosgemstones.com/icons/icon-512.png" },
     ],
     links: [
       {
@@ -121,9 +120,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "alternate", hreflang: "x-default", href: "https://chaosgemstones.com" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      // Load fonts asynchronously — avoids render-blocking which was costing ~600ms on FCP.
+      // The onload trick swaps media="print" to media="all" once fonts have fetched,
+      // so the browser never blocks rendering waiting for them.
+      {
+        rel: "preload",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap",
+        as: "style",
+      },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap",
+        media: "print",
+        // @ts-ignore — onload is valid HTML but not in React's link type
+        onload: "this.media='all'",
       },
     ],
   }),

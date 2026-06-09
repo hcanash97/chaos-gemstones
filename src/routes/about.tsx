@@ -12,7 +12,7 @@ export const Route = createFileRoute("/about")({
       { property: "og:description", content: "How the Chaos marketplace and live API feeds work for dealers and jewellers." },
       { property: "og:url", content: "/about" },
     ],
-    links: [{ rel: "canonical", href: "/about" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/about" }],
   }),
 });
 

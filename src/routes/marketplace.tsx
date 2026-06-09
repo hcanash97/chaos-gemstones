@@ -7,7 +7,6 @@ import { joinWaitlist } from "@/lib/waitlist.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader, SiteFooter } from "@/components/site/SiteHeader";
 import { StoneCard } from "@/components/site/StoneCard";
-import { ConciergeRequestModal } from "@/components/marketplace/ConciergeRequestModal";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -86,7 +85,7 @@ export const Route = createFileRoute("/marketplace")({
       { property: "og:url", content: "/marketplace" },
       { name: "keywords", content: "buy loose gemstones wholesale, certified diamonds wholesale, sapphire wholesale UK, ruby wholesale, emerald wholesale, loose stones for jewellers, coloured gemstone marketplace" },
     ],
-    links: [{ rel: "canonical", href: "/marketplace" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/marketplace" }],
   }),
 });
 
@@ -257,11 +256,7 @@ function Marketplace() {
 
   const filterCount = activeFilterCount(f);
   const displayTotal = filterCount > 0 ? total : marketTotal;
-  // Pagination must follow the *actual* filtered query count, not the
-  // unfiltered marketTotal — the server query always filters by availability
-  // ('available' by default), so marketTotal can exceed `total` and lead
-  // users to empty pages beyond the real result set.
-  const totalPages = Math.max(1, Math.ceil((total || 0) / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(displayTotal / PAGE_SIZE));
   const pageStart = displayTotal > 0 ? (page - 1) * PAGE_SIZE + 1 : 0;
   const pageEnd = Math.min((page - 1) * PAGE_SIZE + visible.length, displayTotal);
   const resultSummary =
@@ -953,6 +948,15 @@ function Marketplace() {
           </aside>
 
           <div>
+            {!isLoading && totalPages > 1 && (
+              <MarketplacePagination
+                className="mb-5"
+                page={page}
+                totalPages={totalPages}
+                disabled={isFetching}
+                onPageChange={goToPage}
+              />
+            )}
             {isLoading ? (
               <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -1409,31 +1413,24 @@ function EmptyMarketplace({
 
   if (hasFilters) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-card/50 p-8 text-sm text-muted-foreground md:p-12">
+      <div className="rounded-md border border-dashed border-border p-6 text-sm text-muted-foreground md:p-10">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-gold)]/15 text-2xl text-[var(--color-gold-foreground)]">
-            ◆
-          </div>
-          <h2 className="font-serif text-2xl text-foreground">No stones currently match this precise combination.</h2>
+          <h2 className="font-serif text-2xl text-foreground">No matching stones yet</h2>
           <p className="mx-auto mt-2 max-w-md">
-            Clear your filters or request this specific brief via our Buyer Concierge.
+            Try clearing one or two filters, or use diagnostics to see the exact values currently stored in Chaos for shape, lab, colour, and treatment.
           </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Button onClick={onClearFilters} className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
-              Reset Filters
-            </Button>
-            <ConciergeRequestModal
-              trigger={<Button variant="outline">Request via Buyer Concierge →</Button>}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={loadDiagnostics}
-              disabled={diagnosticsLoading}
-            >
-              {diagnosticsLoading ? "Checking values…" : "Show filter diagnostics"}
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" className="mt-4" onClick={onClearFilters}>
+            Clear all filters
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-4"
+            onClick={loadDiagnostics}
+            disabled={diagnosticsLoading}
+          >
+            {diagnosticsLoading ? "Checking values..." : "Show filter diagnostics"}
+          </Button>
         </div>
         {diagnostics && (
           <div className="mt-6 rounded-md border border-border bg-card text-left">

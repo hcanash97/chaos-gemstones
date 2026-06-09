@@ -20,8 +20,6 @@ import { BetaTopBanner } from "@/components/site/BetaTopBanner";
 import { DEFAULT_SITE_THEME, type HomepageBlockType } from "@/lib/site-theme";
 import { useSiteTheme } from "@/hooks/useSiteTheme";
 
-const SITE_URL = "https://chaosgemstones.com";
-
 export const Route = createFileRoute("/")({
   component: Home,
   head: () => ({
@@ -30,10 +28,10 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Connect with verified independent gemstone and diamond dealers in Jaipur, Surat, Bangkok and Colombo. Certified stones, live inventory feeds." },
       { property: "og:title", content: "B2B Gemstone & Diamond Marketplace — Chaos" },
       { property: "og:description", content: "Connect with verified independent gemstone and diamond dealers worldwide." },
-      { property: "og:url", content: SITE_URL },
+      { property: "og:url", content: "/" },
       { name: "keywords", content: "gemstone marketplace, diamond marketplace, wholesale gemstones, B2B gemstone platform, loose stones API, gemstone dealer UK, wholesale sapphire, wholesale ruby, Jaipur gemstone dealer, Surat diamond dealer" },
     ],
-    links: [{ rel: "canonical", href: SITE_URL }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/" }],
     scripts: [
       {
         type: "application/ld+json",
@@ -50,10 +48,10 @@ export const Route = createFileRoute("/")({
             {
               "@type": "WebSite",
               name: "Chaos",
-              url: SITE_URL,
+              url: "https://chaosgemstones.com",
               potentialAction: {
                 "@type": "SearchAction",
-                target: `${SITE_URL}/marketplace?search={search_term_string}`,
+                target: "https://chaosgemstones.com/marketplace?q={search_term_string}",
                 "query-input": "required name=search_term_string",
               },
             },
@@ -150,8 +148,7 @@ function Home() {
         .select("id, stone_type, shape, carat_weight, origin, country_of_origin, cert_lab, wholesale_price_usd, price_currency, colour_grade, clarity_grade, has_video, has_360, matching_pair, dealer_id, stone_images(storage_url, external_image_url, is_primary, sort_order)")
         .eq("featured", true)
         .eq("status", "available")
-        .order("updated_at", { ascending: false })
-        .limit(24);
+        .limit(8);
       return (data ?? []).map((s: any) => {
         const sorted = [...(s.stone_images ?? [])].sort(
           (a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99),
@@ -161,7 +158,7 @@ function Home() {
           ...s,
           image: primary?.storage_url || primary?.external_image_url || null,
         };
-      }).filter((s: any) => !!s.image).slice(0, 8);
+      });
     },
   });
 
@@ -274,7 +271,7 @@ function HomeHeroSection({ siteTheme }: { siteTheme: typeof DEFAULT_SITE_THEME }
           </Badge>
         </motion.div>
         <h1 className="mt-6 max-w-3xl font-serif text-5xl leading-[1.05] md:text-7xl">
-          <WordReveal text={siteTheme.hero_title} />
+          <WordReveal text={siteTheme.hero_title} isLcp />
         </h1>
         <motion.p
           className="mt-6 max-w-xl text-lg opacity-80"

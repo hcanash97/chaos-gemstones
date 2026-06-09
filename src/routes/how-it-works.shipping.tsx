@@ -15,7 +15,7 @@ export const Route = createFileRoute("/how-it-works/shipping")({
       { property: "og:description", content: "How to ship gemstones internationally — carriers, customs, and packaging." },
       { property: "og:url", content: "/how-it-works/shipping" },
     ],
-    links: [{ rel: "canonical", href: "/how-it-works/shipping" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/how-it-works/shipping" }],
   }),
   component: ShippingPage,
 });

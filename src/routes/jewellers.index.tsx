@@ -17,7 +17,7 @@ export const Route = createFileRoute("/jewellers/")({
       { property: "og:title", content: "Jewellers using Chaos" },
       { property: "og:description", content: "Independent jewellers sourcing certified gemstones through Chaos." },
     ],
-    links: [{ rel: "canonical", href: "/jewellers" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/jewellers" }],
   }),
 });
 

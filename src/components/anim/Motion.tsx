@@ -94,18 +94,27 @@ export function CountUp({
   return <motion.span ref={ref} className={className}>{rounded}</motion.span>;
 }
 
-/** Split a string into words and fade each one in sequentially. */
+/** Split a string into words and fade each one in sequentially.
+ *  For LCP elements: pass `isLcp` to skip the animation entirely on
+ *  first paint so Lighthouse can measure the real LCP time. */
 export function WordReveal({
   text,
   className,
   delay = 0,
   wordDelay = 0.08,
+  isLcp = false,
 }: {
   text: string;
   className?: string;
   delay?: number;
   wordDelay?: number;
+  isLcp?: boolean;
 }) {
+  // Skip animation for the LCP element — keeps it visible immediately for
+  // Lighthouse and real users on slow connections.
+  if (isLcp) {
+    return <span className={className}>{text}</span>;
+  }
   const words = text.split(" ");
   return (
     <span className={className}>

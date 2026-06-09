@@ -9,7 +9,7 @@ export const Route = createFileRoute("/docs/dealer-api")({
       { title: "Dealer Write API — Chaos" },
       { name: "description", content: "Programmatically create, update, and remove stone listings on Chaos via REST API." },
     ],
-    links: [{ rel: "canonical", href: "/docs/dealer-api" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/docs/dealer-api" }],
   }),
 });
 

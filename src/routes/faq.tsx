@@ -15,7 +15,7 @@ export const Route = createFileRoute("/faq")({
       { property: "og:title", content: "FAQ — Chaos Gemstones" },
       { property: "og:description", content: "Answers for dealers and jewellers using Chaos Gemstones." },
     ],
-    links: [{ rel: "canonical", href: "/faq" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/faq" }],
     scripts: [
       {
         type: "application/ld+json",

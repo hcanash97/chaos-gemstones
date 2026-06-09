@@ -12,7 +12,7 @@ export const Route = createFileRoute("/legal/privacy")({
       { property: "og:url", content: "/legal/privacy" },
       { name: "robots", content: "noindex, follow" },
     ],
-    links: [{ rel: "canonical", href: "/legal/privacy" }],
+    links: [{ rel: "canonical", href: "https://chaosgemstones.com/legal/privacy" }],
   }),
   component: PrivacyPage,
 });
