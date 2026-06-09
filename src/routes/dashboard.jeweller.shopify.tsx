@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, RefreshCw, Unlink, XCircle, Eye, Plug } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -397,8 +397,8 @@ function ShopifyPage() {
                 </thead>
                 <tbody>
                   {logs.map((l: any) => (
-                    <>
-                      <tr key={l.id} className="border-t border-border">
+                    <Fragment key={l.id}>
+                      <tr className="border-t border-border">
                         <td className="px-4 py-2 text-muted-foreground">
                           {new Date(l.started_at).toLocaleString("en-GB")}
                         </td>
@@ -433,7 +433,7 @@ function ShopifyPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   ))}
                   {logs.length === 0 && (
                     <tr>
