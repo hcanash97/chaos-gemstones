@@ -19,7 +19,7 @@ import {
   testShopifyConnectionFn,
   dryRunShopifySyncFn,
 } from "@/lib/shopify.functions";
-import type { SyncProgress, SyncErrorEntry, SyncResult } from "@/lib/shopify.server";
+import type { SyncProgress, SyncErrorEntry, SyncResult } from "@/lib/shopify.types";
 
 export const Route = createFileRoute("/dashboard/jeweller/shopify")({
   component: ShopifyPage,
@@ -53,6 +53,13 @@ function ShopifyPage() {
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
   const [expandedErrors, setExpandedErrors] = useState(false);
+  const [previewStatus, setPreviewStatus] = useState<{
+    wouldAdd: number;
+    wouldUpdate: number;
+    wouldArchive: number;
+    feedStoneCount: number;
+    errors: string[];
+  } | null>(null);
 
   const isJeweller = checkJ(profile);
 
@@ -121,7 +128,7 @@ function ShopifyPage() {
     setSyncProgress({ phase: "preparing", batch_current: 0, batch_total: 0, stones_processed: 0, stones_total: 0, added: 0, updated: 0, archived: 0, errors: 0 });
     setLastSyncResult(null);
     try {
-      const r = await sync({ data: { triggeredBy: "manual_btn" } }) as SyncResult;
+      const r = await sync({ data: { triggeredBy: "manual_btn" as const } }) as SyncResult;
       setLastSyncResult(r);
       setSyncProgress(null);
       if (r.errors.length === 0) {

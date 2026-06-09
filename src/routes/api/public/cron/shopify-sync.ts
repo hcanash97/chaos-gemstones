@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/public/cron/shopify-sync")({
         const results: Array<{ jeweller_id: string; ok: boolean; error?: string }> = [];
         for (const c of due) {
           try {
-            await runShopifySync(c.jeweller_id);
+            await runShopifySync(c.jeweller_id, "cron_4hr");
             results.push({ jeweller_id: c.jeweller_id, ok: true });
           } catch (e) {
             results.push({

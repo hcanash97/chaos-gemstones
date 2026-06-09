@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { SyncErrorEntry, SyncProgress, SyncResult } from "@/lib/shopify.types";
 
 // --- Token encryption (AES-GCM, key derived from service role secret) ----
 
@@ -484,35 +485,6 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ── Sync types ────────────────────────────────────────────────────────────────
 
-export type SyncErrorEntry = {
-  stone_id: string;
-  cert_number: string | null;
-  action: "create" | "update" | "archive";
-  http_status: number | null;
-  error: string;
-};
-
-export type SyncProgress = {
-  phase: "preparing" | "upsert" | "archive" | "done";
-  batch_current: number;
-  batch_total: number;
-  stones_processed: number;
-  stones_total: number;
-  added: number;
-  updated: number;
-  archived: number;
-  errors: number;
-};
-
-export type SyncResult = {
-  added: number;
-  updated: number;
-  archived: number;
-  errors: string[];          // legacy short strings for toast
-  error_manifest: SyncErrorEntry[];  // full per-stone error detail
-  total_stones: number;
-  session_id: string;
-};
 
 export async function runShopifySync(
   jewellerId: string,
