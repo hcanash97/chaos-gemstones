@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  buildAuthorizeUrl,
   encryptToken,
   getValidAccessToken,
   mintAccessToken,
@@ -36,7 +37,7 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
       .select(
-        "shop_domain, shop_name, is_active, auto_sync, last_sync_at, last_sync_status, products_synced, created_at, token_expires_at",
+        "shop_domain, shop_name, is_active, auto_sync, last_sync_at, last_sync_status, products_synced, created_at, token_expires_at, access_token",
       )
       .eq("jeweller_id", userId)
       .maybeSingle();
@@ -48,7 +49,13 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
       .eq("jeweller_id", userId)
       .order("started_at", { ascending: false })
       .limit(10);
-    return { connection: conn ?? null, logs: logs ?? [] };
+    const safeConn = conn
+      ? (() => {
+          const { access_token, ...rest } = conn as any;
+          return { ...rest, has_token: !!access_token };
+        })()
+      : null;
+    return { connection: safeConn, logs: logs ?? [] };
   });
 
 // ── Connect with Client ID + Secret (Client Credentials Exchange) ─────────
@@ -72,34 +79,37 @@ export const connectShopify = createServerFn({ method: "POST" })
 
     const shop = normaliseShopDomain(data.shopDomain);
 
-    // Mint + verify the credentials before persisting anything
-    let token: string;
-    try {
-      token = await mintAccessToken(shop, data.clientId, data.clientSecret);
-    } catch (e) {
-      throw new Error(
-        `Could not authenticate with Shopify: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
-    const test = await testShopifyConnection(shop, token);
-    if (!test.ok) throw new Error(`Connection test failed: ${test.error}`);
-
+    // Persist credentials, then return Shopify's authorize URL.
+    // The browser navigates to that URL; Shopify redirects back to
+    // /api/public/shopify/callback which exchanges the code for an
+    // offline access token and saves it.
     const encSecret = await encryptToken(data.clientSecret);
 
     const { error } = await supabaseAdmin.from("shopify_connections").upsert(
       {
         jeweller_id: userId,
         shop_domain: shop,
-        shop_name: test.name,
         client_id: data.clientId,
-        encrypted_client_secret: encSecret,
+        client_secret: encSecret,
+        is_active: false,
+        access_token: null,
         token_expires_at: null,
-        is_active: true,
       },
       { onConflict: "jeweller_id" },
     );
     if (error) throw new Error(error.message);
-    return { ok: true, shopName: test.name };
+
+    const state = crypto.randomUUID();
+    await supabaseAdmin.from("shopify_oauth_states").upsert({
+      jeweller_id: userId,
+      state,
+      shop_domain: shop,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    });
+
+    const redirectUri = "https://chaosgemstones.com/api/public/shopify/callback";
+    const authorizeUrl = buildAuthorizeUrl(shop, data.clientId, redirectUri, state);
+    return { ok: true, authorizeUrl, shopName: shop };
   });
 
 export const connectShopifyWithToken = connectShopify; // back-compat alias
@@ -158,3 +168,5 @@ export const dryRunShopifySyncFn = createServerFn({ method: "POST" })
 
 // Silence unused-import warnings for re-exports kept for callers/tests.
 void getValidAccessToken;
+void mintAccessToken;
+void testShopifyConnection;
