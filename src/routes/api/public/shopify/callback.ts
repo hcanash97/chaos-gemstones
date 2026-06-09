@@ -92,13 +92,14 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         if (dbError) return fail(`Database error: ${dbError.message}`);
 
         // Clean up any leftover state rows
-        await supabaseAdmin
-          .from("shopify_oauth_states")
-          .delete()
-          .eq("jeweller_id", conn.jeweller_id)
-          .throwOnError()
-          .then(() => {})
-          .catch(() => {}); // non-fatal
+        try {
+          await supabaseAdmin
+            .from("shopify_oauth_states")
+            .delete()
+            .eq("jeweller_id", conn.jeweller_id);
+        } catch {
+          // non-fatal
+        }
 
         return Response.redirect(
           `${CHAOS}/dashboard/jeweller/shopify?connected=1`,
