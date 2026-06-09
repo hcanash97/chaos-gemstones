@@ -852,6 +852,38 @@ export type Database = {
           },
         ]
       }
+      shopify_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          jeweller_id: string
+          shop_domain: string
+          state: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          jeweller_id: string
+          shop_domain: string
+          state: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          jeweller_id?: string
+          shop_domain?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shopify_oauth_states_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shopify_product_map: {
         Row: {
           id: string
