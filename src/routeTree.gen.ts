@@ -69,6 +69,7 @@ import { Route as DashboardDealerApiRouteImport } from './routes/dashboard.deale
 import { Route as ApiPublicFeedRouteImport } from './routes/api/public/feed'
 import { Route as ApiPublicChaosDotjsRouteImport } from './routes/api/public/chaos[.]js'
 import { Route as AdminDealerIdRouteImport } from './routes/admin.dealer.$id'
+import { Route as ApiPublicShopifyCallbackRouteImport } from './routes/api/public/shopify/callback'
 import { Route as ApiPublicCronShopifySyncRouteImport } from './routes/api/public/cron/shopify-sync'
 import { Route as ApiPublicCronSavedSearchDigestRouteImport } from './routes/api/public/cron/saved-search-digest'
 import { Route as ApiPublicCronDigestRouteImport } from './routes/api/public/cron/digest'
@@ -385,6 +386,12 @@ const AdminDealerIdRoute = AdminDealerIdRouteImport.update({
   path: '/dealer/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPublicShopifyCallbackRoute =
+  ApiPublicShopifyCallbackRouteImport.update({
+    id: '/api/public/shopify/callback',
+    path: '/api/public/shopify/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronShopifySyncRoute =
   ApiPublicCronShopifySyncRouteImport.update({
     id: '/api/public/cron/shopify-sync',
@@ -513,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
+  '/api/public/shopify/callback': typeof ApiPublicShopifyCallbackRoute
   '/admin/dealer/$id/stones/new': typeof AdminDealerIdStonesNewRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
@@ -585,6 +593,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
+  '/api/public/shopify/callback': typeof ApiPublicShopifyCallbackRoute
   '/admin/dealer/$id/stones/new': typeof AdminDealerIdStonesNewRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
@@ -659,6 +668,7 @@ export interface FileRoutesById {
   '/api/public/cron/digest': typeof ApiPublicCronDigestRoute
   '/api/public/cron/saved-search-digest': typeof ApiPublicCronSavedSearchDigestRoute
   '/api/public/cron/shopify-sync': typeof ApiPublicCronShopifySyncRoute
+  '/api/public/shopify/callback': typeof ApiPublicShopifyCallbackRoute
   '/admin/dealer/$id/stones/new': typeof AdminDealerIdStonesNewRoute
   '/api/dealer/v1/stones/$id': typeof ApiDealerV1StonesIdRouteWithChildren
   '/api/dealer/v1/stones/bulk': typeof ApiDealerV1StonesBulkRoute
@@ -734,6 +744,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
+    | '/api/public/shopify/callback'
     | '/admin/dealer/$id/stones/new'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
@@ -806,6 +817,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
+    | '/api/public/shopify/callback'
     | '/admin/dealer/$id/stones/new'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
@@ -879,6 +891,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/digest'
     | '/api/public/cron/saved-search-digest'
     | '/api/public/cron/shopify-sync'
+    | '/api/public/shopify/callback'
     | '/admin/dealer/$id/stones/new'
     | '/api/dealer/v1/stones/$id'
     | '/api/dealer/v1/stones/bulk'
@@ -927,6 +940,7 @@ export interface RootRouteChildren {
   ApiPublicCronDigestRoute: typeof ApiPublicCronDigestRoute
   ApiPublicCronSavedSearchDigestRoute: typeof ApiPublicCronSavedSearchDigestRoute
   ApiPublicCronShopifySyncRoute: typeof ApiPublicCronShopifySyncRoute
+  ApiPublicShopifyCallbackRoute: typeof ApiPublicShopifyCallbackRoute
   ApiPublicHooksEmailNotifyRoute: typeof ApiPublicHooksEmailNotifyRoute
   ApiPublicHooksShopifyEventsRoute: typeof ApiPublicHooksShopifyEventsRoute
 }
@@ -1353,6 +1367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDealerIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/public/shopify/callback': {
+      id: '/api/public/shopify/callback'
+      path: '/api/public/shopify/callback'
+      fullPath: '/api/public/shopify/callback'
+      preLoaderRoute: typeof ApiPublicShopifyCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/shopify-sync': {
       id: '/api/public/cron/shopify-sync'
       path: '/api/public/cron/shopify-sync'
@@ -1589,9 +1610,20 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronDigestRoute: ApiPublicCronDigestRoute,
   ApiPublicCronSavedSearchDigestRoute: ApiPublicCronSavedSearchDigestRoute,
   ApiPublicCronShopifySyncRoute: ApiPublicCronShopifySyncRoute,
+  ApiPublicShopifyCallbackRoute: ApiPublicShopifyCallbackRoute,
   ApiPublicHooksEmailNotifyRoute: ApiPublicHooksEmailNotifyRoute,
   ApiPublicHooksShopifyEventsRoute: ApiPublicHooksShopifyEventsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
