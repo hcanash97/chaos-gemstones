@@ -248,6 +248,10 @@ function ShopifyPage() {
           onPreview={handlePreview}
           testStatus={testStatus}
           previewStatus={previewStatus}
+          syncProgress={syncProgress}
+          lastSyncResult={lastSyncResult}
+          expandedErrors={expandedErrors}
+          setExpandedErrors={setExpandedErrors}
         />
       ) : (
         <ConnectForm
