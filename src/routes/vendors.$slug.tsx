@@ -26,7 +26,7 @@ export const Route = createFileRoute("/vendors/$slug")({
   loader: async ({ params }) => {
     const { data } = await supabase
       .from("dealer_profiles")
-      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, profiles!inner(company_name, city, country, is_approved)")
+      .select("id, logo_url, bio, specialities, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, profiles:dealer_profiles_public!inner(company_name, city, country, is_approved)")
       .eq("slug", params.slug)
       .maybeSingle();
     return { vendor: data as any };
@@ -110,7 +110,7 @@ function VendorProfile() {
       const to = from + VENDOR_CATALOGUE_PAGE_SIZE - 1;
       const { data: vendorRaw } = await supabase
         .from("dealer_profiles")
-        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, profiles!inner(company_name, city, country, website, is_verified, created_at)")
+        .select("id, bio, specialities, languages, years_trading, response_time_hours, gia_member, igi_member, directory_url, trade_memberships, cover_image_url, instagram_url, founded_year, tagline, story, certifications, logo_url, profiles:dealer_profiles_public!inner(company_name, city, country, website, is_verified, created_at)")
         .eq("slug", slug)
         .maybeSingle();
       const vendor = vendorRaw as any;
