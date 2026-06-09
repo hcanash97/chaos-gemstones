@@ -10,7 +10,9 @@ import {
 
 // GET /api/public/shopify/callback
 // Shopify redirects here after the user authorises the app.
-// Query params: code, shop, state, hmac (optional)
+// Simplified: we look up the jeweller by shop domain rather than
+// depending on an exact state match (which breaks if the user clicks
+// around before the redirect fires).
 
 export const Route = createFileRoute("/api/public/shopify/callback")({
   server: {
@@ -19,44 +21,37 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         const url = new URL(request.url);
         const code  = url.searchParams.get("code") ?? "";
         const shop  = url.searchParams.get("shop") ?? "";
-        const state = url.searchParams.get("state") ?? "";
+        const error = url.searchParams.get("error") ?? "";
 
-        const CHAOS_ORIGIN = process.env.VITE_SUPABASE_URL
-          ? "https://chaosgemstones.com"
-          : "http://localhost:5173";
-
+        const CHAOS = "https://chaosgemstones.com";
         const fail = (msg: string) =>
-          Response.redirect(`${CHAOS_ORIGIN}/dashboard/jeweller/shopify?error=${encodeURIComponent(msg)}`, 302);
+          Response.redirect(
+            `${CHAOS}/dashboard/jeweller/shopify?error=${encodeURIComponent(msg)}`,
+            302,
+          );
 
-        if (!code || !shop || !state) {
-          return fail("Missing OAuth parameters from Shopify.");
-        }
+        // Shopify sometimes sends error param (e.g. user clicked Cancel)
+        if (error) return fail(`Shopify returned error: ${error}`);
+        if (!code || !shop) return fail("Missing code or shop from Shopify redirect.");
 
-        // Look up the state to find the jeweller
-        const { data: oauthState } = await supabaseAdmin
-          .from("shopify_oauth_states")
-          .select("jeweller_id, shop_domain, expires_at")
-          .eq("state", state)
-          .maybeSingle();
+        const normShop = normaliseShopDomain(shop);
 
-        if (!oauthState) return fail("Invalid or expired OAuth state. Please try connecting again.");
-        if (new Date(oauthState.expires_at) < new Date()) return fail("OAuth session expired. Please try connecting again.");
-
-        const normalisedShop = normaliseShopDomain(shop);
-        if (normalisedShop !== oauthState.shop_domain) return fail("Store domain mismatch.");
-
-        // Clean up the state row
-        await supabaseAdmin.from("shopify_oauth_states").delete().eq("state", state);
-
-        // Fetch the stored credentials for this jeweller
+        // Look up the jeweller by shop domain — no state table needed
         const { data: conn } = await supabaseAdmin
           .from("shopify_connections")
-          .select("client_id, client_secret")
-          .eq("jeweller_id", oauthState.jeweller_id)
+          .select("id, jeweller_id, client_id, client_secret")
+          .eq("shop_domain", normShop)
           .maybeSingle();
 
-        if (!conn?.client_id || !conn?.client_secret) {
-          return fail("Credentials not found. Please start the connection process again.");
+        if (!conn) {
+          return fail(
+            `No connection record found for ${normShop}. ` +
+            "Please fill in the form and click Connect again.",
+          );
+        }
+
+        if (!conn.client_id || !conn.client_secret) {
+          return fail("Credentials not found. Please click Connect again.");
         }
 
         let clientId: string;
@@ -64,39 +59,49 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         try {
           clientId     = await decryptToken(conn.client_id);
           clientSecret = await decryptToken(conn.client_secret);
-        } catch {
-          return fail("Could not decrypt stored credentials.");
+        } catch (e) {
+          return fail("Could not read stored credentials — please reconnect.");
         }
 
-        // Exchange code for permanent offline token
+        // Exchange the authorisation code for a permanent offline token
         let token: string;
         try {
-          token = await exchangeCodeForToken(normalisedShop, clientId, clientSecret, code);
+          token = await exchangeCodeForToken(normShop, clientId, clientSecret, code);
         } catch (e) {
-          return fail(`Token exchange failed: ${e instanceof Error ? e.message : String(e)}`);
+          return fail(
+            `Token exchange failed: ${e instanceof Error ? e.message : String(e)}`,
+          );
         }
 
-        // Verify it works
-        const test = await testShopifyConnection(normalisedShop, token);
+        // Quick sanity check
+        const test = await testShopifyConnection(normShop, token);
         if (!test.ok) return fail(`Connection test failed: ${test.error}`);
 
-        // Store the permanent token
+        // Persist the permanent token
         const encToken = await encryptToken(token);
-        const { error } = await supabaseAdmin
+        const { error: dbError } = await supabaseAdmin
           .from("shopify_connections")
           .update({
-            shop_name: test.name,
-            access_token: encToken,
-            token_expires_at: null, // permanent — never expires
-            is_active: true,
+            shop_name:         test.name,
+            access_token:      encToken,
+            token_expires_at:  null,   // permanent
+            is_active:         true,
           })
-          .eq("jeweller_id", oauthState.jeweller_id);
+          .eq("id", conn.id);
 
-        if (error) return fail(`Database error: ${error.message}`);
+        if (dbError) return fail(`Database error: ${dbError.message}`);
 
-        // Redirect back to the Shopify dashboard with success
+        // Clean up any leftover state rows
+        await supabaseAdmin
+          .from("shopify_oauth_states")
+          .delete()
+          .eq("jeweller_id", conn.jeweller_id)
+          .throwOnError()
+          .then(() => {})
+          .catch(() => {}); // non-fatal
+
         return Response.redirect(
-          `${CHAOS_ORIGIN}/dashboard/jeweller/shopify?connected=1`,
+          `${CHAOS}/dashboard/jeweller/shopify?connected=1`,
           302,
         );
       },
