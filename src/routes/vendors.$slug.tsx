@@ -15,6 +15,9 @@ import { StarInput } from "@/components/site/StarInput";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { isJeweller as checkJ } from "@/lib/auth.utils";
+import { useServerFn } from "@tanstack/react-start";
+import { getJewellerApiStatus, toggleFeedSelection } from "@/lib/jeweller-feed.functions";
+import { Heart, HeartOff } from "lucide-react";
 
 const VENDOR_CATALOGUE_PAGE_SIZE = 48;
 
@@ -98,6 +101,8 @@ function VendorProfile() {
   const { user, profile } = useAuth();
   const qc = useQueryClient();
   const [cataloguePage, setCataloguePage] = useState(1);
+  const fetchStatus = useServerFn(getJewellerApiStatus);
+  const saveSelection = useServerFn(toggleFeedSelection);
   const { data, isLoading } = useQuery({
     queryKey: ["vendor", slug, cataloguePage],
     queryFn: async () => {
@@ -177,6 +182,45 @@ function VendorProfile() {
   });
 
   const isApprovedJeweller = checkJ(profile) && !!profile?.is_approved;
+  const { data: feedStatus, refetch: refetchFeedStatus } = useQuery({
+    queryKey: ["jeweller-feed-status", user?.id],
+    enabled: !!user?.id && isApprovedJeweller,
+    queryFn: () => fetchStatus(),
+  });
+  const followedDealerIds = new Set(
+    (feedStatus?.selections ?? [])
+      .filter((s: any) => s.selection_type === "dealer_follow")
+      .map((s: any) => s.dealer_id),
+  );
+  const isFollowing = data?.vendor ? followedDealerIds.has(data.vendor.id) : false;
+  const [followBusy, setFollowBusy] = useState(false);
+
+  async function onToggleFollow() {
+    if (!data?.vendor) return;
+    setFollowBusy(true);
+    try {
+      await saveSelection({
+        data: {
+          selectionType: "dealer_follow",
+          dealerId: data.vendor.id,
+          enabled: !isFollowing,
+        },
+      });
+      await refetchFeedStatus();
+      qc.invalidateQueries({ queryKey: ["jeweller-overview"] });
+      qc.invalidateQueries({ queryKey: ["jeweller-intelligence"] });
+      toast.success(
+        !isFollowing
+          ? `Following ${data.vendor.profiles?.company_name} — their stones now flow into your feed.`
+          : `Unfollowed ${data.vendor.profiles?.company_name}.`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update follow.");
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
   const { data: wishlistIds } = useQuery({
     queryKey: ["wishlist-ids", user?.id],
     enabled: !!user && isApprovedJeweller,
