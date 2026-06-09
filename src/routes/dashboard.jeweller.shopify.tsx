@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   connectShopify,
+  connectShopifyWithToken,
   disconnectShopify,
   getShopifyStatus,
   setShopifyAutoSync,
@@ -29,6 +30,7 @@ function ShopifyPage() {
   const qc = useQueryClient();
   const status = useServerFn(getShopifyStatus);
   const connect = useServerFn(connectShopify);
+  const connectWithToken = useServerFn(connectShopifyWithToken);
   const disconnect = useServerFn(disconnectShopify);
   const sync = useServerFn(syncShopifyNow);
   const toggleAuto = useServerFn(setShopifyAutoSync);
@@ -38,6 +40,7 @@ function ShopifyPage() {
   const [shop, setShop] = useState("aviediamonds.myshopify.com");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
+  const [accessToken, setAccessToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [connectStatus, setConnectStatus] = useState<
     | { kind: "success"; shopName: string }
@@ -108,6 +111,35 @@ function ShopifyPage() {
         return;
       }
       toast.success("Connected.");
+      await refetch();
+      qc.invalidateQueries({ queryKey: ["shopify-status"] });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not connect";
+      toast.error(message);
+      setConnectStatus({ kind: "error", message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConnectWithToken() {
+    if (!shop.trim() || !accessToken.trim()) {
+      toast.error("Enter your store domain and Admin API access token.");
+      return;
+    }
+    if (!/^shpat_/.test(accessToken.trim())) {
+      toast.error("Access token should start with 'shpat_'.");
+      return;
+    }
+    setBusy(true);
+    setConnectStatus(null);
+    try {
+      const res = await connectWithToken({
+        data: { shopDomain: shop.trim(), accessToken: accessToken.trim() },
+      });
+      toast.success(`Connected to ${res.shopName}`);
+      setConnectStatus({ kind: "success", shopName: res.shopName });
+      setAccessToken("");
       await refetch();
       qc.invalidateQueries({ queryKey: ["shopify-status"] });
     } catch (e) {
@@ -244,8 +276,11 @@ function ShopifyPage() {
           setClientId={setClientId}
           clientSecret={clientSecret}
           setClientSecret={setClientSecret}
+          accessToken={accessToken}
+          setAccessToken={setAccessToken}
           busy={busy}
           onConnect={handleConnect}
+          onConnectWithToken={handleConnectWithToken}
         />
       )}
     </div>
@@ -259,13 +294,55 @@ function ConnectForm(props: {
   setClientId: (v: string) => void;
   clientSecret: string;
   setClientSecret: (v: string) => void;
+  accessToken: string;
+  setAccessToken: (v: string) => void;
   busy: boolean;
   onConnect: () => void;
+  onConnectWithToken: () => void;
 }) {
   return (
+    <div className="space-y-6">
+      <div className="rounded-md border border-[var(--color-gold)]/40 bg-card p-5">
+        <h2 className="font-serif text-xl">Recommended: paste your Admin API access token</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The most reliable way to connect. Create a Custom App in your Shopify admin
+          (Settings → Apps and sales channels → Develop apps), grant it the product /
+          inventory / order scopes, then paste the Admin API access token below.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="shop-token">Store domain</Label>
+            <Input
+              id="shop-token"
+              placeholder="aviediamonds.myshopify.com"
+              value={props.shop}
+              onChange={(e) => props.setShop(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="access-token">Admin API access token</Label>
+            <Input
+              id="access-token"
+              type="password"
+              placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              value={props.accessToken}
+              onChange={(e) => props.setAccessToken(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <Button
+          onClick={props.onConnectWithToken}
+          disabled={props.busy}
+          className="mt-4 bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+        >
+          {props.busy ? "Verifying…" : "Connect with access token"}
+        </Button>
+      </div>
+
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
       <div className="rounded-md border border-border bg-card p-5">
-        <h2 className="font-serif text-xl">Connect your Shopify store</h2>
+        <h2 className="font-serif text-xl">Or connect via OAuth (Client ID + Secret)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Enter your store URL and the credentials from your Shopify Dev Dashboard app.
           Both values are encrypted before storage and never exposed to the browser.
@@ -329,6 +406,7 @@ function ConnectForm(props: {
           auto-refreshes every sync.
         </p>
       </div>
+    </div>
     </div>
   );
 }
