@@ -255,58 +255,20 @@ function ConnectForm(props: {
   setClientId: (v: string) => void;
   clientSecret: string;
   setClientSecret: (v: string) => void;
-  accessToken: string;
-  setAccessToken: (v: string) => void;
   busy: boolean;
   onConnect: () => void;
-  onConnectWithToken: () => void;
 }) {
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-[var(--color-gold)]/40 bg-card p-5">
-        <h2 className="font-serif text-xl">Recommended: paste your Admin API access token</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The most reliable way to connect. Create a Custom App in your Shopify admin
-          (Settings → Apps and sales channels → Develop apps), grant it the product /
-          inventory / order scopes, then paste the Admin API access token below.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label htmlFor="shop-token">Store domain</Label>
-            <Input
-              id="shop-token"
-              placeholder="aviediamonds.myshopify.com"
-              value={props.shop}
-              onChange={(e) => props.setShop(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="access-token">Admin API access token</Label>
-            <Input
-              id="access-token"
-              type="password"
-              placeholder="shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              value={props.accessToken}
-              onChange={(e) => props.setAccessToken(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
-        </div>
-        <Button
-          onClick={props.onConnectWithToken}
-          disabled={props.busy}
-          className="mt-4 bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
-        >
-          {props.busy ? "Verifying…" : "Connect with access token"}
-        </Button>
-      </div>
-
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-      <div className="rounded-md border border-border bg-card p-5">
-        <h2 className="font-serif text-xl">Or connect via OAuth (Client ID + Secret)</h2>
+      <div className="rounded-md border-2 border-[var(--color-gold)]/60 bg-card p-5 shadow-[0_4px_24px_-12px_var(--color-gold)]">
+        <h2 className="font-serif text-xl">Connect your Shopify store</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your store URL and the credentials from your Shopify Dev Dashboard app.
-          Both values are encrypted before storage and never exposed to the browser.
+          As of Shopify's 2026 updates, static <code>shpat_</code> tokens are no longer
+          issued. Paste your <strong>Client ID</strong> and <strong>Client Secret</strong>
+          from your Shopify Developer Dashboard app — Chaos mints a short-lived access
+          token via Client Credentials Exchange on every sync. Your secret is encrypted
+          before storage and never exposed to the browser.
         </p>
         <div className="mt-4 space-y-3">
           <div>
@@ -319,28 +281,30 @@ function ConnectForm(props: {
             />
           </div>
           <div>
-            <Label htmlFor="client-id">Client ID</Label>
+            <Label htmlFor="client-id">Shopify Client ID / API Key</Label>
             <Input
               id="client-id"
-              placeholder="97aae9603a18bd1e4e0ce703c0206380"
+              placeholder="e.g., 4bca..."
               value={props.clientId}
               onChange={(e) => props.setClientId(e.target.value)}
+              autoComplete="off"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Found in dev.shopify.com → your app → Settings → Credentials → Client ID
+              Found in your Shopify Developer Dashboard → App → Settings → Client ID
             </p>
           </div>
           <div>
-            <Label htmlFor="client-secret">Client Secret</Label>
+            <Label htmlFor="client-secret">Shopify Client Secret</Label>
             <Input
               id="client-secret"
               type="password"
-              placeholder="shpss_..."
+              placeholder="e.g., shpss_..."
               value={props.clientSecret}
               onChange={(e) => props.setClientSecret(e.target.value)}
+              autoComplete="off"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Found in dev.shopify.com → your app → Settings → Credentials → Secret (click the eye icon)
+              Found in App → Settings → Client Secret (click reveal). Stored encrypted at rest.
             </p>
           </div>
           <Button
@@ -348,23 +312,23 @@ function ConnectForm(props: {
             disabled={props.busy}
             className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
           >
-            {props.busy ? "Connecting…" : "Connect store"}
+            {props.busy ? "Verifying credentials…" : "Connect store"}
           </Button>
         </div>
       </div>
       <div className="rounded-md border border-border bg-muted/30 p-5 text-sm">
         <h2 className="font-serif text-xl">Where to find your credentials</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5">
-          <li>Go to <a className="underline" href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> → find your "Chaos Gemstones Feed" app.</li>
-          <li>Click the app → go to <strong>Settings</strong>.</li>
-          <li>Copy the <strong>Client ID</strong> (visible on screen).</li>
-          <li>Click the eye icon next to <strong>Secret</strong> to reveal it, then copy it.</li>
-          <li>Paste both values opposite and click <strong>Connect</strong>.</li>
+          <li>Sign in to <a className="underline" href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> and open your app.</li>
+          <li>Go to <strong>Settings → Configuration</strong>.</li>
+          <li>Copy the <strong>Client ID / API Key</strong>.</li>
+          <li>Reveal and copy the <strong>Client Secret</strong>.</li>
+          <li>Paste both opposite and click <strong>Connect store</strong>.</li>
         </ol>
         <p className="mt-3 text-xs text-muted-foreground">
-          Static <code>shpat_</code> tokens were deprecated on 1 Jan 2026. Chaos
-          now exchanges your Client ID + Secret for a short-lived token that
-          auto-refreshes every sync.
+          Static <code>shpat_</code> tokens were deprecated by Shopify in 2026 and are
+          no longer issued. Chaos uses the modern Client Credentials Exchange flow —
+          fresh tokens are minted server-side on every sync and never persisted.
         </p>
       </div>
     </div>
