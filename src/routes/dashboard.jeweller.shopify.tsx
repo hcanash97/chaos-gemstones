@@ -102,6 +102,11 @@ function ShopifyPage() {
           clientSecret: clientSecret.trim(),
         },
       });
+      if (res.authorizeUrl) {
+        toast.success("Redirecting to Shopify to authorise…");
+        window.location.href = res.authorizeUrl;
+        return;
+      }
       toast.success(`Connected to ${res.shopName}`);
       setConnectStatus({ kind: "success", shopName: res.shopName });
       await refetch();
