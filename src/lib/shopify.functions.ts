@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
+  buildAuthorizeUrl,
   encryptToken,
   getValidAccessToken,
   mintAccessToken,
@@ -51,58 +52,56 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
     return { connection: conn ?? null, logs: logs ?? [] };
   });
 
-// ── Connect with Client ID + Secret (Client Credentials Exchange) ─────────
-// Modern Shopify 2026 flow: mint a fresh access token via
-//   POST {shop}/admin/oauth/access_token?grant_type=client_credentials
-// No browser redirect needed. We store the encrypted client_secret and mint
-// short-lived tokens on every sync/test.
+// ── Step 1: Start OAuth — returns the URL to redirect the user to ─────────
 
-const connectSchema = z.object({
+const startOAuthSchema = z.object({
   shopDomain: z.string().min(3).max(255),
   clientId: z.string().min(10).max(255),
   clientSecret: z.string().min(10).max(512),
 });
 
-export const connectShopify = createServerFn({ method: "POST" })
+export const startShopifyOAuth = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => connectSchema.parse(input))
+  .inputValidator((input: unknown) => startOAuthSchema.parse(input))
   .handler(async ({ context, data }) => {
     const { userId, supabase } = context;
     await assertJeweller(supabase, userId);
 
     const shop = normaliseShopDomain(data.shopDomain);
+    const state = crypto.randomUUID();
+    const redirectUri = `${process.env.VITE_SUPABASE_URL ? "https://chaosgemstones.com" : "http://localhost:5173"}/api/public/shopify/callback`;
 
-    // Mint + verify the credentials before persisting anything
-    let token: string;
-    try {
-      token = await mintAccessToken(shop, data.clientId, data.clientSecret);
-    } catch (e) {
-      throw new Error(
-        `Could not authenticate with Shopify: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
-    const test = await testShopifyConnection(shop, token);
-    if (!test.ok) throw new Error(`Connection test failed: ${test.error}`);
+    // Store credentials + state so the callback can complete the exchange
+    const [encClientId, encClientSecret] = await Promise.all([
+      encryptToken(data.clientId),
+      encryptToken(data.clientSecret),
+    ]);
 
-    const encSecret = await encryptToken(data.clientSecret);
-
-    const { error } = await supabaseAdmin.from("shopify_connections").upsert(
+    await supabaseAdmin.from("shopify_connections").upsert(
       {
         jeweller_id: userId,
         shop_domain: shop,
-        shop_name: test.name,
-        client_id: data.clientId,
-        encrypted_client_secret: encSecret,
-        token_expires_at: null,
-        is_active: true,
+        client_id: encClientId,
+        client_secret: encClientSecret,
+        is_active: false,  // not active until callback completes
       },
       { onConflict: "jeweller_id" },
     );
-    if (error) throw new Error(error.message);
-    return { ok: true, shopName: test.name };
+
+    // Store state in a short-lived DB row keyed to the jeweller
+    await supabaseAdmin.from("shopify_oauth_states").upsert(
+      { jeweller_id: userId, state, shop_domain: shop, expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() },
+      { onConflict: "jeweller_id" },
+    );
+
+    const authorizeUrl = buildAuthorizeUrl(shop, data.clientId, redirectUri, state);
+    return { authorizeUrl };
   });
 
-export const connectShopifyWithToken = connectShopify; // back-compat alias
+// ── Step 2: Callback handler (server route) ───────────────────────────────
+// This is handled in /api/public/shopify/callback.ts (separate file)
+
+export const connectShopify = startShopifyOAuth; // alias for backward compat
 
 export const disconnectShopify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -134,10 +133,11 @@ export const setShopifyAutoSync = createServerFn({ method: "POST" })
 
 export const syncShopifyNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: unknown) => z.object({ triggeredBy: z.enum(["manual_btn","cron_4hr"]).default("manual_btn") }).parse(input ?? {}))
+  .handler(async ({ context, data }) => {
     const { userId, supabase } = context;
     await assertJeweller(supabase, userId);
-    return runShopifySync(userId);
+    return runShopifySync(userId, data.triggeredBy);
   });
 
 export const testShopifyConnectionFn = createServerFn({ method: "POST" })

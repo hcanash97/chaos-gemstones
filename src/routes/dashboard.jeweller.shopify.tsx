@@ -19,6 +19,7 @@ import {
   testShopifyConnectionFn,
   dryRunShopifySyncFn,
 } from "@/lib/shopify.functions";
+import type { SyncProgress, SyncErrorEntry, SyncResult } from "@/lib/shopify.server";
 
 export const Route = createFileRoute("/dashboard/jeweller/shopify")({
   component: ShopifyPage,
@@ -49,13 +50,9 @@ function ShopifyPage() {
     | { kind: "error"; message: string }
     | null
   >(null);
-  const [previewStatus, setPreviewStatus] = useState<{
-    wouldAdd: number;
-    wouldUpdate: number;
-    wouldArchive: number;
-    feedStoneCount: number;
-    errors: string[];
-  } | null>(null);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
+  const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
+  const [expandedErrors, setExpandedErrors] = useState(false);
 
   const isJeweller = checkJ(profile);
 
@@ -101,9 +98,13 @@ function ShopifyPage() {
           clientId: clientId.trim(),
           clientSecret: clientSecret.trim(),
         },
-      });
-      toast.success(`Connected to ${res.shopName}`);
-      setConnectStatus({ kind: "success", shopName: res.shopName });
+      }) as any;
+      // OAuth redirect — takes user to Shopify to authorise
+      if (res?.authorizeUrl) {
+        window.location.href = res.authorizeUrl;
+        return;
+      }
+      toast.success("Connected.");
       await refetch();
       qc.invalidateQueries({ queryKey: ["shopify-status"] });
     } catch (e) {
@@ -117,11 +118,20 @@ function ShopifyPage() {
 
   async function handleSync() {
     setBusy(true);
+    setSyncProgress({ phase: "preparing", batch_current: 0, batch_total: 0, stones_processed: 0, stones_total: 0, added: 0, updated: 0, archived: 0, errors: 0 });
+    setLastSyncResult(null);
     try {
-      const r = await sync();
-      toast.success(`Sync complete — ${r.added} added, ${r.updated} updated, ${r.archived} archived`);
+      const r = await sync({ data: { triggeredBy: "manual_btn" } }) as SyncResult;
+      setLastSyncResult(r);
+      setSyncProgress(null);
+      if (r.errors.length === 0) {
+        toast.success(`Sync complete — ${r.added} added, ${r.updated} updated, ${r.archived} archived`);
+      } else {
+        toast.warning(`Sync partial — ${r.errors.length} error${r.errors.length > 1 ? "s" : ""}. See diagnostics below.`);
+      }
       await refetch();
     } catch (e) {
+      setSyncProgress(null);
       toast.error(e instanceof Error ? e.message : "Sync failed");
     } finally {
       setBusy(false);
@@ -259,16 +269,12 @@ function ConnectForm(props: {
   onConnect: () => void;
 }) {
   return (
-    <div className="space-y-6">
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-      <div className="rounded-md border-2 border-[var(--color-gold)]/60 bg-card p-5 shadow-[0_4px_24px_-12px_var(--color-gold)]">
+      <div className="rounded-md border border-border bg-card p-5">
         <h2 className="font-serif text-xl">Connect your Shopify store</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          As of Shopify's 2026 updates, static <code>shpat_</code> tokens are no longer
-          issued. Paste your <strong>Client ID</strong> and <strong>Client Secret</strong>
-          from your Shopify Developer Dashboard app — Chaos mints a short-lived access
-          token via Client Credentials Exchange on every sync. Your secret is encrypted
-          before storage and never exposed to the browser.
+          Enter your store URL and the credentials from your Shopify Dev Dashboard app.
+          Both values are encrypted before storage and never exposed to the browser.
         </p>
         <div className="mt-4 space-y-3">
           <div>
@@ -281,30 +287,28 @@ function ConnectForm(props: {
             />
           </div>
           <div>
-            <Label htmlFor="client-id">Shopify Client ID / API Key</Label>
+            <Label htmlFor="client-id">Client ID</Label>
             <Input
               id="client-id"
-              placeholder="e.g., 4bca..."
+              placeholder="97aae9603a18bd1e4e0ce703c0206380"
               value={props.clientId}
               onChange={(e) => props.setClientId(e.target.value)}
-              autoComplete="off"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Found in your Shopify Developer Dashboard → App → Settings → Client ID
+              Found in dev.shopify.com → your app → Settings → Credentials → Client ID
             </p>
           </div>
           <div>
-            <Label htmlFor="client-secret">Shopify Client Secret</Label>
+            <Label htmlFor="client-secret">Client Secret</Label>
             <Input
               id="client-secret"
               type="password"
-              placeholder="e.g., shpss_..."
+              placeholder="shpss_..."
               value={props.clientSecret}
               onChange={(e) => props.setClientSecret(e.target.value)}
-              autoComplete="off"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Found in App → Settings → Client Secret (click reveal). Stored encrypted at rest.
+              Found in dev.shopify.com → your app → Settings → Credentials → Secret (click the eye icon)
             </p>
           </div>
           <Button
@@ -312,26 +316,25 @@ function ConnectForm(props: {
             disabled={props.busy}
             className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
           >
-            {props.busy ? "Verifying credentials…" : "Connect store"}
+            {props.busy ? "Connecting…" : "Connect store"}
           </Button>
         </div>
       </div>
       <div className="rounded-md border border-border bg-muted/30 p-5 text-sm">
         <h2 className="font-serif text-xl">Where to find your credentials</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5">
-          <li>Sign in to <a className="underline" href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> and open your app.</li>
-          <li>Go to <strong>Settings → Configuration</strong>.</li>
-          <li>Copy the <strong>Client ID / API Key</strong>.</li>
-          <li>Reveal and copy the <strong>Client Secret</strong>.</li>
-          <li>Paste both opposite and click <strong>Connect store</strong>.</li>
+          <li>Go to <a className="underline" href="https://dev.shopify.com/dashboard" target="_blank" rel="noreferrer">dev.shopify.com/dashboard</a> → find your "Chaos Gemstones Feed" app.</li>
+          <li>Click the app → go to <strong>Settings</strong>.</li>
+          <li>Copy the <strong>Client ID</strong> (visible on screen).</li>
+          <li>Click the eye icon next to <strong>Secret</strong> to reveal it, then copy it.</li>
+          <li>Paste both values opposite and click <strong>Connect</strong>.</li>
         </ol>
         <p className="mt-3 text-xs text-muted-foreground">
-          Static <code>shpat_</code> tokens were deprecated by Shopify in 2026 and are
-          no longer issued. Chaos uses the modern Client Credentials Exchange flow —
-          fresh tokens are minted server-side on every sync and never persisted.
+          Static <code>shpat_</code> tokens were deprecated on 1 Jan 2026. Chaos
+          now exchanges your Client ID + Secret for a short-lived token that
+          auto-refreshes every sync.
         </p>
       </div>
-    </div>
     </div>
   );
 }
@@ -469,6 +472,21 @@ function ConnectedView({
 
       <div>
         <h2 className="font-serif text-xl">Recent syncs</h2>
+
+        {/* ── Live progress bar (visible while sync is running) ── */}
+        {syncProgress && syncProgress.phase !== "done" && (
+          <SyncProgressPanel progress={syncProgress} />
+        )}
+
+        {/* ── Last sync diagnostic result ── */}
+        {lastSyncResult && (
+          <SyncDiagnosticPanel
+            result={lastSyncResult}
+            expanded={expandedErrors}
+            onToggle={() => setExpandedErrors((v) => !v)}
+          />
+        )}
+
         <div className="mt-3 overflow-hidden rounded-md border border-border">
           <table className="w-full text-sm">
             <thead className="bg-muted">
@@ -527,3 +545,128 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 void timeAgo;
+
+// ── Sync progress bar ─────────────────────────────────────────────────────────
+
+function SyncProgressPanel({ progress }: { progress: SyncProgress }) {
+  const pct = progress.stones_total > 0
+    ? Math.round((progress.stones_processed / progress.stones_total) * 100)
+    : 0;
+
+  const phaseLabel = {
+    preparing: "Preparing…",
+    upsert:    `Processing batch ${progress.batch_current} of ${progress.batch_total}`,
+    archive:   `Archiving removed stones (batch ${progress.batch_current} of ${progress.batch_total})`,
+    done:      "Complete",
+  }[progress.phase];
+
+  return (
+    <div className="mt-4 rounded-md border border-border bg-card p-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-foreground">{phaseLabel}</span>
+        <span className="font-mono text-xs text-muted-foreground">{pct}%</span>
+      </div>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-[var(--color-gold)] transition-all duration-300"
+          style={{ width: `${Math.max(pct, 2)}%` }}
+        />
+      </div>
+      <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+        <span>+{progress.added} added</span>
+        <span>~{progress.updated} updated</span>
+        <span>↓{progress.archived} archived</span>
+        {progress.errors > 0 && (
+          <span className="text-destructive">✗ {progress.errors} error{progress.errors > 1 ? "s" : ""}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Post-sync diagnostic panel ─────────────────────────────────────────────────
+
+function SyncDiagnosticPanel({
+  result,
+  expanded,
+  onToggle,
+}: {
+  result: SyncResult;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const hasErrors = result.error_manifest.length > 0;
+  const statusColour = !hasErrors
+    ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+    : result.added + result.updated > 0
+      ? "text-amber-800 bg-amber-50 border-amber-200"
+      : "text-destructive bg-destructive/5 border-destructive/20";
+
+  const statusLabel = !hasErrors
+    ? "Completed — all stones synced"
+    : result.added + result.updated > 0
+      ? `Partial — ${result.error_manifest.length} stone${result.error_manifest.length > 1 ? "s" : ""} failed`
+      : "Failed — no stones synced";
+
+  const actionLabel = (a: SyncErrorEntry["action"]) =>
+    ({ create: "CREATE", update: "UPDATE", archive: "ARCHIVE" })[a];
+
+  return (
+    <div className={`mt-4 rounded-md border p-4 ${statusColour}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm font-medium">{statusLabel}</div>
+        <div className="flex gap-4 text-xs">
+          <span>+{result.added} added</span>
+          <span>~{result.updated} updated</span>
+          <span>↓{result.archived} archived</span>
+          <span className="font-mono text-[10px] text-muted-foreground">
+            session {result.session_id.slice(0, 8)}
+          </span>
+        </div>
+      </div>
+
+      {hasErrors && (
+        <>
+          <button
+            onClick={onToggle}
+            className="mt-2 text-xs underline underline-offset-2 opacity-70 hover:opacity-100"
+          >
+            {expanded ? "Hide" : "Show"} error manifest ({result.error_manifest.length} entries)
+          </button>
+          {expanded && (
+            <div className="mt-3 overflow-auto rounded border border-current/20 bg-white/60">
+              <table className="w-full text-xs">
+                <thead className="bg-black/5">
+                  <tr>
+                    <th className="px-3 py-1.5 text-left font-medium">Action</th>
+                    <th className="px-3 py-1.5 text-left font-medium">Cert / Stone ID</th>
+                    <th className="px-3 py-1.5 text-left font-medium">HTTP</th>
+                    <th className="px-3 py-1.5 text-left font-medium">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.error_manifest.map((e, i) => (
+                    <tr key={i} className="border-t border-current/10">
+                      <td className="px-3 py-1.5">
+                        <span className="rounded bg-black/10 px-1.5 py-0.5 font-mono">
+                          {actionLabel(e.action)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5 font-mono">
+                        {e.cert_number ?? e.stone_id.slice(0, 12)}
+                      </td>
+                      <td className="px-3 py-1.5 font-mono">
+                        {e.http_status ?? "—"}
+                      </td>
+                      <td className="max-w-xs px-3 py-1.5 break-words">{e.error}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
