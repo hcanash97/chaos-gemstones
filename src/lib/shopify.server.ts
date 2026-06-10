@@ -338,21 +338,22 @@ function fluorescenceIntensity(s: StoneRow): string | null {
 /** Map carat weight to À Vie's bucket format. */
 function caratRange(ct: number | null): string | null {
   if (!ct) return null;
-  if (ct < 0.30) return "0.00–0.29";
-  if (ct < 0.40) return "0.30–0.39";
-  if (ct < 0.50) return "0.40–0.49";
-  if (ct < 0.60) return "0.50–0.59";
-  if (ct < 0.70) return "0.60–0.69";
-  if (ct < 0.80) return "0.70–0.79";
-  if (ct < 0.90) return "0.80–0.89";
-  if (ct < 1.00) return "0.90–0.99";
-  if (ct < 1.50) return "1.00–1.49";
-  if (ct < 2.00) return "1.50–1.99";
-  if (ct < 3.00) return "2.00–2.99";
-  if (ct < 4.00) return "3.00–3.99";
-  if (ct < 5.00) return "4.00–4.99";
-  if (ct < 6.00) return "5.00–5.99";
-  if (ct < 10.00) return "6.00–9.99";
+  // NB: hyphen-minus, NOT en-dash — Shopify choice list uses "-".
+  if (ct < 0.30) return "0.00-0.29";
+  if (ct < 0.40) return "0.30-0.39";
+  if (ct < 0.50) return "0.40-0.49";
+  if (ct < 0.60) return "0.50-0.59";
+  if (ct < 0.70) return "0.60-0.69";
+  if (ct < 0.80) return "0.70-0.79";
+  if (ct < 0.90) return "0.80-0.89";
+  if (ct < 1.00) return "0.90-0.99";
+  if (ct < 1.50) return "1.00-1.49";
+  if (ct < 2.00) return "1.50-1.99";
+  if (ct < 3.00) return "2.00-2.99";
+  if (ct < 4.00) return "3.00-3.99";
+  if (ct < 5.00) return "4.00-4.99";
+  if (ct < 6.00) return "5.00-5.99";
+  if (ct < 10.00) return "6.00-9.99";
   return "10.00+";
 }
 
@@ -369,7 +370,10 @@ function mf(
   type: string = "single_line_text_field",
 ): { namespace: string; key: string; type: string; value: string } | null {
   if (value === null || value === undefined || value === "") return null;
-  return { namespace: "custom", key, type, value: String(value) };
+  // À Vie defines several taxonomy metafields as list.single_line_text_field
+  // (Shopify choice lists). For those, the value must be a JSON-encoded array.
+  const v = type.startsWith("list.") ? JSON.stringify([String(value)]) : String(value);
+  return { namespace: "custom", key, type, value: v };
 }
 
 function buildProductPayload(
@@ -415,36 +419,36 @@ function buildProductPayload(
   // ── Metafields: full À Vie diamond grading schema ─────────────────────────
   const metafields = [
     // Core grading
-    mf("diamond_shape",          cap(s.shape)),
+    mf("diamond_shape",          cap(s.shape), "list.single_line_text_field"),
     mf("diamond_carat",          s.carat_weight?.toFixed(2), "number_decimal"),
-    mf("diamond_carat_range",    caratRange(s.carat_weight)),
-    mf("diamond_colour_type",    ct),
+    mf("diamond_carat_range",    caratRange(s.carat_weight), "list.single_line_text_field"),
+    mf("diamond_colour_type",    ct, "list.single_line_text_field"),
     // White diamond colour (D–M scale)
-    ct === "White" ? mf("diamond_colour", s.colour_grade?.toUpperCase()) : null,
-    mf("diamond_clarity",        s.clarity_grade?.toUpperCase()),
-    mf("diamond_cut_grade",      cap(s.cut_grade)),
+    ct === "White" ? mf("diamond_colour", s.colour_grade?.toUpperCase(), "list.single_line_text_field") : null,
+    mf("diamond_clarity",        s.clarity_grade?.toUpperCase(), "list.single_line_text_field"),
+    mf("diamond_cut_grade",      cap(s.cut_grade), "list.single_line_text_field"),
     // Polish / symmetry / fluorescence
-    mf("diamond_polish",         cap(s.polish)),
-    mf("diamond_symmetry",       cap(s.symmetry)),
-    mf("diamond_fluorescence_intensity", fluorescenceIntensity(s)),
+    mf("diamond_polish",         cap(s.polish), "list.single_line_text_field"),
+    mf("diamond_symmetry",       cap(s.symmetry), "list.single_line_text_field"),
+    mf("diamond_fluorescence_intensity", fluorescenceIntensity(s), "list.single_line_text_field"),
     // Fancy colour fields
-    ct === "Fancy" ? mf("fancy_colour_hue",       cap(s.colour_hue)) : null,
-    ct === "Fancy" ? mf("fancy_colour_intensity",  cap(s.colour_tone)) : null,
+    ct === "Fancy" ? mf("fancy_colour_hue",       cap(s.colour_hue), "list.single_line_text_field") : null,
+    ct === "Fancy" ? mf("fancy_colour_intensity",  cap(s.colour_tone), "list.single_line_text_field") : null,
     // Treated colour
-    ct === "Treated" ? mf("treated_colour_hue",   cap(s.colour_hue)) : null,
+    ct === "Treated" ? mf("treated_colour_hue",   cap(s.colour_hue), "list.single_line_text_field") : null,
     // Measurements
     mf("diamond_measurements",   measurements),
     mf("diamond_depth",          s.depth_pct, "number_decimal"),
     mf("diamond_table",          s.table_pct, "number_decimal"),
     mf("diamond_length_to_width_ratio_l_w_ratio", s.lw_ratio, "number_decimal"),
-    mf("diamond_girdle",         cap(s.girdle)),
-    mf("diamond_cutlet",         cap(s.culet_size)),
+    mf("diamond_girdle",         cap(s.girdle), "list.single_line_text_field"),
+    mf("diamond_cutlet",         cap(s.culet_size), "list.single_line_text_field"),
     // Certification
     mf("diamond_certification_number", s.cert_number),
     mf("diamond_certification_link_url", s.cert_url, "url"),
     // Recommended additions from the metafield reference
-    mf("diamond_origin",         labGrown ? "Lab-grown" : "Natural"),
-    mf("diamond_certificate_lab", s.cert_lab?.toUpperCase()),
+    mf("diamond_origin",         labGrown ? "Lab-grown" : "Natural", "list.single_line_text_field"),
+    mf("diamond_certificate_lab", s.cert_lab?.toUpperCase(), "list.single_line_text_field"),
     mf("eye_clean",              s.eye_clean === "yes" || s.eye_clean === "true" ? "true" : null, "boolean"),
     mf("diamond_video_url",      s.has_video && s.video_url ? s.video_url : null, "url"),
     // Chaos internal reference
