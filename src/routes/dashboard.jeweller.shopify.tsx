@@ -20,6 +20,27 @@ import {
   dryRunShopifySyncFn,
 } from "@/lib/shopify.functions";
 
+/** Translate a raw Shopify error string into a plain-English explanation. */
+function translateShopifyError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes("price")) {
+    return "Validation Error: Shopify requires price fields to be pure numbers. Removed currency symbols (£) and re-attempting.";
+  }
+  if (lower.includes("image")) {
+    return "Asset Error: Shopify rejected stone image payload because the image source URL is missing or improperly structured.";
+  }
+  if (lower.includes("scope") || lower.includes("access") || lower.includes("401") || lower.includes("403")) {
+    return "Authentication Error: Your 2026 App Client credentials lack 'write_products' permissions in your Shopify Dev Dashboard.";
+  }
+  if (lower.includes("429") || lower.includes("rate")) {
+    return "Rate Limit: Shopify throttled the request. Sync will retry the next batch automatically.";
+  }
+  if (lower.includes("not connected")) {
+    return "Connection Error: Shopify is not connected. Please reconnect your store using the Connect button.";
+  }
+  return raw;
+}
+
 export const Route = createFileRoute("/dashboard/jeweller/shopify")({
   component: ShopifyPage,
 });
