@@ -650,7 +650,9 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
                 { method: "POST", body: JSON.stringify(payload) });
               if (!retry.ok) {
                 const t = await retry.text();
-                result.errors.push(`Create ${s.id}: ${retry.status} ${t.slice(0, 120)}`); continue;
+                console.error("[shopify] Create failed", s.id, retry.status, t);
+                result.errors.push(`Create ${s.id}: ${retry.status} ${t.slice(0, 300)}`);
+                continue;
               }
               const body2 = (await retry.json()) as { product?: { id?: number | string; handle?: string } };
               const pid2 = body2.product?.id ? String(body2.product.id) : null;
@@ -662,7 +664,9 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
             }
             if (!res.ok) {
               const t = await res.text();
-              result.errors.push(`Create ${s.id}: ${res.status} ${t.slice(0, 120)}`); continue;
+              console.error("[shopify] Create failed", s.id, res.status, t);
+              result.errors.push(`Create ${s.id}: ${res.status} ${t.slice(0, 300)}`);
+              continue;
             }
             const body = (await res.json()) as { product?: { id?: number | string; handle?: string } };
             const pid = body.product?.id ? String(body.product.id) : null;
