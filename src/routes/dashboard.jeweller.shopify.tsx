@@ -298,6 +298,50 @@ function ShopifyPage() {
             </div>
           </div>
 
+          {/* ── Shopify Sync Diagnostics Workspace ── */}
+          {(() => {
+            const errs = lastSyncResult?.errors ?? [];
+            const hasErr = errs.length > 0;
+            return (
+              <div className={`rounded-md border p-5 ${
+                hasErr
+                  ? "border-amber-500/60 bg-amber-500/10"
+                  : "border-border bg-muted/20"
+              }`}>
+                <div className="flex items-center gap-2">
+                  {hasErr
+                    ? <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                  <p className="font-medium">Shopify Sync Diagnostics Workspace</p>
+                </div>
+                {!hasErr ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    System status: Operational. Ready to stream gemstone records.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-sm text-amber-900 dark:text-amber-200">
+                      {errs.length} issue{errs.length === 1 ? "" : "s"} returned by Shopify during the last sync.
+                    </p>
+                    <ul className="max-h-72 space-y-3 overflow-y-auto rounded border border-amber-400/40 bg-card p-3 text-xs">
+                      {errs.map((err, i) => (
+                        <li key={i} className="border-b border-border/40 pb-2 last:border-b-0 last:pb-0">
+                          <div className="font-medium text-foreground">{translateShopifyError(err)}</div>
+                          <div className="mt-1 break-words font-mono text-[11px] text-muted-foreground">
+                            Raw: {err}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted-foreground">
+                      Full payloads and raw responses are also printed to the browser console (look for "== SHOPIFY DEPLOYING PAYLOAD ==").
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ── Test result ── */}
           {testStatus && (
             <div className={`flex items-start gap-2 rounded-md border p-4 text-sm ${
