@@ -269,11 +269,38 @@ function bodyHtml(s: StoneRow): string {
     .map(([k, v]) => `<tr><th style="text-align:left;padding:4px 12px 4px 0;">${k}</th><td>${v}</td></tr>`)
     .join("");
 
-  const notes = s.notes_for_buyers
+  const notes = s.notes_for_buyers && s.notes_for_buyers.trim()
     ? `<p>${escapeHtml(s.notes_for_buyers)}</p>`
-    : "";
+    : `<h4>Verified Premium Gemstone</h4><p>Contact us for full authentication credentials.</p>`;
 
   return `${notes}<table>${tableRows}</table><p><small>Sourced via Chaos Gemstones.</small></p>`;
+}
+
+// ── Payload sanitizers ────────────────────────────────────────────────────
+
+/** Clean a price into Shopify's expected format: pure decimal string, no symbols. */
+function cleanPrice(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "0.00";
+  // Strip anything that isn't a digit or decimal point (handles "£14,000.00" etc.)
+  const n = typeof value === "number"
+    ? value
+    : Number(String(value).replace(/[^0-9.]/g, ""));
+  if (!isFinite(n) || isNaN(n)) return "0.00";
+  return n.toFixed(2);
+}
+
+/** Keep only valid http(s) image URLs; return [] when none are usable. */
+function cleanImages(images: StoneImageRow[]): { src: string }[] {
+  const out: { src: string }[] = [];
+  for (const img of images
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
+    .slice(0, 10)) {
+    const src = (img.external_image_url || img.storage_url || "").trim();
+    if (!src) continue;
+    if (!/^https?:\/\//i.test(src)) continue;
+    out.push({ src });
+  }
+  return out;
 }
 
 function escapeHtml(s: string): string {
@@ -432,14 +459,10 @@ function buildProductPayload(
       product_type: cap(s.stone_type),
       tags: [...tagSet].join(", "),
       status: "active",
-      images: images
-        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
-        .slice(0, 10)
-        .map((img) => ({ src: img.external_image_url || img.storage_url }))
-        .filter((i) => i.src),
+      images: cleanImages(images),
       variants: [
         {
-          price: retailPrice ? retailPrice.toFixed(2) : "0.00",
+          price: cleanPrice(retailPrice),
           inventory_management: null,
           sku: `AV-CHAOS-${s.id.slice(0, 8).toUpperCase()}`,
           requires_shipping: true,
@@ -585,6 +608,8 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         const payload = buildProductPayload(s, images, retail);
         const existingEntry = existingMap.get(s.id);
 
+        console.log("== SHOPIFY DEPLOYING PAYLOAD ==", JSON.stringify({ stoneId: s.id, mode: existingEntry ? "update" : "create", payload }));
+
         try {
           if (existingEntry) {
             const res = await shopifyFetch(
@@ -597,9 +622,17 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
               await sleep(wait);
               const retry = await shopifyFetch(shop, token, `/products/${existingEntry.id}.json`,
                 { method: "PUT", body: JSON.stringify({ product: { id: existingEntry.id, ...payload.product, status: "active" } }) });
-              if (!retry.ok) { result.errors.push(`Update ${s.id}: ${retry.status}`); continue; }
+              if (!retry.ok) {
+                const t = await retry.text();
+                console.error("[shopify] Update failed", s.id, retry.status, t);
+                result.errors.push(`Update ${s.id}: ${retry.status} ${t.slice(0, 300)}`);
+                continue;
+              }
             } else if (!res.ok) {
-              result.errors.push(`Update ${s.id}: ${res.status}`); continue;
+              const t = await res.text();
+              console.error("[shopify] Update failed", s.id, res.status, t);
+              result.errors.push(`Update ${s.id}: ${res.status} ${t.slice(0, 300)}`);
+              continue;
             }
             await supabaseAdmin
               .from("shopify_product_map")
@@ -617,7 +650,9 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
                 { method: "POST", body: JSON.stringify(payload) });
               if (!retry.ok) {
                 const t = await retry.text();
-                result.errors.push(`Create ${s.id}: ${retry.status} ${t.slice(0, 120)}`); continue;
+                console.error("[shopify] Create failed", s.id, retry.status, t);
+                result.errors.push(`Create ${s.id}: ${retry.status} ${t.slice(0, 300)}`);
+                continue;
               }
               const body2 = (await retry.json()) as { product?: { id?: number | string; handle?: string } };
               const pid2 = body2.product?.id ? String(body2.product.id) : null;
@@ -629,7 +664,9 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
             }
             if (!res.ok) {
               const t = await res.text();
-              result.errors.push(`Create ${s.id}: ${res.status} ${t.slice(0, 120)}`); continue;
+              console.error("[shopify] Create failed", s.id, res.status, t);
+              result.errors.push(`Create ${s.id}: ${res.status} ${t.slice(0, 300)}`);
+              continue;
             }
             const body = (await res.json()) as { product?: { id?: number | string; handle?: string } };
             const pid = body.product?.id ? String(body.product.id) : null;
@@ -687,7 +724,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
           stones_added: result.added,
           stones_updated: result.updated,
           stones_archived: result.archived,
-          error_message: result.errors.slice(0, 5).join(" | ") || null,
+          error_message: result.errors.slice(0, 25).join(" | ") || null,
         })
         .eq("id", logId);
     }

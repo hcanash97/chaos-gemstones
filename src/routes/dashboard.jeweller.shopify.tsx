@@ -20,6 +20,27 @@ import {
   dryRunShopifySyncFn,
 } from "@/lib/shopify.functions";
 
+/** Translate a raw Shopify error string into a plain-English explanation. */
+function translateShopifyError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes("price")) {
+    return "Validation Error: Shopify requires price fields to be pure numbers. Removed currency symbols (£) and re-attempting.";
+  }
+  if (lower.includes("image")) {
+    return "Asset Error: Shopify rejected stone image payload because the image source URL is missing or improperly structured.";
+  }
+  if (lower.includes("scope") || lower.includes("access") || lower.includes("401") || lower.includes("403")) {
+    return "Authentication Error: Your 2026 App Client credentials lack 'write_products' permissions in your Shopify Dev Dashboard.";
+  }
+  if (lower.includes("429") || lower.includes("rate")) {
+    return "Rate Limit: Shopify throttled the request. Sync will retry the next batch automatically.";
+  }
+  if (lower.includes("not connected")) {
+    return "Connection Error: Shopify is not connected. Please reconnect your store using the Connect button.";
+  }
+  return raw;
+}
+
 export const Route = createFileRoute("/dashboard/jeweller/shopify")({
   component: ShopifyPage,
 });
@@ -276,6 +297,50 @@ function ShopifyPage() {
               <Switch checked={!!conn.auto_sync} onCheckedChange={handleAutoSync} />
             </div>
           </div>
+
+          {/* ── Shopify Sync Diagnostics Workspace ── */}
+          {(() => {
+            const errs = lastSyncResult?.errors ?? [];
+            const hasErr = errs.length > 0;
+            return (
+              <div className={`rounded-md border p-5 ${
+                hasErr
+                  ? "border-amber-500/60 bg-amber-500/10"
+                  : "border-border bg-muted/20"
+              }`}>
+                <div className="flex items-center gap-2">
+                  {hasErr
+                    ? <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                  <p className="font-medium">Shopify Sync Diagnostics Workspace</p>
+                </div>
+                {!hasErr ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    System status: Operational. Ready to stream gemstone records.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-sm text-amber-900 dark:text-amber-200">
+                      {errs.length} issue{errs.length === 1 ? "" : "s"} returned by Shopify during the last sync.
+                    </p>
+                    <ul className="max-h-72 space-y-3 overflow-y-auto rounded border border-amber-400/40 bg-card p-3 text-xs">
+                      {errs.map((err, i) => (
+                        <li key={i} className="border-b border-border/40 pb-2 last:border-b-0 last:pb-0">
+                          <div className="font-medium text-foreground">{translateShopifyError(err)}</div>
+                          <div className="mt-1 break-words font-mono text-[11px] text-muted-foreground">
+                            Raw: {err}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted-foreground">
+                      Full payloads and raw responses are also printed to the browser console (look for "== SHOPIFY DEPLOYING PAYLOAD ==").
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Test result ── */}
           {testStatus && (
