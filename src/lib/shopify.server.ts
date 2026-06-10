@@ -608,6 +608,8 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         const payload = buildProductPayload(s, images, retail);
         const existingEntry = existingMap.get(s.id);
 
+        console.log("== SHOPIFY DEPLOYING PAYLOAD ==", JSON.stringify({ stoneId: s.id, mode: existingEntry ? "update" : "create", payload }));
+
         try {
           if (existingEntry) {
             const res = await shopifyFetch(
@@ -620,9 +622,17 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
               await sleep(wait);
               const retry = await shopifyFetch(shop, token, `/products/${existingEntry.id}.json`,
                 { method: "PUT", body: JSON.stringify({ product: { id: existingEntry.id, ...payload.product, status: "active" } }) });
-              if (!retry.ok) { result.errors.push(`Update ${s.id}: ${retry.status}`); continue; }
+              if (!retry.ok) {
+                const t = await retry.text();
+                console.error("[shopify] Update failed", s.id, retry.status, t);
+                result.errors.push(`Update ${s.id}: ${retry.status} ${t.slice(0, 300)}`);
+                continue;
+              }
             } else if (!res.ok) {
-              result.errors.push(`Update ${s.id}: ${res.status}`); continue;
+              const t = await res.text();
+              console.error("[shopify] Update failed", s.id, res.status, t);
+              result.errors.push(`Update ${s.id}: ${res.status} ${t.slice(0, 300)}`);
+              continue;
             }
             await supabaseAdmin
               .from("shopify_product_map")
