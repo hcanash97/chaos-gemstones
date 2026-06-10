@@ -724,7 +724,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
           stones_added: result.added,
           stones_updated: result.updated,
           stones_archived: result.archived,
-          error_message: result.errors.slice(0, 5).join(" | ") || null,
+          error_message: result.errors.slice(0, 25).join(" | ") || null,
         })
         .eq("id", logId);
     }
