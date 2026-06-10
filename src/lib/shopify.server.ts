@@ -459,14 +459,10 @@ function buildProductPayload(
       product_type: cap(s.stone_type),
       tags: [...tagSet].join(", "),
       status: "active",
-      images: images
-        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
-        .slice(0, 10)
-        .map((img) => ({ src: img.external_image_url || img.storage_url }))
-        .filter((i) => i.src),
+      images: cleanImages(images),
       variants: [
         {
-          price: retailPrice ? retailPrice.toFixed(2) : "0.00",
+          price: cleanPrice(retailPrice),
           inventory_management: null,
           sku: `AV-CHAOS-${s.id.slice(0, 8).toUpperCase()}`,
           requires_shipping: true,
