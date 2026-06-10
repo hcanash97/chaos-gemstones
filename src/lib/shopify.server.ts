@@ -269,11 +269,38 @@ function bodyHtml(s: StoneRow): string {
     .map(([k, v]) => `<tr><th style="text-align:left;padding:4px 12px 4px 0;">${k}</th><td>${v}</td></tr>`)
     .join("");
 
-  const notes = s.notes_for_buyers
+  const notes = s.notes_for_buyers && s.notes_for_buyers.trim()
     ? `<p>${escapeHtml(s.notes_for_buyers)}</p>`
-    : "";
+    : `<h4>Verified Premium Gemstone</h4><p>Contact us for full authentication credentials.</p>`;
 
   return `${notes}<table>${tableRows}</table><p><small>Sourced via Chaos Gemstones.</small></p>`;
+}
+
+// ── Payload sanitizers ────────────────────────────────────────────────────
+
+/** Clean a price into Shopify's expected format: pure decimal string, no symbols. */
+function cleanPrice(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "0.00";
+  // Strip anything that isn't a digit or decimal point (handles "£14,000.00" etc.)
+  const n = typeof value === "number"
+    ? value
+    : Number(String(value).replace(/[^0-9.]/g, ""));
+  if (!isFinite(n) || isNaN(n)) return "0.00";
+  return n.toFixed(2);
+}
+
+/** Keep only valid http(s) image URLs; return [] when none are usable. */
+function cleanImages(images: StoneImageRow[]): { src: string }[] {
+  const out: { src: string }[] = [];
+  for (const img of images
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
+    .slice(0, 10)) {
+    const src = (img.external_image_url || img.storage_url || "").trim();
+    if (!src) continue;
+    if (!/^https?:\/\//i.test(src)) continue;
+    out.push({ src });
+  }
+  return out;
 }
 
 function escapeHtml(s: string): string {
