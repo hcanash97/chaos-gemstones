@@ -54,7 +54,7 @@ export async function decryptToken(payload: string): Promise<string> {
 
 // --- Shopify API client -------------------------------------------------
 
-const API_VERSION = "2024-01";
+const API_VERSION = "2025-10";
 
 export function normaliseShopDomain(raw: string): string {
   let d = raw.trim().toLowerCase();
@@ -115,8 +115,8 @@ export type ShopifyConnectionRow = {
   id: string;
   shop_domain: string;
   client_id: string | null;
-  client_secret: string | null;
-  access_token: string | null;
+  encrypted_client_secret: string | null;
+  encrypted_access_token: string | null;
   token_expires_at: string | null;
 };
 
@@ -175,10 +175,10 @@ export async function exchangeCodeForToken(
 
 /** Kept for compatibility — returns the stored permanent token directly. */
 export async function getValidAccessToken(conn: ShopifyConnectionRow): Promise<string> {
-  if (!conn.access_token) {
+  if (!conn.encrypted_access_token) {
     throw new Error("No access token stored — please reconnect your Shopify store.");
   }
-  return decryptToken(conn.access_token);
+  return decryptToken(conn.encrypted_access_token);
 }
 
 /** mintAccessToken shim — kept so existing code compiles. */
@@ -487,12 +487,25 @@ export type SyncResult = {
   errors: string[];
 };
 
+function shopifyErrorManifest(errors: string[]) {
+  return errors.slice(0, 100).map((message, index) => ({
+    index: index + 1,
+    message,
+  }));
+}
+
 export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   const result: SyncResult = { added: 0, updated: 0, archived: 0, errors: [] };
+  const syncSessionId = crypto.randomUUID();
 
   const { data: log } = await supabaseAdmin
     .from("shopify_sync_logs")
-    .insert({ jeweller_id: jewellerId, status: "running" })
+    .insert({
+      jeweller_id: jewellerId,
+      status: "in_progress",
+      sync_session_id: syncSessionId,
+      triggered_by: "manual_btn",
+    } as never)
     .select("id")
     .single();
   const logId = log?.id;
@@ -500,7 +513,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   try {
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
-      .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
+      .select("id, shop_domain, client_id, encrypted_client_secret, encrypted_access_token, token_expires_at, is_active")
       .eq("jeweller_id", jewellerId)
       .maybeSingle();
 
@@ -569,6 +582,13 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
     const stones = Array.from(stoneMap.values());
     console.log(`[shopify] Sync starting for shop: ${shop}, feed stones: ${stones.length}`);
 
+    if (logId) {
+      await supabaseAdmin
+        .from("shopify_sync_logs")
+        .update({ total_stones_detected: stones.length } as never)
+        .eq("id", logId);
+    }
+
     // Images
     const imagesByStone = new Map<string, StoneImageRow[]>();
     if (stones.length) {
@@ -598,10 +618,12 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
 
     const currentIds = new Set(stones.map((s) => s.id));
 
-    // Upsert each stone — batched to respect Shopify rate limits
-    // (40-call leaky bucket, drains at 2/sec. Batches of 10 + 500ms pause = safe.)
+    // Upsert each stone through a deliberately slow queue. Product writes with
+    // images/metafields are expensive enough that large bursts can hit Shopify's
+    // leaky-bucket throttle even when individual requests look small.
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-    const CHUNK = 10;
+    const CHUNK = 1;
+    const WRITE_DELAY_MS = 750;
 
     for (let i = 0; i < stones.length; i += CHUNK) {
       const chunk = stones.slice(i, i + CHUNK);
@@ -685,7 +707,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
       }
 
       // Inter-batch pause — let the Shopify rate limit bucket recover
-      if (i + CHUNK < stones.length) await sleep(500);
+      if (i + CHUNK < stones.length) await sleep(WRITE_DELAY_MS);
     }
 
     // Archive products whose stones are no longer in the feed (or sold)
@@ -714,7 +736,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
       .from("shopify_connections")
       .update({
         last_sync_at: new Date().toISOString(),
-        last_sync_status: result.errors.length ? "partial" : "ok",
+        last_sync_status: result.errors.length ? "failed_partial" : "completed",
         products_synced: stones.length,
       })
       .eq("jeweller_id", jewellerId);
@@ -724,12 +746,13 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .from("shopify_sync_logs")
         .update({
           completed_at: new Date().toISOString(),
-          status: result.errors.length ? "partial" : "ok",
-          stones_added: result.added,
-          stones_updated: result.updated,
-          stones_archived: result.archived,
+          status: result.errors.length ? "failed_partial" : "completed",
+          stones_added_successfully: result.added,
+          stones_updated_successfully: result.updated,
+          stones_failed_count: result.errors.length,
+          error_manifest: shopifyErrorManifest(result.errors),
           error_message: result.errors.slice(0, 25).join(" | ") || null,
-        })
+        } as never)
         .eq("id", logId);
     }
 
@@ -742,14 +765,16 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .from("shopify_sync_logs")
         .update({
           completed_at: new Date().toISOString(),
-          status: "error",
+          status: "failed_critical",
+          stones_failed_count: 1,
+          error_manifest: shopifyErrorManifest([msg]),
           error_message: msg,
-        })
+        } as never)
         .eq("id", logId);
     }
     await supabaseAdmin
       .from("shopify_connections")
-      .update({ last_sync_at: new Date().toISOString(), last_sync_status: "error" })
+      .update({ last_sync_at: new Date().toISOString(), last_sync_status: "failed_critical" })
       .eq("jeweller_id", jewellerId);
     throw e;
   }
@@ -777,7 +802,7 @@ export async function testConnectionForJeweller(
 > {
   const { data: conn } = await supabaseAdmin
     .from("shopify_connections")
-    .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
+    .select("id, shop_domain, client_id, encrypted_client_secret, encrypted_access_token, token_expires_at, is_active")
     .eq("jeweller_id", jewellerId)
     .maybeSingle();
   if (!conn) return { ok: false, error: "No Shopify connection saved." };

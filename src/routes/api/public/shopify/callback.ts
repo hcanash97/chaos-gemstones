@@ -44,7 +44,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         // Prefer lookup by oauth state (works even if Shopify substitutes a
         // dev store for the shop the user originally entered). Fall back to
         // shop_domain lookup.
-        let conn: { id: string; jeweller_id: string; client_id: string | null; client_secret: string | null } | null = null;
+        let conn: { id: string; jeweller_id: string; client_id: string | null; encrypted_client_secret: string | null } | null = null;
         if (state) {
           const { data: stateRow } = await supabaseAdmin
             .from("shopify_oauth_states")
@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
           if (stateRow?.jeweller_id) {
             const { data } = await supabaseAdmin
               .from("shopify_connections")
-              .select("id, jeweller_id, client_id, client_secret")
+              .select("id, jeweller_id, client_id, encrypted_client_secret")
               .eq("jeweller_id", stateRow.jeweller_id)
               .maybeSingle();
             conn = data ?? null;
@@ -63,7 +63,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         if (!conn) {
           const { data } = await supabaseAdmin
             .from("shopify_connections")
-            .select("id, jeweller_id, client_id, client_secret")
+            .select("id, jeweller_id, client_id, encrypted_client_secret")
             .eq("shop_domain", normShop)
             .order("created_at", { ascending: false })
             .limit(1)
@@ -78,7 +78,7 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
           );
         }
 
-        if (!conn.client_id || !conn.client_secret) {
+        if (!conn.client_id || !conn.encrypted_client_secret) {
           return fail(
             "Credentials missing from connection record. Please click Disconnect then Connect again.",
           );
@@ -89,9 +89,23 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         let clientSecret: string;
         try {
           clientId     = await decryptToken(conn.client_id);
-          clientSecret = await decryptToken(conn.client_secret);
+          clientSecret = await decryptToken(conn.encrypted_client_secret);
         } catch {
           return fail("Could not read stored credentials. Please reconnect.");
+        }
+
+        const validHmac = await verifyShopifyOAuthHmac(url, clientSecret);
+        if (!validHmac) {
+          return fail("Shopify callback signature could not be verified. Please reconnect.");
+        }
+
+        const { data: stateRow } = await supabaseAdmin
+          .from("shopify_oauth_states")
+          .select("state, expires_at")
+          .eq("jeweller_id", conn.jeweller_id)
+          .maybeSingle();
+        if (!state || !stateRow || stateRow.state !== state || new Date(stateRow.expires_at).getTime() < Date.now()) {
+          return fail("Shopify connection session expired. Please click Connect store again.");
         }
 
         // ── 3. Exchange code for permanent offline token ─────────────────────
@@ -117,10 +131,10 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
         const { error: dbErr } = await supabaseAdmin
           .from("shopify_connections")
           .update({
-            access_token:     encToken,
-            token_expires_at: null,       // permanent offline token
-            is_active:        true,
-            shop_domain:      normShop,   // reflect the shop that actually authorised
+            encrypted_access_token: encToken,
+            token_expires_at:       null,       // permanent offline token
+            is_active:              true,
+            shop_domain:            normShop,   // reflect the shop that actually authorised
           })
           .eq("id", conn.id);
 
@@ -160,3 +174,32 @@ export const Route = createFileRoute("/api/public/shopify/callback")({
     },
   },
 });
+
+async function verifyShopifyOAuthHmac(url: URL, clientSecret: string): Promise<boolean> {
+  const hmac = url.searchParams.get("hmac") ?? "";
+  if (!hmac) return false;
+  const message = Array.from(url.searchParams.entries())
+    .filter(([key]) => key !== "hmac" && key !== "signature")
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(clientSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  const hex = Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  if (hex.length !== hmac.length) return false;
+  let diff = 0;
+  for (let i = 0; i < hex.length; i += 1) {
+    diff |= hex.charCodeAt(i) ^ hmac.charCodeAt(i);
+  }
+  return diff === 0;
+}

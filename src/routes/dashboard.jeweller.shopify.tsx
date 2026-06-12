@@ -367,7 +367,7 @@ function ShopifyPage() {
                 <div className="h-full w-1/3 animate-pulse rounded-full bg-[var(--color-gold)]" />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Pushing stones to Shopify in batches of 10 — please don't close this page.
+                Pushing stones to Shopify through a paced queue — please don't close this page.
               </p>
             </div>
           )}
@@ -456,7 +456,7 @@ function ShopifyPage() {
                     <th className="px-4 py-2 text-left font-medium">Status</th>
                     <th className="px-4 py-2 text-right font-medium">Added</th>
                     <th className="px-4 py-2 text-right font-medium">Updated</th>
-                    <th className="px-4 py-2 text-right font-medium">Archived</th>
+                    <th className="px-4 py-2 text-right font-medium">Failed</th>
                     <th className="px-4 py-2 text-left font-medium">Error</th>
                   </tr>
                 </thead>
@@ -469,15 +469,16 @@ function ShopifyPage() {
                         </td>
                         <td className="px-4 py-2 capitalize">
                           <span className={
-                            l.status === "ok" ? "text-emerald-600"
-                            : l.status === "error" ? "text-destructive"
-                            : l.status === "partial" ? "text-amber-600"
+                            l.status === "completed" ? "text-emerald-600"
+                            : l.status === "failed_critical" ? "text-destructive"
+                            : l.status === "failed_partial" ? "text-amber-600"
+                            : l.status === "in_progress" ? "text-blue-600"
                             : ""
                           }>{l.status}</span>
                         </td>
-                        <td className="px-4 py-2 text-right">{l.stones_added ?? 0}</td>
-                        <td className="px-4 py-2 text-right">{l.stones_updated ?? 0}</td>
-                        <td className="px-4 py-2 text-right">{l.stones_archived ?? 0}</td>
+                        <td className="px-4 py-2 text-right">{l.stones_added_successfully ?? 0}</td>
+                        <td className="px-4 py-2 text-right">{l.stones_updated_successfully ?? 0}</td>
+                        <td className="px-4 py-2 text-right">{l.stones_failed_count ?? 0}</td>
                         <td className="px-4 py-2 text-xs">
                           {l.error_message ? (
                             <button

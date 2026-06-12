@@ -890,11 +890,10 @@ export type Database = {
       }
       shopify_connections: {
         Row: {
-          access_token: string | null
           auto_sync: boolean
           client_id: string | null
-          client_secret: string | null
           created_at: string
+          encrypted_access_token: string | null
           encrypted_client_secret: string | null
           id: string
           is_active: boolean
@@ -908,11 +907,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          access_token?: string | null
           auto_sync?: boolean
           client_id?: string | null
-          client_secret?: string | null
           created_at?: string
+          encrypted_access_token?: string | null
           encrypted_client_secret?: string | null
           id?: string
           is_active?: boolean
@@ -926,11 +924,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          access_token?: string | null
           auto_sync?: boolean
           client_id?: string | null
-          client_secret?: string | null
           created_at?: string
+          encrypted_access_token?: string | null
           encrypted_client_secret?: string | null
           id?: string
           is_active?: boolean
@@ -1060,15 +1057,15 @@ export type Database = {
           jeweller_id: string
           started_at: string
           status: string
-          stones_added: number
-          stones_added_successfully: number | null
-          stones_archived: number
-          stones_failed_count: number | null
-          stones_updated: number
-          stones_updated_successfully: number | null
+          stones_added_legacy: number | null
+          stones_added_successfully: number
+          stones_archived_legacy: number | null
+          stones_failed_count: number
+          stones_updated_legacy: number | null
+          stones_updated_successfully: number
           sync_session_id: string | null
-          total_stones_detected: number | null
-          triggered_by: string | null
+          total_stones_detected: number
+          triggered_by: string
         }
         Insert: {
           completed_at?: string | null
@@ -1078,15 +1075,15 @@ export type Database = {
           jeweller_id: string
           started_at?: string
           status?: string
-          stones_added?: number
-          stones_added_successfully?: number | null
-          stones_archived?: number
-          stones_failed_count?: number | null
-          stones_updated?: number
-          stones_updated_successfully?: number | null
+          stones_added_legacy?: number | null
+          stones_added_successfully?: number
+          stones_archived_legacy?: number | null
+          stones_failed_count?: number
+          stones_updated_legacy?: number | null
+          stones_updated_successfully?: number
           sync_session_id?: string | null
-          total_stones_detected?: number | null
-          triggered_by?: string | null
+          total_stones_detected?: number
+          triggered_by?: string
         }
         Update: {
           completed_at?: string | null
@@ -1096,15 +1093,15 @@ export type Database = {
           jeweller_id?: string
           started_at?: string
           status?: string
-          stones_added?: number
-          stones_added_successfully?: number | null
-          stones_archived?: number
-          stones_failed_count?: number | null
-          stones_updated?: number
-          stones_updated_successfully?: number | null
+          stones_added_legacy?: number | null
+          stones_added_successfully?: number
+          stones_archived_legacy?: number | null
+          stones_failed_count?: number
+          stones_updated_legacy?: number | null
+          stones_updated_successfully?: number
           sync_session_id?: string | null
-          total_stones_detected?: number | null
-          triggered_by?: string | null
+          total_stones_detected?: number
+          triggered_by?: string
         }
         Relationships: [
           {
