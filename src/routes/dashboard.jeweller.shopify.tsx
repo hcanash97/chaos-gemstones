@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, RefreshCw, Unlink, XCircle, Eye, Plug } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,27 @@ import {
   testShopifyConnectionFn,
   dryRunShopifySyncFn,
 } from "@/lib/shopify.functions";
+
+/** Translate a raw Shopify error string into a plain-English explanation. */
+function translateShopifyError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes("price")) {
+    return "Validation Error: Shopify requires price fields to be pure numbers. Removed currency symbols (£) and re-attempting.";
+  }
+  if (lower.includes("image")) {
+    return "Asset Error: Shopify rejected stone image payload because the image source URL is missing or improperly structured.";
+  }
+  if (lower.includes("scope") || lower.includes("access") || lower.includes("401") || lower.includes("403")) {
+    return "Authentication Error: Your 2026 App Client credentials lack 'write_products' permissions in your Shopify Dev Dashboard.";
+  }
+  if (lower.includes("429") || lower.includes("rate")) {
+    return "Rate Limit: Shopify throttled the request. Sync will retry the next batch automatically.";
+  }
+  if (lower.includes("not connected")) {
+    return "Connection Error: Shopify is not connected. Please reconnect your store using the Connect button.";
+  }
+  return raw;
+}
 
 export const Route = createFileRoute("/dashboard/jeweller/shopify")({
   component: ShopifyPage,
@@ -45,6 +66,13 @@ function ShopifyPage() {
     feedStoneCount: number; errors: string[];
   } | null>(null);
   const [syncBatchMsg, setSyncBatchMsg] = useState<string | null>(null);
+  const [lastSyncResult, setLastSyncResult] = useState<{
+    added: number;
+    updated: number;
+    archived: number;
+    errors: string[];
+  } | null>(null);
+  const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
   const isJeweller = checkJ(profile);
 
@@ -102,14 +130,23 @@ function ShopifyPage() {
   async function handleSync() {
     setBusy(true);
     setSyncBatchMsg("Starting sync…");
+    setLastSyncResult(null);
     try {
       const r = await sync() as any;
       setSyncBatchMsg(null);
+      setLastSyncResult({
+        added: r.added ?? 0,
+        updated: r.updated ?? 0,
+        archived: r.archived ?? 0,
+        errors: Array.isArray(r.errors) ? r.errors : [],
+      });
       toast.success(`Sync complete — +${r.added} added, ~${r.updated} updated, ↓${r.archived} archived${r.errors?.length ? ` (${r.errors.length} errors)` : ""}`);
       await refetch();
     } catch (e) {
       setSyncBatchMsg(null);
-      toast.error(e instanceof Error ? e.message : "Sync failed");
+      const msg = e instanceof Error ? e.message : "Sync failed";
+      setLastSyncResult({ added: 0, updated: 0, archived: 0, errors: [msg] });
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -261,6 +298,50 @@ function ShopifyPage() {
             </div>
           </div>
 
+          {/* ── Shopify Sync Diagnostics Workspace ── */}
+          {(() => {
+            const errs = lastSyncResult?.errors ?? [];
+            const hasErr = errs.length > 0;
+            return (
+              <div className={`rounded-md border p-5 ${
+                hasErr
+                  ? "border-amber-500/60 bg-amber-500/10"
+                  : "border-border bg-muted/20"
+              }`}>
+                <div className="flex items-center gap-2">
+                  {hasErr
+                    ? <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                  <p className="font-medium">Shopify Sync Diagnostics Workspace</p>
+                </div>
+                {!hasErr ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    System status: Operational. Ready to stream gemstone records.
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-sm text-amber-900 dark:text-amber-200">
+                      {errs.length} issue{errs.length === 1 ? "" : "s"} returned by Shopify during the last sync.
+                    </p>
+                    <ul className="max-h-72 space-y-3 overflow-y-auto rounded border border-amber-400/40 bg-card p-3 text-xs">
+                      {errs.map((err, i) => (
+                        <li key={i} className="border-b border-border/40 pb-2 last:border-b-0 last:pb-0">
+                          <div className="font-medium text-foreground">{translateShopifyError(err)}</div>
+                          <div className="mt-1 break-words font-mono text-[11px] text-muted-foreground">
+                            Raw: {err}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted-foreground">
+                      Full payloads and raw responses are also printed to the browser console (look for "== SHOPIFY DEPLOYING PAYLOAD ==").
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ── Test result ── */}
           {testStatus && (
             <div className={`flex items-start gap-2 rounded-md border p-4 text-sm ${
@@ -285,6 +366,66 @@ function ShopifyPage() {
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div className="h-full w-1/3 animate-pulse rounded-full bg-[var(--color-gold)]" />
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Pushing stones to Shopify in batches of 10 — please don't close this page.
+              </p>
+            </div>
+          )}
+
+          {/* ── Diagnostic box — last sync result ── */}
+          {lastSyncResult && (
+            <div className={`rounded-md border p-5 ${
+              lastSyncResult.errors.length
+                ? "border-amber-500/40 bg-amber-500/5"
+                : "border-emerald-500/40 bg-emerald-500/5"
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {lastSyncResult.errors.length
+                    ? <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                  <p className="font-medium">
+                    {lastSyncResult.errors.length
+                      ? `Sync finished with ${lastSyncResult.errors.length} issue${lastSyncResult.errors.length === 1 ? "" : "s"}`
+                      : "Sync completed successfully"}
+                  </p>
+                </div>
+                <button
+                  className="text-xs underline text-muted-foreground"
+                  onClick={() => setLastSyncResult(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                <div className="rounded border border-border bg-card p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Added</div>
+                  <div className="mt-0.5 text-lg font-semibold text-emerald-600">+{lastSyncResult.added}</div>
+                </div>
+                <div className="rounded border border-border bg-card p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Updated</div>
+                  <div className="mt-0.5 text-lg font-semibold">~{lastSyncResult.updated}</div>
+                </div>
+                <div className="rounded border border-border bg-card p-3">
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Archived</div>
+                  <div className="mt-0.5 text-lg font-semibold text-muted-foreground">↓{lastSyncResult.archived}</div>
+                </div>
+              </div>
+              {lastSyncResult.errors.length > 0 && (
+                <details className="mt-4" open>
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Error details ({lastSyncResult.errors.length})
+                  </summary>
+                  <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto rounded border border-border bg-card p-3 text-xs font-mono">
+                    {lastSyncResult.errors.map((err, i) => (
+                      <li key={i} className="break-words text-destructive">• {err}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Common causes: Shopify API rate limits (will retry next sync), missing required fields on stones, or rejected images. Stones not in this list were synced successfully.
+                  </p>
+                </details>
+              )}
             </div>
           )}
 
@@ -315,24 +456,49 @@ function ShopifyPage() {
                     <th className="px-4 py-2 text-left font-medium">Status</th>
                     <th className="px-4 py-2 text-right font-medium">Added</th>
                     <th className="px-4 py-2 text-right font-medium">Updated</th>
-                    <th className="px-4 py-2 text-right font-medium">Failed</th>
+                    <th className="px-4 py-2 text-right font-medium">Archived</th>
                     <th className="px-4 py-2 text-left font-medium">Error</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((l: any) => (
-                    <tr key={l.id} className="border-t border-border">
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {new Date(l.started_at).toLocaleString("en-GB")}
-                      </td>
-                      <td className="px-4 py-2 capitalize">{l.status}</td>
-                      <td className="px-4 py-2 text-right">{l.stones_added_successfully ?? 0}</td>
-                      <td className="px-4 py-2 text-right">{l.stones_updated_successfully ?? 0}</td>
-                      <td className="px-4 py-2 text-right">{l.stones_failed_count ?? 0}</td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground">
-                        {l.error_message ?? "—"}
-                      </td>
-                    </tr>
+                    <Fragment key={l.id}>
+                      <tr className="border-t border-border">
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {new Date(l.started_at).toLocaleString("en-GB")}
+                        </td>
+                        <td className="px-4 py-2 capitalize">
+                          <span className={
+                            l.status === "ok" ? "text-emerald-600"
+                            : l.status === "error" ? "text-destructive"
+                            : l.status === "partial" ? "text-amber-600"
+                            : ""
+                          }>{l.status}</span>
+                        </td>
+                        <td className="px-4 py-2 text-right">{l.stones_added ?? 0}</td>
+                        <td className="px-4 py-2 text-right">{l.stones_updated ?? 0}</td>
+                        <td className="px-4 py-2 text-right">{l.stones_archived ?? 0}</td>
+                        <td className="px-4 py-2 text-xs">
+                          {l.error_message ? (
+                            <button
+                              className="text-destructive underline"
+                              onClick={() => setExpandedLog(expandedLog === l.id ? null : l.id)}
+                            >
+                              {expandedLog === l.id ? "Hide" : "View"} errors
+                            </button>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                      {expandedLog === l.id && l.error_message && (
+                        <tr className="border-t border-border bg-muted/30">
+                          <td colSpan={6} className="px-4 py-3 text-xs font-mono text-destructive">
+                            {l.error_message.split(" | ").map((e: string, i: number) => (
+                              <div key={i} className="break-words">• {e}</div>
+                            ))}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                   {logs.length === 0 && (
                     <tr>

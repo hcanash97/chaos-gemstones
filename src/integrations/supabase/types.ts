@@ -53,6 +53,13 @@ export type Database = {
             foreignKeyName: "api_keys_jeweller_id_fkey"
             columns: ["jeweller_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -169,6 +176,13 @@ export type Database = {
             foreignKeyName: "dealer_profiles_id_fkey"
             columns: ["id"]
             isOneToOne: true
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealer_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -210,6 +224,13 @@ export type Database = {
             foreignKeyName: "enquiries_from_jeweller_id_fkey"
             columns: ["from_jeweller_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enquiries_from_jeweller_id_fkey"
+            columns: ["from_jeweller_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -218,6 +239,13 @@ export type Database = {
             columns: ["stone_id"]
             isOneToOne: false
             referencedRelation: "stones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enquiries_to_dealer_id_fkey"
+            columns: ["to_dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
             referencedColumns: ["id"]
           },
           {
@@ -263,6 +291,13 @@ export type Database = {
             foreignKeyName: "enquiry_messages_sender_id_fkey"
             columns: ["sender_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enquiry_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -302,6 +337,13 @@ export type Database = {
             columns: ["api_key_id"]
             isOneToOne: false
             referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_selections_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
             referencedColumns: ["id"]
           },
           {
@@ -379,6 +421,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "jeweller_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jeweller_profiles_id_fkey"
             columns: ["id"]
@@ -520,6 +569,13 @@ export type Database = {
             foreignKeyName: "pricing_rules_dealer_id_fkey"
             columns: ["dealer_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_rules_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -598,6 +654,13 @@ export type Database = {
             foreignKeyName: "profiles_referred_by_fkey"
             columns: ["referred_by"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -651,7 +714,21 @@ export type Database = {
             foreignKeyName: "referral_credits_beneficiary_id_fkey"
             columns: ["beneficiary_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_credits_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_credits_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
             referencedColumns: ["id"]
           },
           {
@@ -692,6 +769,13 @@ export type Database = {
           stone_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_reporter_id_fkey"
             columns: ["reporter_id"]
@@ -741,7 +825,21 @@ export type Database = {
             foreignKeyName: "reviews_dealer_id_fkey"
             columns: ["dealer_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
             referencedColumns: ["id"]
           },
           {
@@ -792,10 +890,11 @@ export type Database = {
       }
       shopify_connections: {
         Row: {
+          access_token: string | null
           auto_sync: boolean
           client_id: string | null
+          client_secret: string | null
           created_at: string
-          encrypted_access_token: string | null
           encrypted_client_secret: string | null
           id: string
           is_active: boolean
@@ -809,10 +908,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_token?: string | null
           auto_sync?: boolean
           client_id?: string | null
+          client_secret?: string | null
           created_at?: string
-          encrypted_access_token?: string | null
           encrypted_client_secret?: string | null
           id?: string
           is_active?: boolean
@@ -826,10 +926,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_token?: string | null
           auto_sync?: boolean
           client_id?: string | null
+          client_secret?: string | null
           created_at?: string
-          encrypted_access_token?: string | null
           encrypted_client_secret?: string | null
           id?: string
           is_active?: boolean
@@ -843,6 +944,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shopify_connections_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: true
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shopify_connections_jeweller_id_fkey"
             columns: ["jeweller_id"]
@@ -875,6 +983,13 @@ export type Database = {
           state?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shopify_oauth_states_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: true
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shopify_oauth_states_jeweller_id_fkey"
             columns: ["jeweller_id"]
@@ -917,6 +1032,13 @@ export type Database = {
             foreignKeyName: "shopify_product_map_jeweller_id_fkey"
             columns: ["jeweller_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shopify_product_map_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -932,59 +1054,66 @@ export type Database = {
       shopify_sync_logs: {
         Row: {
           completed_at: string | null
+          error_manifest: Json | null
           error_message: string | null
-          error_manifest: Json
           id: string
           jeweller_id: string
           started_at: string
           status: string
-          stones_added_legacy: number | null
-          stones_added_successfully: number
-          stones_archived_legacy: number | null
-          stones_failed_count: number
-          stones_updated_legacy: number | null
-          stones_updated_successfully: number
+          stones_added: number
+          stones_added_successfully: number | null
+          stones_archived: number
+          stones_failed_count: number | null
+          stones_updated: number
+          stones_updated_successfully: number | null
           sync_session_id: string | null
-          total_stones_detected: number
-          triggered_by: string
+          total_stones_detected: number | null
+          triggered_by: string | null
         }
         Insert: {
           completed_at?: string | null
+          error_manifest?: Json | null
           error_message?: string | null
-          error_manifest?: Json
           id?: string
           jeweller_id: string
           started_at?: string
           status?: string
-          stones_added_legacy?: number | null
-          stones_added_successfully?: number
-          stones_archived_legacy?: number | null
-          stones_failed_count?: number
-          stones_updated_legacy?: number | null
-          stones_updated_successfully?: number
+          stones_added?: number
+          stones_added_successfully?: number | null
+          stones_archived?: number
+          stones_failed_count?: number | null
+          stones_updated?: number
+          stones_updated_successfully?: number | null
           sync_session_id?: string | null
-          total_stones_detected?: number
-          triggered_by?: string
+          total_stones_detected?: number | null
+          triggered_by?: string | null
         }
         Update: {
           completed_at?: string | null
+          error_manifest?: Json | null
           error_message?: string | null
-          error_manifest?: Json
           id?: string
           jeweller_id?: string
           started_at?: string
           status?: string
-          stones_added_legacy?: number | null
-          stones_added_successfully?: number
-          stones_archived_legacy?: number | null
-          stones_failed_count?: number
-          stones_updated_legacy?: number | null
-          stones_updated_successfully?: number
+          stones_added?: number
+          stones_added_successfully?: number | null
+          stones_archived?: number
+          stones_failed_count?: number | null
+          stones_updated?: number
+          stones_updated_successfully?: number | null
           sync_session_id?: string | null
-          total_stones_detected?: number
-          triggered_by?: string
+          total_stones_detected?: number | null
+          triggered_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "shopify_sync_logs_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shopify_sync_logs_jeweller_id_fkey"
             columns: ["jeweller_id"]
@@ -1080,6 +1209,13 @@ export type Database = {
             foreignKeyName: "stone_request_responses_dealer_id_fkey"
             columns: ["dealer_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stone_request_responses_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1142,6 +1278,13 @@ export type Database = {
           treatment?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stone_requests_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stone_requests_jeweller_id_fkey"
             columns: ["jeweller_id"]
@@ -1373,6 +1516,13 @@ export type Database = {
             foreignKeyName: "stones_dealer_id_fkey"
             columns: ["dealer_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stones_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1522,6 +1672,13 @@ export type Database = {
             foreignKeyName: "whatsapp_intake_log_dealer_id_fkey"
             columns: ["dealer_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_intake_log_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1558,6 +1715,13 @@ export type Database = {
             foreignKeyName: "wishlists_jeweller_id_fkey"
             columns: ["jeweller_id"]
             isOneToOne: false
+            referencedRelation: "dealer_profiles_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wishlists_jeweller_id_fkey"
+            columns: ["jeweller_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1572,7 +1736,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      dealer_profiles_public: {
+        Row: {
+          account_type: Database["public"]["Enums"]["account_type"] | null
+          account_types: string[] | null
+          city: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string | null
+          is_approved: boolean | null
+          is_verified: boolean | null
+          website: string | null
+        }
+        Insert: {
+          account_type?: Database["public"]["Enums"]["account_type"] | null
+          account_types?: string[] | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_approved?: boolean | null
+          is_verified?: boolean | null
+          website?: string | null
+        }
+        Update: {
+          account_type?: Database["public"]["Enums"]["account_type"] | null
+          account_types?: string[] | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_approved?: boolean | null
+          is_verified?: boolean | null
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_referral_code: {

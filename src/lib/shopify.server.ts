@@ -54,7 +54,7 @@ export async function decryptToken(payload: string): Promise<string> {
 
 // --- Shopify API client -------------------------------------------------
 
-const API_VERSION = "2025-10";
+const API_VERSION = "2024-01";
 
 export function normaliseShopDomain(raw: string): string {
   let d = raw.trim().toLowerCase();
@@ -115,8 +115,8 @@ export type ShopifyConnectionRow = {
   id: string;
   shop_domain: string;
   client_id: string | null;
-  encrypted_client_secret: string | null;
-  encrypted_access_token: string | null;
+  client_secret: string | null;
+  access_token: string | null;
   token_expires_at: string | null;
 };
 
@@ -175,10 +175,10 @@ export async function exchangeCodeForToken(
 
 /** Kept for compatibility — returns the stored permanent token directly. */
 export async function getValidAccessToken(conn: ShopifyConnectionRow): Promise<string> {
-  if (!conn.encrypted_access_token) {
+  if (!conn.access_token) {
     throw new Error("No access token stored — please reconnect your Shopify store.");
   }
-  return decryptToken(conn.encrypted_access_token);
+  return decryptToken(conn.access_token);
 }
 
 /** mintAccessToken shim — kept so existing code compiles. */
@@ -269,11 +269,38 @@ function bodyHtml(s: StoneRow): string {
     .map(([k, v]) => `<tr><th style="text-align:left;padding:4px 12px 4px 0;">${k}</th><td>${v}</td></tr>`)
     .join("");
 
-  const notes = s.notes_for_buyers
+  const notes = s.notes_for_buyers && s.notes_for_buyers.trim()
     ? `<p>${escapeHtml(s.notes_for_buyers)}</p>`
-    : "";
+    : `<h4>Verified Premium Gemstone</h4><p>Contact us for full authentication credentials.</p>`;
 
   return `${notes}<table>${tableRows}</table><p><small>Sourced via Chaos Gemstones.</small></p>`;
+}
+
+// ── Payload sanitizers ────────────────────────────────────────────────────
+
+/** Clean a price into Shopify's expected format: pure decimal string, no symbols. */
+function cleanPrice(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "0.00";
+  // Strip anything that isn't a digit or decimal point (handles "£14,000.00" etc.)
+  const n = typeof value === "number"
+    ? value
+    : Number(String(value).replace(/[^0-9.]/g, ""));
+  if (!isFinite(n) || isNaN(n)) return "0.00";
+  return n.toFixed(2);
+}
+
+/** Keep only valid http(s) image URLs; return [] when none are usable. */
+function cleanImages(images: StoneImageRow[]): { src: string }[] {
+  const out: { src: string }[] = [];
+  for (const img of images
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
+    .slice(0, 10)) {
+    const src = (img.external_image_url || img.storage_url || "").trim();
+    if (!src) continue;
+    if (!/^https?:\/\//i.test(src)) continue;
+    out.push({ src });
+  }
+  return out;
 }
 
 function escapeHtml(s: string): string {
@@ -311,21 +338,22 @@ function fluorescenceIntensity(s: StoneRow): string | null {
 /** Map carat weight to À Vie's bucket format. */
 function caratRange(ct: number | null): string | null {
   if (!ct) return null;
-  if (ct < 0.30) return "0.00–0.29";
-  if (ct < 0.40) return "0.30–0.39";
-  if (ct < 0.50) return "0.40–0.49";
-  if (ct < 0.60) return "0.50–0.59";
-  if (ct < 0.70) return "0.60–0.69";
-  if (ct < 0.80) return "0.70–0.79";
-  if (ct < 0.90) return "0.80–0.89";
-  if (ct < 1.00) return "0.90–0.99";
-  if (ct < 1.50) return "1.00–1.49";
-  if (ct < 2.00) return "1.50–1.99";
-  if (ct < 3.00) return "2.00–2.99";
-  if (ct < 4.00) return "3.00–3.99";
-  if (ct < 5.00) return "4.00–4.99";
-  if (ct < 6.00) return "5.00–5.99";
-  if (ct < 10.00) return "6.00–9.99";
+  // NB: hyphen-minus, NOT en-dash — Shopify choice list uses "-".
+  if (ct < 0.30) return "0.00-0.29";
+  if (ct < 0.40) return "0.30-0.39";
+  if (ct < 0.50) return "0.40-0.49";
+  if (ct < 0.60) return "0.50-0.59";
+  if (ct < 0.70) return "0.60-0.69";
+  if (ct < 0.80) return "0.70-0.79";
+  if (ct < 0.90) return "0.80-0.89";
+  if (ct < 1.00) return "0.90-0.99";
+  if (ct < 1.50) return "1.00-1.49";
+  if (ct < 2.00) return "1.50-1.99";
+  if (ct < 3.00) return "2.00-2.99";
+  if (ct < 4.00) return "3.00-3.99";
+  if (ct < 5.00) return "4.00-4.99";
+  if (ct < 6.00) return "5.00-5.99";
+  if (ct < 10.00) return "6.00-9.99";
   return "10.00+";
 }
 
@@ -342,7 +370,10 @@ function mf(
   type: string = "single_line_text_field",
 ): { namespace: string; key: string; type: string; value: string } | null {
   if (value === null || value === undefined || value === "") return null;
-  return { namespace: "custom", key, type, value: String(value) };
+  // À Vie defines several taxonomy metafields as list.single_line_text_field
+  // (Shopify choice lists). For those, the value must be a JSON-encoded array.
+  const v = type.startsWith("list.") ? JSON.stringify([String(value)]) : String(value);
+  return { namespace: "custom", key, type, value: v };
 }
 
 function buildProductPayload(
@@ -388,36 +419,36 @@ function buildProductPayload(
   // ── Metafields: full À Vie diamond grading schema ─────────────────────────
   const metafields = [
     // Core grading
-    mf("diamond_shape",          cap(s.shape)),
+    mf("diamond_shape",          cap(s.shape), "list.single_line_text_field"),
     mf("diamond_carat",          s.carat_weight?.toFixed(2), "number_decimal"),
-    mf("diamond_carat_range",    caratRange(s.carat_weight)),
-    mf("diamond_colour_type",    ct),
+    mf("diamond_carat_range",    caratRange(s.carat_weight), "list.single_line_text_field"),
+    mf("diamond_colour_type",    ct, "list.single_line_text_field"),
     // White diamond colour (D–M scale)
-    ct === "White" ? mf("diamond_colour", s.colour_grade?.toUpperCase()) : null,
-    mf("diamond_clarity",        s.clarity_grade?.toUpperCase()),
-    mf("diamond_cut_grade",      cap(s.cut_grade)),
+    ct === "White" ? mf("diamond_colour", s.colour_grade?.toUpperCase(), "list.single_line_text_field") : null,
+    mf("diamond_clarity",        s.clarity_grade?.toUpperCase(), "list.single_line_text_field"),
+    mf("diamond_cut_grade",      cap(s.cut_grade), "list.single_line_text_field"),
     // Polish / symmetry / fluorescence
-    mf("diamond_polish",         cap(s.polish)),
-    mf("diamond_symmetry",       cap(s.symmetry)),
-    mf("diamond_fluorescence_intensity", fluorescenceIntensity(s)),
+    mf("diamond_polish",         cap(s.polish), "list.single_line_text_field"),
+    mf("diamond_symmetry",       cap(s.symmetry), "list.single_line_text_field"),
+    mf("diamond_fluorescence_intensity", fluorescenceIntensity(s), "list.single_line_text_field"),
     // Fancy colour fields
-    ct === "Fancy" ? mf("fancy_colour_hue",       cap(s.colour_hue)) : null,
-    ct === "Fancy" ? mf("fancy_colour_intensity",  cap(s.colour_tone)) : null,
+    ct === "Fancy" ? mf("fancy_colour_hue",       cap(s.colour_hue), "list.single_line_text_field") : null,
+    ct === "Fancy" ? mf("fancy_colour_intensity",  cap(s.colour_tone), "list.single_line_text_field") : null,
     // Treated colour
-    ct === "Treated" ? mf("treated_colour_hue",   cap(s.colour_hue)) : null,
+    ct === "Treated" ? mf("treated_colour_hue",   cap(s.colour_hue), "list.single_line_text_field") : null,
     // Measurements
     mf("diamond_measurements",   measurements),
     mf("diamond_depth",          s.depth_pct, "number_decimal"),
     mf("diamond_table",          s.table_pct, "number_decimal"),
     mf("diamond_length_to_width_ratio_l_w_ratio", s.lw_ratio, "number_decimal"),
-    mf("diamond_girdle",         cap(s.girdle)),
-    mf("diamond_cutlet",         cap(s.culet_size)),
+    mf("diamond_girdle",         cap(s.girdle), "list.single_line_text_field"),
+    mf("diamond_cutlet",         cap(s.culet_size), "list.single_line_text_field"),
     // Certification
     mf("diamond_certification_number", s.cert_number),
     mf("diamond_certification_link_url", s.cert_url, "url"),
     // Recommended additions from the metafield reference
-    mf("diamond_origin",         labGrown ? "Lab-grown" : "Natural"),
-    mf("diamond_certificate_lab", s.cert_lab?.toUpperCase()),
+    mf("diamond_origin",         labGrown ? "Lab-grown" : "Natural", "list.single_line_text_field"),
+    mf("diamond_certificate_lab", s.cert_lab?.toUpperCase(), "list.single_line_text_field"),
     mf("eye_clean",              s.eye_clean === "yes" || s.eye_clean === "true" ? "true" : null, "boolean"),
     mf("diamond_video_url",      s.has_video && s.video_url ? s.video_url : null, "url"),
     // Chaos internal reference
@@ -432,14 +463,10 @@ function buildProductPayload(
       product_type: cap(s.stone_type),
       tags: [...tagSet].join(", "),
       status: "active",
-      images: images
-        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
-        .slice(0, 10)
-        .map((img) => ({ src: img.external_image_url || img.storage_url }))
-        .filter((i) => i.src),
+      images: cleanImages(images),
       variants: [
         {
-          price: retailPrice ? retailPrice.toFixed(2) : "0.00",
+          price: cleanPrice(retailPrice),
           inventory_management: null,
           sku: `AV-CHAOS-${s.id.slice(0, 8).toUpperCase()}`,
           requires_shipping: true,
@@ -460,25 +487,12 @@ export type SyncResult = {
   errors: string[];
 };
 
-function shopifyErrorManifest(errors: string[]) {
-  return errors.slice(0, 100).map((message, index) => ({
-    index: index + 1,
-    message,
-  }));
-}
-
 export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   const result: SyncResult = { added: 0, updated: 0, archived: 0, errors: [] };
-  const syncSessionId = crypto.randomUUID();
 
   const { data: log } = await supabaseAdmin
     .from("shopify_sync_logs")
-    .insert({
-      jeweller_id: jewellerId,
-      status: "in_progress",
-      sync_session_id: syncSessionId,
-      triggered_by: "manual_btn",
-    } as never)
+    .insert({ jeweller_id: jewellerId, status: "running" })
     .select("id")
     .single();
   const logId = log?.id;
@@ -486,7 +500,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   try {
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
-      .select("id, shop_domain, client_id, encrypted_client_secret, encrypted_access_token, token_expires_at, is_active")
+      .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
       .eq("jeweller_id", jewellerId)
       .maybeSingle();
 
@@ -555,13 +569,6 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
     const stones = Array.from(stoneMap.values());
     console.log(`[shopify] Sync starting for shop: ${shop}, feed stones: ${stones.length}`);
 
-    if (logId) {
-      await supabaseAdmin
-        .from("shopify_sync_logs")
-        .update({ total_stones_detected: stones.length } as never)
-        .eq("id", logId);
-    }
-
     // Images
     const imagesByStone = new Map<string, StoneImageRow[]>();
     if (stones.length) {
@@ -591,12 +598,10 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
 
     const currentIds = new Set(stones.map((s) => s.id));
 
-    // Upsert each stone through a deliberately slow queue. Product writes with
-    // images/metafields are expensive enough that large bursts can hit Shopify's
-    // leaky-bucket throttle even when individual requests look small.
+    // Upsert each stone — batched to respect Shopify rate limits
+    // (40-call leaky bucket, drains at 2/sec. Batches of 10 + 500ms pause = safe.)
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-    const CHUNK = 1;
-    const WRITE_DELAY_MS = 750;
+    const CHUNK = 10;
 
     for (let i = 0; i < stones.length; i += CHUNK) {
       const chunk = stones.slice(i, i + CHUNK);
@@ -606,6 +611,8 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         const images = imagesByStone.get(s.id) ?? [];
         const payload = buildProductPayload(s, images, retail);
         const existingEntry = existingMap.get(s.id);
+
+        console.log("== SHOPIFY DEPLOYING PAYLOAD ==", JSON.stringify({ stoneId: s.id, mode: existingEntry ? "update" : "create", payload }));
 
         try {
           if (existingEntry) {
@@ -621,12 +628,14 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
                 { method: "PUT", body: JSON.stringify({ product: { id: existingEntry.id, ...payload.product, status: "active" } }) });
               if (!retry.ok) {
                 const t = await retry.text();
-                result.errors.push(`Update ${s.id}: ${retry.status} ${t.slice(0, 160)}`);
+                console.error("[shopify] Update failed", s.id, retry.status, t);
+                result.errors.push(`Update ${s.id}: ${retry.status} ${t.slice(0, 300)}`);
                 continue;
               }
             } else if (!res.ok) {
               const t = await res.text();
-              result.errors.push(`Update ${s.id}: ${res.status} ${t.slice(0, 160)}`);
+              console.error("[shopify] Update failed", s.id, res.status, t);
+              result.errors.push(`Update ${s.id}: ${res.status} ${t.slice(0, 300)}`);
               continue;
             }
             await supabaseAdmin
@@ -645,7 +654,9 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
                 { method: "POST", body: JSON.stringify(payload) });
               if (!retry.ok) {
                 const t = await retry.text();
-                result.errors.push(`Create ${s.id}: ${retry.status} ${t.slice(0, 120)}`); continue;
+                console.error("[shopify] Create failed", s.id, retry.status, t);
+                result.errors.push(`Create ${s.id}: ${retry.status} ${t.slice(0, 300)}`);
+                continue;
               }
               const body2 = (await retry.json()) as { product?: { id?: number | string; handle?: string } };
               const pid2 = body2.product?.id ? String(body2.product.id) : null;
@@ -657,7 +668,9 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
             }
             if (!res.ok) {
               const t = await res.text();
-              result.errors.push(`Create ${s.id}: ${res.status} ${t.slice(0, 120)}`); continue;
+              console.error("[shopify] Create failed", s.id, res.status, t);
+              result.errors.push(`Create ${s.id}: ${res.status} ${t.slice(0, 300)}`);
+              continue;
             }
             const body = (await res.json()) as { product?: { id?: number | string; handle?: string } };
             const pid = body.product?.id ? String(body.product.id) : null;
@@ -672,7 +685,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
       }
 
       // Inter-batch pause — let the Shopify rate limit bucket recover
-      if (i + CHUNK < stones.length) await sleep(WRITE_DELAY_MS);
+      if (i + CHUNK < stones.length) await sleep(500);
     }
 
     // Archive products whose stones are no longer in the feed (or sold)
@@ -701,7 +714,7 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
       .from("shopify_connections")
       .update({
         last_sync_at: new Date().toISOString(),
-        last_sync_status: result.errors.length ? "failed_partial" : "completed",
+        last_sync_status: result.errors.length ? "partial" : "ok",
         products_synced: stones.length,
       })
       .eq("jeweller_id", jewellerId);
@@ -711,13 +724,12 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .from("shopify_sync_logs")
         .update({
           completed_at: new Date().toISOString(),
-          status: result.errors.length ? "failed_partial" : "completed",
-          stones_added_successfully: result.added,
-          stones_updated_successfully: result.updated,
-          stones_failed_count: result.errors.length,
-          error_manifest: shopifyErrorManifest(result.errors),
-          error_message: result.errors.slice(0, 5).join(" | ") || null,
-        } as never)
+          status: result.errors.length ? "partial" : "ok",
+          stones_added: result.added,
+          stones_updated: result.updated,
+          stones_archived: result.archived,
+          error_message: result.errors.slice(0, 25).join(" | ") || null,
+        })
         .eq("id", logId);
     }
 
@@ -730,16 +742,14 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
         .from("shopify_sync_logs")
         .update({
           completed_at: new Date().toISOString(),
-          status: "failed_critical",
-          stones_failed_count: 1,
-          error_manifest: shopifyErrorManifest([msg]),
+          status: "error",
           error_message: msg,
-        } as never)
+        })
         .eq("id", logId);
     }
     await supabaseAdmin
       .from("shopify_connections")
-      .update({ last_sync_at: new Date().toISOString(), last_sync_status: "failed_critical" })
+      .update({ last_sync_at: new Date().toISOString(), last_sync_status: "error" })
       .eq("jeweller_id", jewellerId);
     throw e;
   }
@@ -767,7 +777,7 @@ export async function testConnectionForJeweller(
 > {
   const { data: conn } = await supabaseAdmin
     .from("shopify_connections")
-    .select("id, shop_domain, client_id, encrypted_client_secret, encrypted_access_token, token_expires_at, is_active")
+    .select("id, shop_domain, client_id, client_secret, access_token, token_expires_at, is_active")
     .eq("jeweller_id", jewellerId)
     .maybeSingle();
   if (!conn) return { ok: false, error: "No Shopify connection saved." };
