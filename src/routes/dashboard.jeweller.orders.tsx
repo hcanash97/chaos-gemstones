@@ -143,7 +143,7 @@ function JewellerOrders() {
                 <div className="mt-3 rounded border border-green-500/40 bg-green-500/10 p-3 text-xs">
                   <div className="font-medium">Transaction complete</div>
                   <div className="text-muted-foreground">
-                    Platform fee: {format(o.platform_fee_usd, "USD")} (2% of {format(o.wholesale_price_usd, "USD")}). Included in your monthly invoice.
+                    Platform fee: {format(o.platform_fee_usd, "USD")} (2.5% of {format(o.wholesale_price_usd, "USD")}, capped at £50). Included in your monthly invoice.
                   </div>
                 </div>
               )}

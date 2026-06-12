@@ -45,7 +45,10 @@ function Vendors() {
     queryFn: async () => {
       const { data } = await supabase
         .from("dealer_profiles")
-        .select("id, slug, bio, logo_url, tagline, story, specialities, years_trading, response_time_hours, profiles!inner(company_name, city, country, is_verified)")
+        // LEFT JOIN — don't drop dealers whose `profiles` row hasn't been
+        // back-filled with secondary metadata. The previous `!inner` join
+        // silently hid signed-up wholesalers from the directory.
+        .select("id, slug, bio, logo_url, tagline, story, specialities, years_trading, response_time_hours, profiles(company_name, city, country, is_verified)")
         .order("featured", { ascending: false });
       return data ?? [];
     },

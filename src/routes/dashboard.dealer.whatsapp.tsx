@@ -76,33 +76,36 @@ function WhatsAppIntakePage() {
   const [message, setMessage]           = useState(SAMPLE_MESSAGES[0].text);
   const [parsing, setParsing]           = useState(false);
   const [saving, setSaving]             = useState(false);
-  const [result, setResult]             = useState<ParsedWhatsAppStone | null>(null);
+  // Now an array — every parsed message can yield 1..N stones.
+  const [results, setResults]           = useState<ParsedWhatsAppStone[] | null>(null);
   const [parseError, setParseError]     = useState<string | null>(null);
-  const [savedId, setSavedId]           = useState<string | null>(null);
-  const [isDuplicate, setIsDuplicate]   = useState(false);
-  const [dupeError, setDupeError]       = useState<string | null>(null);
+  const [savedIds, setSavedIds]         = useState<Record<number, string>>({});
+  const [dupeErrors, setDupeErrors]     = useState<Record<number, string>>({});
+
+  function resetResults() {
+    setResults(null);
+    setParseError(null);
+    setSavedIds({});
+    setDupeErrors({});
+  }
 
   // ── Parse ─────────────────────────────────────────────────────────────────
   async function handleParse() {
     if (!message.trim()) { toast.error("Paste a message first."); return; }
     setParsing(true);
-    setResult(null);
-    setParseError(null);
-    setSavedId(null);
-    setIsDuplicate(false);
-    setDupeError(null);
+    resetResults();
 
     try {
       const res = await parseWhatsAppMessageFn({ data: { message } });
       if (res.ok) {
-        setResult(res.stone);
-        const warns = res.stone.warnings?.length ?? 0;
-        if (res.stone.is_withdrawal) {
-          toast.info("Withdrawal detected — this looks like a 'stone sold' message, not a new listing.");
-        } else if (res.stone.is_multi_stone) {
-          toast.warning("Multiple stones detected in one message — only the first was extracted. Send one stone per message.");
-        } else if (warns > 0) {
-          toast.warning(`Extracted with ${warns} warning${warns !== 1 ? "s" : ""} — review carefully.`);
+        setResults(res.stones);
+        const totalWarns = res.stones.reduce((n, s) => n + (s.warnings?.length ?? 0), 0);
+        if (res.stones.some((s) => s.is_withdrawal)) {
+          toast.info("Withdrawal detected in message.");
+        } else if (res.stones.length > 1) {
+          toast.success(`${res.stones.length} stones extracted. Review each before saving.`);
+        } else if (totalWarns > 0) {
+          toast.warning(`Extracted with ${totalWarns} warning${totalWarns !== 1 ? "s" : ""} — review carefully.`);
         } else {
           toast.success("Extraction complete.");
         }
@@ -111,63 +114,63 @@ function WhatsAppIntakePage() {
         toast.error("Extraction failed.");
       }
     } catch (err) {
-      const msg = String(err);
-      setParseError(msg);
+      setParseError(String(err));
       toast.error("Unexpected error during extraction.");
     } finally {
       setParsing(false);
     }
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────
-  async function handleSave() {
-    if (!result || !result.stone_type) { toast.error("Stone type is required."); return; }
-    setSaving(true);
-    setIsDuplicate(false);
-    setDupeError(null);
-
-    const carat = result.carat_weight ? parseFloat(result.carat_weight) : null;
-    const price = result.wholesale_price_usd ? parseFloat(result.wholesale_price_usd) : null;
-
-    try {
-      const res = await saveWhatsAppDraftFn({
-        data: {
-          stone_type:          result.stone_type,
-          shape:               result.shape || null,
-          carat_weight:        Number.isFinite(carat) ? carat : null,
-          colour_grade:        result.colour_grade || null,
-          clarity_grade:       result.clarity_grade || null,
-          cert_lab:            result.cert_lab || null,
-          cert_number:         result.cert_number || null,
-          treatment:           result.treatment || null,
-          country_of_origin:   result.country_of_origin || null,
-          wholesale_price_usd: Number.isFinite(price) ? price : null,
-          price_currency:      result.price_currency || "USD",
-          notes_for_buyers:    null,
-          raw_message:         message,
-          extracted_json:      result as unknown as Record<string, unknown>,
-          confidence:          result.confidence,
-          warnings:            result.warnings ?? [],
-          raw_price_text:      result.raw_price_text || null,
-          original_currency:   result.price_currency || null,
-        },
-      });
-
-      if (res.ok) {
-        setSavedId(res.stoneId);
-        toast.success("Stone saved. Pending admin review before going live.");
-      } else if (res.isDuplicate) {
-        setIsDuplicate(true);
-        setDupeError(res.error);
-        toast.error("Duplicate cert number detected.");
-      } else {
-        toast.error(`Save failed: ${res.error}`);
-      }
-    } catch (err) {
-      toast.error(`Save error: ${String(err)}`);
-    } finally {
-      setSaving(false);
+  // ── Save a single stone ───────────────────────────────────────────────────
+  async function saveStone(idx: number, stone: ParsedWhatsAppStone) {
+    const carat = stone.carat_weight ? parseFloat(stone.carat_weight) : null;
+    const price = stone.wholesale_price_usd ? parseFloat(stone.wholesale_price_usd) : null;
+    const res = await saveWhatsAppDraftFn({
+      data: {
+        stone_type:          stone.stone_type,
+        shape:               stone.shape || null,
+        carat_weight:        Number.isFinite(carat) ? carat : null,
+        colour_grade:        stone.colour_grade || null,
+        clarity_grade:       stone.clarity_grade || null,
+        cert_lab:            stone.cert_lab || null,
+        cert_number:         stone.cert_number || null,
+        treatment:           stone.treatment || null,
+        country_of_origin:   stone.country_of_origin || null,
+        wholesale_price_usd: Number.isFinite(price) ? price : null,
+        price_currency:      stone.price_currency || "USD",
+        notes_for_buyers:    null,
+        raw_message:         message,
+        extracted_json:      stone as unknown as Record<string, unknown>,
+        confidence:          stone.confidence,
+        warnings:            stone.warnings ?? [],
+        raw_price_text:      stone.raw_price_text || null,
+        original_currency:   stone.price_currency || null,
+      },
+    });
+    if (res.ok) {
+      setSavedIds((s) => ({ ...s, [idx]: res.stoneId }));
+      return true;
     }
+    if (res.isDuplicate) {
+      setDupeErrors((d) => ({ ...d, [idx]: res.error }));
+    } else {
+      toast.error(`Save failed (stone ${idx + 1}): ${res.error}`);
+    }
+    return false;
+  }
+
+  async function handleSaveAll() {
+    if (!results) return;
+    setSaving(true);
+    let saved = 0;
+    for (let i = 0; i < results.length; i++) {
+      if (savedIds[i]) continue;
+      if (!results[i].stone_type) continue;
+      const ok = await saveStone(i, results[i]);
+      if (ok) saved++;
+    }
+    setSaving(false);
+    if (saved > 0) toast.success(`${saved} stone${saved !== 1 ? "s" : ""} saved as hidden drafts — pending admin approval.`);
   }
 
   async function copyTemplate() {
@@ -175,10 +178,13 @@ function WhatsAppIntakePage() {
     toast.success("Template copied.");
   }
 
-  const fieldsDone = result
-    ? [result.stone_type, result.shape, result.carat_weight, result.colour_grade,
-       result.cert_lab, result.cert_number, result.treatment, result.country_of_origin,
-       result.wholesale_price_usd].filter(Boolean).length
+  const onMessageChange = (text: string) => {
+    setMessage(text);
+    resetResults();
+  };
+
+  const stonesToSave = results
+    ? results.filter((s, i) => !savedIds[i] && !dupeErrors[i] && s.stone_type && !s.is_withdrawal).length
     : 0;
 
   return (
@@ -241,7 +247,7 @@ function WhatsAppIntakePage() {
 
           <Textarea
             value={message}
-            onChange={(e) => { setMessage(e.target.value); setResult(null); setParseError(null); setSavedId(null); setIsDuplicate(false); }}
+            onChange={(e) => onMessageChange(e.target.value)}
             rows={11}
             className="font-mono text-sm"
             placeholder="Paste a WhatsApp message here..."
@@ -253,7 +259,7 @@ function WhatsAppIntakePage() {
               <button
                 key={i}
                 type="button"
-                onClick={() => { setMessage(s.text); setResult(null); setParseError(null); setSavedId(null); setIsDuplicate(false); }}
+                onClick={() => onMessageChange(s.text)}
                 className="rounded border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 {s.label}
@@ -261,7 +267,7 @@ function WhatsAppIntakePage() {
             ))}
             <button
               type="button"
-              onClick={() => { setMessage(""); setResult(null); setParseError(null); setSavedId(null); setIsDuplicate(false); }}
+              onClick={() => onMessageChange("")}
               className="rounded border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             >
               Clear
@@ -286,16 +292,15 @@ function WhatsAppIntakePage() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Sparkles className="h-4 w-4 text-[var(--color-gold)]" />
-              Extracted fields
+              Extracted stones
             </div>
-            {result && (
+            {results && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                {fieldsDone}/9 fields
+                {results.length} stone{results.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
 
-          {/* Error */}
           {parseError && (
             <div className="mt-4 flex gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
               <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -306,147 +311,53 @@ function WhatsAppIntakePage() {
             </div>
           )}
 
-          {/* Empty state */}
-          {!result && !parseError && (
+          {!results && !parseError && (
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Paste a message and click <strong>Extract with AI</strong>.
             </p>
           )}
 
-          {/* Withdrawal detected */}
-          {result?.is_withdrawal && (
+          {results && results.length > 1 && (
             <div className="mt-4 flex gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-              <XOctagon className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">Withdrawal message</p>
-                <p className="mt-1 text-xs leading-5">
-                  This message indicates the stone has been sold or is no longer available.
-                  If you have an existing listing for this stone, mark it as sold from your{" "}
-                  <Link to="/dashboard/stones" className="underline">listings page</Link>.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Multi-stone detected */}
-          {result?.is_multi_stone && !result.is_withdrawal && (
-            <div className="mt-4 flex gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <Layers className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
-                <p className="font-medium">Multiple stones detected</p>
+                <p className="font-medium">{results.length} stones detected</p>
                 <p className="mt-1 text-xs leading-5">
-                  This message contains more than one stone. Only the first has been extracted.
-                  Ask the dealer to send one stone per message, then process each separately.
+                  Each one will be saved as its own hidden draft and require admin approval before going live.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Fields */}
-          {result && !result.is_withdrawal && (
-            <>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <ConfidenceBadge confidence={result.confidence} />
-              </div>
+          {results && stonesToSave > 0 && (
+            <div className="mt-4">
+              <Button
+                onClick={handleSaveAll}
+                disabled={saving}
+                className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+              >
+                {saving ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</>
+                ) : (
+                  <><CheckCircle2 className="mr-2 h-4 w-4" />Save {stonesToSave} draft{stonesToSave !== 1 ? "s" : ""}</>
+                )}
+              </Button>
+            </div>
+          )}
 
-              {/* Warnings */}
-              {(result.warnings?.length ?? 0) > 0 && (
-                <div className="mt-3 space-y-1.5">
-                  {result.warnings.map((w, i) => (
-                    <div key={i} className="flex gap-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      {w}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-4 space-y-2">
-                <DraftRow label="Stone type"  value={result.stone_type}         required />
-                <DraftRow label="Shape"        value={result.shape} />
-                <DraftRow label="Carat"        value={result.carat_weight} />
-                <DraftRow label="Colour"       value={result.colour_grade} />
-                <DraftRow label="Clarity"      value={result.clarity_grade} />
-                <DraftRow label="Cert lab"     value={result.cert_lab} />
-                <DraftRow label="Cert number"  value={result.cert_number} />
-                <DraftRow label="Treatment"    value={result.treatment}
-                  urgent={!result.treatment}
-                  urgentNote="Ambiguous — must be set before publishing" />
-                <DraftRow label="Origin"       value={result.country_of_origin} />
-                <DraftRow
-                  label="Price (USD)"
-                  value={result.wholesale_price_usd ? `$${Number(result.wholesale_price_usd).toLocaleString()}` : ""}
-                  subValue={result.raw_price_text && result.price_currency !== "USD"
-                    ? `Original: ${result.raw_price_text} ${result.price_currency}` : undefined}
+          {results && (
+            <div className="mt-4 space-y-5">
+              {results.map((stone, idx) => (
+                <StoneResultCard
+                  key={idx}
+                  index={idx}
+                  total={results.length}
+                  stone={stone}
+                  savedId={savedIds[idx] ?? null}
+                  dupeError={dupeErrors[idx] ?? null}
                 />
-              </div>
-
-              {/* Review note */}
-              <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
-                <p className="font-medium">Human review required before publishing</p>
-                <p className="mt-1 leading-5">
-                  Verify cert number, treatment, and price. Treatment must be confirmed — misrepresenting
-                  heated vs unheated is a serious compliance issue. Stone saves hidden until admin approves.
-                </p>
-              </div>
-
-              {/* Duplicate error */}
-              {isDuplicate && dupeError && (
-                <div className="mt-4 flex gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                  <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-medium">Duplicate cert number</p>
-                    <p className="mt-1 text-xs leading-5">{dupeError}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Save success */}
-              {savedId ? (
-                <div className="mt-4 flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-medium">Draft saved — pending admin approval</p>
-                    <p className="mt-0.5 text-xs">
-                      <Link to="/dashboard/stones/$id/edit" params={{ id: savedId }} className="underline inline-flex items-center gap-1">
-                        Edit listing {savedId.slice(0, 8)}…
-                        <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                !isDuplicate && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button
-                      onClick={handleSave}
-                      disabled={saving || !result.stone_type}
-                      className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
-                    >
-                      {saving ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</>
-                      ) : (
-                        <><CheckCircle2 className="mr-2 h-4 w-4" />Save as draft</>
-                      )}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={async () => {
-                      const text = [
-                        `Stone: ${result.stone_type}`, `Shape: ${result.shape}`,
-                        `Carat: ${result.carat_weight}`, `Colour: ${result.colour_grade}`,
-                        `Clarity: ${result.clarity_grade}`, `Cert: ${result.cert_lab} ${result.cert_number}`,
-                        `Treatment: ${result.treatment}`, `Origin: ${result.country_of_origin}`,
-                        `Price: $${result.wholesale_price_usd} USD`,
-                      ].filter((l) => !l.endsWith(": ")).join("\n");
-                      await navigator.clipboard.writeText(text);
-                      toast.success("Fields copied.");
-                    }}>
-                      <Copy className="mr-1.5 h-3.5 w-3.5" />
-                      Copy fields
-                    </Button>
-                  </div>
-                )
-              )}
-            </>
+              ))}
+            </div>
           )}
         </section>
       </div>
@@ -467,6 +378,119 @@ function WhatsAppIntakePage() {
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+function StoneResultCard({
+  index, total, stone, savedId, dupeError,
+}: {
+  index: number;
+  total: number;
+  stone: ParsedWhatsAppStone;
+  savedId: string | null;
+  dupeError: string | null;
+}) {
+  if (stone.is_withdrawal) {
+    return (
+      <div className="flex gap-3 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+        <XOctagon className="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p className="font-medium">Withdrawal message</p>
+          <p className="mt-1 text-xs leading-5">
+            Stone {index + 1} of {total} is a sold/withdrawn notice — not a new listing.
+            Mark any matching live listing as sold from your{" "}
+            <Link to="/dashboard/stones" className="underline">listings page</Link>.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-md border border-border p-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Stone {index + 1}{total > 1 ? ` of ${total}` : ""}
+        </div>
+        <ConfidenceBadge confidence={stone.confidence} />
+      </div>
+
+      {(stone.warnings?.length ?? 0) > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {stone.warnings.map((w, i) => (
+            <div key={i} className="flex gap-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {w}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3 space-y-2">
+        <DraftRow label="Stone type" value={stone.stone_type} required />
+        <DraftRow label="Shape" value={stone.shape} />
+        <DraftRow label="Carat" value={stone.carat_weight} />
+        <DraftRow label="Colour" value={stone.colour_grade} />
+        <DraftRow label="Clarity" value={stone.clarity_grade} />
+        <DraftRow label="Cert lab" value={stone.cert_lab} />
+        <DraftRow label="Cert number" value={stone.cert_number} />
+        <DraftRow label="Treatment" value={stone.treatment}
+          urgent={!stone.treatment}
+          urgentNote="Ambiguous — must be set before publishing" />
+        <DraftRow label="Origin" value={stone.country_of_origin} />
+        <DraftRow
+          label="Price (USD)"
+          value={stone.wholesale_price_usd ? `$${Number(stone.wholesale_price_usd).toLocaleString()}` : ""}
+          subValue={stone.raw_price_text && stone.price_currency !== "USD"
+            ? `Original: ${stone.raw_price_text} ${stone.price_currency}` : undefined}
+        />
+      </div>
+
+      <div className="mt-3">
+        <Button variant="outline" size="sm" onClick={async () => {
+          const text = [
+            `Stone: ${stone.stone_type}`,
+            `Shape: ${stone.shape}`,
+            `Carat: ${stone.carat_weight}`,
+            `Colour: ${stone.colour_grade}`,
+            `Clarity: ${stone.clarity_grade}`,
+            `Cert: ${stone.cert_lab} ${stone.cert_number}`,
+            `Treatment: ${stone.treatment}`,
+            `Origin: ${stone.country_of_origin}`,
+            `Price: $${stone.wholesale_price_usd} USD`,
+          ].filter((line) => !line.endsWith(": ") && !line.endsWith("null")).join("\n");
+          await navigator.clipboard.writeText(text);
+          toast.success("Fields copied.");
+        }}>
+          <Copy className="mr-1.5 h-3.5 w-3.5" />
+          Copy fields
+        </Button>
+      </div>
+
+      {dupeError && (
+        <div className="mt-3 flex gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+          <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <div>
+            <p className="font-medium">Duplicate cert number</p>
+            <p className="mt-1 leading-5">{dupeError}</p>
+          </div>
+        </div>
+      )}
+
+      {savedId && (
+        <div className="mt-3 flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Saved — pending admin approval</p>
+            <p className="mt-0.5">
+              <Link to="/dashboard/stones/$id/edit" params={{ id: savedId }} className="underline inline-flex items-center gap-1">
+                Edit listing {savedId.slice(0, 8)}…
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function WorkflowCard({ icon, step, title, text }: { icon: ReactNode; step: string; title: string; text: string }) {
   return (

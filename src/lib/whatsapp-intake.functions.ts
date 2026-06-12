@@ -8,8 +8,8 @@ const ParseInputSchema = z.object({
   message: z.string().min(1).max(4000),
 });
 
-// Strict schema that validates the AI response — not just the input
-const AiResponseSchema = z.object({
+// Per-stone schema — validates a single parsed gemstone record.
+const StoneFieldsSchema = z.object({
   stone_type:         z.string().default(""),
   shape:              z.string().default(""),
   carat_weight:       z.string().default(""),
@@ -28,6 +28,13 @@ const AiResponseSchema = z.object({
   is_price_update:    z.boolean().default(false),
   is_withdrawal:      z.boolean().default(false),
 });
+
+// AI response now always returns an array of stones (one entry per stone
+// detected). Legacy single-stone shape is still accepted and wrapped.
+const AiResponseSchema = z.union([
+  z.object({ stones: z.array(StoneFieldsSchema).min(1) }),
+  StoneFieldsSchema.transform((s) => ({ stones: [s] })),
+]);
 
 const SaveDraftSchema = z.object({
   stone_type:          z.string().min(1),
@@ -52,10 +59,10 @@ const SaveDraftSchema = z.object({
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type ParsedWhatsAppStone = z.infer<typeof AiResponseSchema>;
+export type ParsedWhatsAppStone = z.infer<typeof StoneFieldsSchema>;
 
 export type ParseResult =
-  | { ok: true;  stone: ParsedWhatsAppStone }
+  | { ok: true;  stones: ParsedWhatsAppStone[] }
   | { ok: false; error: string };
 
 export type SaveDraftResult =
@@ -159,7 +166,7 @@ TREATMENT SIGNALS:
 
 PRICE CURRENCIES: USD, GBP, EUR, LKR, THB, PKR, INR, AED, HKD. Output the original currency code; the server handles conversion.
 
-MULTI-STONE DETECTION: If the message contains 2 or more clearly separate stones (different stone types, separate prices, or bullet/numbered list), set is_multi_stone=true.
+MULTI-STONE: Messages may contain multiple stones. ALWAYS return a JSON object of the shape \`{ "stones": [ { …stone 1… }, { …stone 2… } ] }\` — one entry per stone detected. If there is only one stone, return an array of length 1. Set is_multi_stone=true on every entry when 2+ stones were parsed from the same message.
 
 INTENT DETECTION:
 - "sold"/"already gone"/"not available"/"no more" with no new stone = set is_withdrawal=true
@@ -167,7 +174,7 @@ INTENT DETECTION:
 
 CERT NUMBER RULE: Only extract cert_number if an explicit number appears in the text. Never infer or generate one. If a cert lab is mentioned but no number, leave cert_number empty and add warning "Cert lab mentioned but no number provided — verify".
 
-Respond ONLY with a JSON object. No markdown, no explanation. Schema:
+Respond ONLY with a JSON object of the shape { "stones": [ ... ] }. No markdown, no explanation. Each stone entry uses this schema:
 {
   "stone_type": "normalised English name e.g. Blue Sapphire, Ruby, Diamond",
   "shape": "normalised e.g. Oval, Round, Cushion, Emerald Cut, Pear",
@@ -265,7 +272,7 @@ Respond ONLY with a JSON object. No markdown, no explanation. Schema:
       }
     }
 
-    // Validate against strict schema
+    // Validate against strict schema (accepts both array and legacy single shape)
     const validated = AiResponseSchema.safeParse(parsed);
     if (!validated.success) {
       return {
@@ -274,31 +281,35 @@ Respond ONLY with a JSON object. No markdown, no explanation. Schema:
       };
     }
 
-    const stone = validated.data;
+    const stones = validated.data.stones;
+    const isMulti = stones.length > 1;
 
-    // Live FX conversion — update the price to USD now if needed
-    if (stone.wholesale_price_usd && stone.price_currency && stone.price_currency !== "USD") {
-      const raw_amount = parseFloat(stone.wholesale_price_usd);
-      if (!isNaN(raw_amount) && raw_amount > 0) {
-        const { usd, live } = await toUsd(raw_amount, stone.price_currency);
-        stone.wholesale_price_usd = String(usd);
-        if (!live) {
-          stone.warnings.push(`Price converted from ${stone.price_currency} using static rate — verify`);
-        } else {
-          stone.warnings.push(`Price converted from ${stone.price_currency} to USD at live rate`);
+    // Per-stone FX conversion + plausibility checks
+    for (const stone of stones) {
+      if (isMulti) stone.is_multi_stone = true;
+
+      if (stone.wholesale_price_usd && stone.price_currency && stone.price_currency !== "USD") {
+        const raw_amount = parseFloat(stone.wholesale_price_usd);
+        if (!isNaN(raw_amount) && raw_amount > 0) {
+          const { usd, live } = await toUsd(raw_amount, stone.price_currency);
+          stone.wholesale_price_usd = String(usd);
+          if (!live) {
+            stone.warnings.push(`Price converted from ${stone.price_currency} using static rate — verify`);
+          } else {
+            stone.warnings.push(`Price converted from ${stone.price_currency} to USD at live rate`);
+          }
         }
+      }
+
+      const carat = parseFloat(stone.carat_weight);
+      const price = parseFloat(stone.wholesale_price_usd);
+      if (stone.stone_type && !isNaN(carat) && carat > 0 && !isNaN(price) && price > 0) {
+        const warn = pricePerCaratWarning(stone.stone_type, price, carat);
+        if (warn) stone.warnings.push(warn);
       }
     }
 
-    // Plausibility check
-    const carat = parseFloat(stone.carat_weight);
-    const price = parseFloat(stone.wholesale_price_usd);
-    if (stone.stone_type && !isNaN(carat) && carat > 0 && !isNaN(price) && price > 0) {
-      const warn = pricePerCaratWarning(stone.stone_type, price, carat);
-      if (warn) stone.warnings.push(warn);
-    }
-
-    return { ok: true, stone };
+    return { ok: true, stones };
   });
 
 // ─── Save draft stone server function ────────────────────────────────────────
