@@ -795,6 +795,7 @@ export type Database = {
           auto_sync: boolean
           client_id: string | null
           created_at: string
+          encrypted_access_token: string | null
           encrypted_client_secret: string | null
           id: string
           is_active: boolean
@@ -811,6 +812,7 @@ export type Database = {
           auto_sync?: boolean
           client_id?: string | null
           created_at?: string
+          encrypted_access_token?: string | null
           encrypted_client_secret?: string | null
           id?: string
           is_active?: boolean
@@ -827,6 +829,7 @@ export type Database = {
           auto_sync?: boolean
           client_id?: string | null
           created_at?: string
+          encrypted_access_token?: string | null
           encrypted_client_secret?: string | null
           id?: string
           is_active?: boolean
@@ -930,35 +933,56 @@ export type Database = {
         Row: {
           completed_at: string | null
           error_message: string | null
+          error_manifest: Json
           id: string
           jeweller_id: string
           started_at: string
           status: string
-          stones_added: number
-          stones_archived: number
-          stones_updated: number
+          stones_added_legacy: number | null
+          stones_added_successfully: number
+          stones_archived_legacy: number | null
+          stones_failed_count: number
+          stones_updated_legacy: number | null
+          stones_updated_successfully: number
+          sync_session_id: string | null
+          total_stones_detected: number
+          triggered_by: string
         }
         Insert: {
           completed_at?: string | null
           error_message?: string | null
+          error_manifest?: Json
           id?: string
           jeweller_id: string
           started_at?: string
           status?: string
-          stones_added?: number
-          stones_archived?: number
-          stones_updated?: number
+          stones_added_legacy?: number | null
+          stones_added_successfully?: number
+          stones_archived_legacy?: number | null
+          stones_failed_count?: number
+          stones_updated_legacy?: number | null
+          stones_updated_successfully?: number
+          sync_session_id?: string | null
+          total_stones_detected?: number
+          triggered_by?: string
         }
         Update: {
           completed_at?: string | null
           error_message?: string | null
+          error_manifest?: Json
           id?: string
           jeweller_id?: string
           started_at?: string
           status?: string
-          stones_added?: number
-          stones_archived?: number
-          stones_updated?: number
+          stones_added_legacy?: number | null
+          stones_added_successfully?: number
+          stones_archived_legacy?: number | null
+          stones_failed_count?: number
+          stones_updated_legacy?: number | null
+          stones_updated_successfully?: number
+          sync_session_id?: string | null
+          total_stones_detected?: number
+          triggered_by?: string
         }
         Relationships: [
           {

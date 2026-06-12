@@ -5,11 +5,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   buildAuthorizeUrl,
   encryptToken,
-  getValidAccessToken,
-  mintAccessToken,
   normaliseShopDomain,
   runShopifySync,
-  testShopifyConnection,
   testConnectionForJeweller,
   dryRunShopifySync,
 } from "./shopify.server";
@@ -44,7 +41,7 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
     const { data: logs } = await supabaseAdmin
       .from("shopify_sync_logs")
       .select(
-        "id, started_at, completed_at, status, stones_added, stones_updated, stones_archived, error_message",
+        "id, started_at, completed_at, status, total_stones_detected, stones_added_successfully, stones_updated_successfully, stones_failed_count, error_manifest, error_message",
       )
       .eq("jeweller_id", userId)
       .order("started_at", { ascending: false })
@@ -77,22 +74,24 @@ export const startShopifyOAuth = createServerFn({ method: "POST" })
       encryptToken(data.clientSecret),
     ]);
 
-    await supabaseAdmin.from("shopify_connections").upsert(
+    const { error: connectionError } = await supabaseAdmin.from("shopify_connections").upsert(
       {
         jeweller_id: userId,
         shop_domain: shop,
         client_id: encClientId,
-        client_secret: encClientSecret,
+        encrypted_client_secret: encClientSecret,
         is_active: false,  // not active until callback completes
       },
       { onConflict: "jeweller_id" },
     );
+    if (connectionError) throw new Error(connectionError.message);
 
     // Store state in a short-lived DB row keyed to the jeweller
-    await supabaseAdmin.from("shopify_oauth_states").upsert(
+    const { error: stateError } = await supabaseAdmin.from("shopify_oauth_states").upsert(
       { jeweller_id: userId, state, shop_domain: shop, expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() },
       { onConflict: "jeweller_id" },
     );
+    if (stateError) throw new Error(stateError.message);
 
     const authorizeUrl = buildAuthorizeUrl(shop, data.clientId, redirectUri, state);
     return { authorizeUrl };
@@ -154,6 +153,3 @@ export const dryRunShopifySyncFn = createServerFn({ method: "POST" })
     await assertJeweller(supabase, userId);
     return dryRunShopifySync(userId);
   });
-
-// Silence unused-import warnings for re-exports kept for callers/tests.
-void getValidAccessToken;

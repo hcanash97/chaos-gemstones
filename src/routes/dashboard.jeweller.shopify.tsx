@@ -315,7 +315,7 @@ function ShopifyPage() {
                     <th className="px-4 py-2 text-left font-medium">Status</th>
                     <th className="px-4 py-2 text-right font-medium">Added</th>
                     <th className="px-4 py-2 text-right font-medium">Updated</th>
-                    <th className="px-4 py-2 text-right font-medium">Archived</th>
+                    <th className="px-4 py-2 text-right font-medium">Failed</th>
                     <th className="px-4 py-2 text-left font-medium">Error</th>
                   </tr>
                 </thead>
@@ -326,9 +326,9 @@ function ShopifyPage() {
                         {new Date(l.started_at).toLocaleString("en-GB")}
                       </td>
                       <td className="px-4 py-2 capitalize">{l.status}</td>
-                      <td className="px-4 py-2 text-right">{l.stones_added ?? 0}</td>
-                      <td className="px-4 py-2 text-right">{l.stones_updated ?? 0}</td>
-                      <td className="px-4 py-2 text-right">{l.stones_archived ?? 0}</td>
+                      <td className="px-4 py-2 text-right">{l.stones_added_successfully ?? 0}</td>
+                      <td className="px-4 py-2 text-right">{l.stones_updated_successfully ?? 0}</td>
+                      <td className="px-4 py-2 text-right">{l.stones_failed_count ?? 0}</td>
                       <td className="px-4 py-2 text-xs text-muted-foreground">
                         {l.error_message ?? "—"}
                       </td>
