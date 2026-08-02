@@ -17,7 +17,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SlidersHorizontal, X, ChevronDown, ChevronUp, Save, LayoutGrid, List } from "lucide-react";
+import { SlidersHorizontal, X, ChevronDown, ChevronUp, Save, LayoutGrid, List, Search } from "lucide-react";
 import { StaggerGroup } from "@/components/anim/Motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
@@ -941,6 +941,33 @@ function Marketplace() {
             </Button>
           </div>
         )}
+
+        <div className="mt-5 space-y-2 lg:hidden">
+          <Label htmlFor="mobile-marketplace-search" className="sr-only">
+            Search marketplace
+          </Label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="mobile-marketplace-search"
+              value={f.search}
+              onChange={(e) => set({ search: e.target.value })}
+              placeholder="Search stones, shapes, certs..."
+              className="h-11 pl-9 pr-10"
+              autoComplete="off"
+            />
+            {f.search && (
+              <button
+                type="button"
+                onClick={() => set({ search: "" })}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                aria-label="Clear marketplace search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[260px_1fr]">
           <aside className="hidden max-h-[calc(100vh-2rem)] overflow-y-auto pr-2 lg:sticky lg:top-4 lg:block">

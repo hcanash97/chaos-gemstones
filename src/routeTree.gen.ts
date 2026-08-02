@@ -16,7 +16,9 @@ import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as PendingApprovalRouteImport } from './routes/pending-approval'
 import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as BlogRouteImport } from './routes/blog'
@@ -118,9 +120,19 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FaqRoute = FaqRouteImport.update({
   id: '/faq',
   path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -468,11 +480,13 @@ export interface FileRoutesByFullPath {
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/faq': typeof FaqRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRouteWithChildren
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
   '/retail': typeof RetailRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
@@ -542,11 +556,13 @@ export interface FileRoutesByTo {
   '/blog': typeof BlogRoute
   '/compare': typeof CompareRoute
   '/faq': typeof FaqRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRouteWithChildren
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
   '/retail': typeof RetailRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
@@ -618,11 +634,13 @@ export interface FileRoutesById {
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/faq': typeof FaqRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/marketplace': typeof MarketplaceRouteWithChildren
   '/pending-approval': typeof PendingApprovalRoute
   '/requests': typeof RequestsRoute
   '/retail': typeof RetailRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/import-test': typeof AdminImportTestRoute
@@ -695,11 +713,13 @@ export interface FileRouteTypes {
     | '/compare'
     | '/dashboard'
     | '/faq'
+    | '/forgot-password'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
     | '/retail'
+    | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/import-test'
@@ -769,11 +789,13 @@ export interface FileRouteTypes {
     | '/blog'
     | '/compare'
     | '/faq'
+    | '/forgot-password'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
     | '/retail'
+    | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/import-test'
@@ -844,11 +866,13 @@ export interface FileRouteTypes {
     | '/compare'
     | '/dashboard'
     | '/faq'
+    | '/forgot-password'
     | '/login'
     | '/marketplace'
     | '/pending-approval'
     | '/requests'
     | '/retail'
+    | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/admin/import-test'
@@ -920,11 +944,13 @@ export interface RootRouteChildren {
   CompareRoute: typeof CompareRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   FaqRoute: typeof FaqRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MarketplaceRoute: typeof MarketplaceRouteWithChildren
   PendingApprovalRoute: typeof PendingApprovalRoute
   RequestsRoute: typeof RequestsRoute
   RetailRoute: typeof RetailRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsApiRoute: typeof DocsApiRoute
@@ -1009,11 +1035,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/faq': {
       id: '/faq'
       path: '/faq'
       fullPath: '/faq'
       preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1598,11 +1638,13 @@ const rootRouteChildren: RootRouteChildren = {
   CompareRoute: CompareRoute,
   DashboardRoute: DashboardRouteWithChildren,
   FaqRoute: FaqRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MarketplaceRoute: MarketplaceRouteWithChildren,
   PendingApprovalRoute: PendingApprovalRoute,
   RequestsRoute: RequestsRoute,
   RetailRoute: RetailRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsApiRoute: DocsApiRoute,

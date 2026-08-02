@@ -15,6 +15,7 @@ import {
   disconnectShopify,
   getShopifyStatus,
   setShopifyAutoSync,
+  setShopifyDeleteUnavailable,
   syncShopifyNow,
   testShopifyConnectionFn,
   dryRunShopifySyncFn,
@@ -52,6 +53,7 @@ function ShopifyPage() {
   const disconnect = useServerFn(disconnectShopify);
   const sync       = useServerFn(syncShopifyNow);
   const toggleAuto = useServerFn(setShopifyAutoSync);
+  const toggleDeleteUnavailable = useServerFn(setShopifyDeleteUnavailable);
   const testConn   = useServerFn(testShopifyConnectionFn);
   const dryRun     = useServerFn(dryRunShopifySyncFn);
 
@@ -209,6 +211,16 @@ function ShopifyPage() {
     }
   }
 
+  async function handleDeleteUnavailable(enabled: boolean) {
+    try {
+      await toggleDeleteUnavailable({ data: { enabled } });
+      await refetch();
+      toast.success(enabled ? "Unavailable Shopify products will be deleted on sync." : "Unavailable Shopify products will be set to draft.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update Shopify delete setting");
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -295,6 +307,15 @@ function ShopifyPage() {
                 <p className="text-xs text-muted-foreground">Sync every 4 hours automatically.</p>
               </div>
               <Switch checked={!!conn.auto_sync} onCheckedChange={handleAutoSync} />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-4 rounded border border-amber-500/30 bg-amber-500/10 p-3">
+              <div>
+                <p className="text-sm font-medium">Delete sold / unavailable stones from Shopify</p>
+                <p className="text-xs text-muted-foreground">
+                  Off keeps removed feed products as Shopify drafts. On permanently deletes Shopify products when the stone is no longer in your Chaos feed.
+                </p>
+              </div>
+              <Switch checked={!!conn.delete_unavailable_products} onCheckedChange={handleDeleteUnavailable} />
             </div>
           </div>
 
@@ -437,7 +458,7 @@ function ShopifyPage() {
                 <li>• {preview.feedStoneCount} stones in your feed</li>
                 <li>• {preview.wouldAdd} would be created as new Shopify products</li>
                 <li>• {preview.wouldUpdate} would be updated</li>
-                <li>• {preview.wouldArchive} would be archived (removed from feed)</li>
+                <li>• {preview.wouldArchive} would be {conn.delete_unavailable_products ? "deleted from Shopify" : "archived as draft"} (removed from feed)</li>
               </ul>
               {preview.errors.length > 0 && (
                 <p className="mt-2 text-destructive">{preview.errors.join(" · ")}</p>

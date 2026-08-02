@@ -35,7 +35,7 @@ export const getShopifyStatus = createServerFn({ method: "GET" })
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
       .select(
-        "shop_domain, shop_name, is_active, auto_sync, last_sync_at, last_sync_status, products_synced, created_at, token_expires_at",
+        "shop_domain, shop_name, is_active, auto_sync, delete_unavailable_products, last_sync_at, last_sync_status, products_synced, created_at, token_expires_at",
       )
       .eq("jeweller_id", userId)
       .maybeSingle();
@@ -136,6 +136,20 @@ export const setShopifyAutoSync = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("shopify_connections")
       .update({ auto_sync: data.enabled })
+      .eq("jeweller_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setShopifyDeleteUnavailable = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => autoSyncSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const { userId, supabase } = context;
+    await assertJeweller(supabase, userId);
+    const { error } = await supabaseAdmin
+      .from("shopify_connections")
+      .update({ delete_unavailable_products: data.enabled })
       .eq("jeweller_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };

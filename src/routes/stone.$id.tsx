@@ -119,7 +119,7 @@ export const Route = createFileRoute("/stone/$id")({
 
 function StoneDetail() {
   const { id } = Route.useParams();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { format } = useCurrency();
   const { retailMode, setRetailMode } = useRetailMode();
   const isJeweller = checkJ(profile) && profile?.is_approved;
@@ -433,13 +433,22 @@ function StoneDetail() {
                 <div className="mt-1 font-mono text-3xl font-semibold">
                   {format(stone.wholesale_price_usd, (stone as { price_currency?: string }).price_currency ?? "USD")}
                 </div>
-              ) : retailMode ? (
-                <div className="mt-1 text-sm text-muted-foreground">
-                  Wholesale pricing hidden. Use a client quote before sharing.
+              ) : authLoading ? (
+                <div className="mt-1 text-sm text-muted-foreground">Checking access...</div>
+              ) : retailMode && isJeweller ? (
+                <div className="mt-2 space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    Wholesale pricing is hidden because retail mode is on for this device.
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setRetailMode(false)}>
+                    Show wholesale price
+                  </Button>
                 </div>
+              ) : retailMode ? (
+                <div className="mt-1 text-sm text-muted-foreground">Pricing is hidden in client view.</div>
               ) : user ? (
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Pricing visible to approved jewellers.
+                  Pricing visible after jeweller approval.
                 </div>
               ) : (
                 <div className="mt-1 text-sm">

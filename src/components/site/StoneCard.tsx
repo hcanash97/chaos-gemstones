@@ -60,7 +60,7 @@ function StoneCardImpl({
   followedDealerIds?: Set<string>;
   retailMode?: boolean;
 }) {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const isJeweller = checkJeweller(profile);
   const isApprovedJeweller = isJeweller && profile?.is_approved;
   const isDealer = checkDealer(profile);
@@ -214,7 +214,13 @@ function StoneCardImpl({
                   {retailMode ? "Client view" : "Price"}
                 </div>
                 <div className="font-mono text-xs font-medium text-muted-foreground">
-                  {retailMode ? "Quote in detail" : user ? "Pending approval" : "Sign in to view"}
+                  {retailMode
+                    ? "Quote in detail"
+                    : authLoading
+                      ? "Checking access..."
+                      : user
+                        ? "Pending approval"
+                        : "Sign in to view"}
                 </div>
               </>
             )}

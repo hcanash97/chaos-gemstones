@@ -118,6 +118,7 @@ export type ShopifyConnectionRow = {
   encrypted_client_secret: string | null;
   encrypted_access_token: string | null;
   token_expires_at: string | null;
+  delete_unavailable_products?: boolean | null;
 };
 
 const REQUIRED_SCOPES = [
@@ -513,13 +514,14 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
   try {
     const { data: conn } = await supabaseAdmin
       .from("shopify_connections")
-      .select("id, shop_domain, client_id, encrypted_client_secret, encrypted_access_token, token_expires_at, is_active")
+      .select("id, shop_domain, client_id, encrypted_client_secret, encrypted_access_token, token_expires_at, is_active, delete_unavailable_products")
       .eq("jeweller_id", jewellerId)
       .maybeSingle();
 
     if (!conn || !conn.is_active) throw new Error("Shopify is not connected.");
     const token = await getValidAccessToken(conn as ShopifyConnectionRow);
     const shop = conn.shop_domain;
+    const deleteUnavailableProducts = Boolean((conn as ShopifyConnectionRow).delete_unavailable_products);
 
     // Fetch jeweller markup + feed selections
     const [{ data: jp }, { data: sels }] = await Promise.all([
@@ -710,25 +712,45 @@ export async function runShopifySync(jewellerId: string): Promise<SyncResult> {
       if (i + CHUNK < stones.length) await sleep(WRITE_DELAY_MS);
     }
 
-    // Archive products whose stones are no longer in the feed (or sold)
+    // Archive or delete products whose stones are no longer in the feed.
     for (const [stoneId, entry] of existingMap.entries()) {
       if (currentIds.has(stoneId)) continue;
-      if (entry.status === "draft") continue;
+      if (!deleteUnavailableProducts && entry.status === "draft") continue;
       try {
-        const res = await shopifyFetch(shop, token, `/products/${entry.id}.json`, {
-          method: "PUT",
-          body: JSON.stringify({ product: { id: entry.id, status: "draft" } }),
-        });
+        const res = await shopifyFetch(
+          shop,
+          token,
+          `/products/${entry.id}.json`,
+          deleteUnavailableProducts
+            ? { method: "DELETE" }
+            : {
+                method: "PUT",
+                body: JSON.stringify({ product: { id: entry.id, status: "draft" } }),
+              },
+        );
         if (res.ok) {
-          await supabaseAdmin
-            .from("shopify_product_map")
-            .update({ shopify_product_status: "draft", last_synced_at: new Date().toISOString() })
-            .eq("jeweller_id", jewellerId)
-            .eq("stone_id", stoneId);
+          if (deleteUnavailableProducts) {
+            await supabaseAdmin
+              .from("shopify_product_map")
+              .delete()
+              .eq("jeweller_id", jewellerId)
+              .eq("stone_id", stoneId);
+          } else {
+            await supabaseAdmin
+              .from("shopify_product_map")
+              .update({ shopify_product_status: "draft", last_synced_at: new Date().toISOString() })
+              .eq("jeweller_id", jewellerId)
+              .eq("stone_id", stoneId);
+          }
           result.archived++;
+        } else {
+          const t = await res.text();
+          result.errors.push(
+            `${deleteUnavailableProducts ? "Delete" : "Archive"} ${stoneId}: Shopify ${res.status} ${t.slice(0, 300)}`,
+          );
         }
       } catch (e) {
-        result.errors.push(`Archive ${stoneId}: ${e instanceof Error ? e.message : String(e)}`);
+        result.errors.push(`${deleteUnavailableProducts ? "Delete" : "Archive"} ${stoneId}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
@@ -846,7 +868,7 @@ export async function dryRunShopifySync(jewellerId: string): Promise<DryRunResul
   };
   const { data: conn } = await supabaseAdmin
     .from("shopify_connections")
-    .select("id, shop_domain, is_active")
+    .select("id, shop_domain, is_active, delete_unavailable_products")
     .eq("jeweller_id", jewellerId)
     .maybeSingle();
   if (!conn || !conn.is_active) {
@@ -889,9 +911,9 @@ export async function dryRunShopifySync(jewellerId: string): Promise<DryRunResul
     .select("stone_id, shopify_product_status")
     .eq("jeweller_id", jewellerId);
 
-  const existingActive = new Set(
+  const archiveCandidates = new Set(
     (existing ?? [])
-      .filter((e: any) => e.shopify_product_status !== "draft")
+      .filter((e: any) => conn.delete_unavailable_products || e.shopify_product_status !== "draft")
       .map((e: any) => e.stone_id as string),
   );
   const existingAll = new Set((existing ?? []).map((e: any) => e.stone_id as string));
@@ -900,7 +922,7 @@ export async function dryRunShopifySync(jewellerId: string): Promise<DryRunResul
     if (existingAll.has(id)) result.wouldUpdate++;
     else result.wouldAdd++;
   }
-  for (const id of existingActive) {
+  for (const id of archiveCandidates) {
     if (!stoneIds.has(id)) result.wouldArchive++;
   }
   return result;
