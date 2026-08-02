@@ -19,6 +19,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CompareRouteImport } from './routes/compare'
+import { Route as BlogRouteImport } from './routes/blog'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -130,6 +131,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const CompareRoute = CompareRouteImport.update({
   id: '/compare',
   path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogRoute = BlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -458,6 +464,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/blog': typeof BlogRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/faq': typeof FaqRoute
@@ -532,6 +539,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/blog': typeof BlogRoute
   '/compare': typeof CompareRoute
   '/faq': typeof FaqRoute
   '/login': typeof LoginRoute
@@ -606,6 +614,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/blog': typeof BlogRoute
   '/compare': typeof CompareRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/faq': typeof FaqRoute
@@ -682,6 +691,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/blog'
     | '/compare'
     | '/dashboard'
     | '/faq'
@@ -756,6 +766,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/blog'
     | '/compare'
     | '/faq'
     | '/login'
@@ -829,6 +840,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/blog'
     | '/compare'
     | '/dashboard'
     | '/faq'
@@ -904,6 +916,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
+  BlogRoute: typeof BlogRoute
   CompareRoute: typeof CompareRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   FaqRoute: typeof FaqRoute
@@ -1022,6 +1035,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog': {
+      id: '/blog'
+      path: '/blog'
+      fullPath: '/blog'
+      preLoaderRoute: typeof BlogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -1574,6 +1594,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
+  BlogRoute: BlogRoute,
   CompareRoute: CompareRoute,
   DashboardRoute: DashboardRouteWithChildren,
   FaqRoute: FaqRoute,

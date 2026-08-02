@@ -77,6 +77,7 @@ export function SiteHeader() {
   ];
   const secondaryNavLinks: { to: string; label: string; group: "Trade" | "Learn" | "Support" }[] = [
     { to: "/jewellers", label: "Jewellers", group: "Trade" },
+    { to: "/blog", label: "Blog", group: "Learn" },
     { to: "/learn", label: "Learning hub", group: "Learn" },
     { to: "/faq", label: "FAQ", group: "Support" },
     { to: "/about", label: "About Chaos", group: "Support" },
@@ -350,6 +351,7 @@ export function SiteFooter() {
               <li><Link to="/vendors" className="opacity-80 hover:opacity-100">Vendors</Link></li>
               <li><Link to="/about" className="opacity-80 hover:opacity-100">About</Link></li>
               <li><Link to="/faq" className="opacity-80 hover:opacity-100">FAQ</Link></li>
+              <li><Link to="/blog" className="opacity-80 hover:opacity-100">Blog</Link></li>
               <li><Link to="/learn" className="opacity-80 hover:opacity-100">Learning hub</Link></li>
               <li><Link to="/docs/api" className="opacity-80 hover:opacity-100">API &amp; Embeds</Link></li>
               <li><Link to="/how-it-works/payments" className="opacity-80 hover:opacity-100">Payments</Link></li>
