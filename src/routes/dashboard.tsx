@@ -45,13 +45,13 @@ function DashboardLayout() {
 
   const dealerNav = [
     { to: "/dashboard", label: "Overview", exact: true },
-    { to: "/dashboard/stones", label: "My Inventory", exact: false },
+    { to: "/dashboard/stones", label: "All inventory", exact: false },
     { to: "/dashboard/enquiries", label: "Enquiries", exact: false },
     { to: "/dashboard/sales", label: "Sales", exact: false },
-    { to: "/dashboard/dealer/pricing", label: "Pricing rules", exact: false },
-    { to: "/dashboard/import", label: "CSV Import", exact: false },
-    { to: "/dashboard/dealer/whatsapp", label: "WhatsApp Intake", exact: false },
-    { to: "/dashboard/dealer/api", label: "Developer API", exact: false },
+    { to: "/dashboard/dealer/pricing", label: "Pricing & visibility", exact: false },
+    { to: "/dashboard/import", label: "Upload Excel / CSV", exact: false },
+    { to: "/dashboard/dealer/whatsapp", label: "Paste WhatsApp stock", exact: false },
+    { to: "/dashboard/dealer/api", label: "Automatic sync", exact: false },
   ];
   const jewellerNav = [
     { to: "/dashboard/jeweller", label: "Overview", exact: true },

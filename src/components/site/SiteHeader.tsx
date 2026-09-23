@@ -177,7 +177,7 @@ export function SiteHeader() {
               </span>
               {(isDealer(profile) || isJeweller(profile)) && (
                 <Link to={defaultDashboardPath(profile)}>
-                  <Button variant="outline" size="sm">Dashboard</Button>
+                  <Button variant="outline" size="sm">{isDealer(profile) ? "Manage inventory" : "Dashboard"}</Button>
                 </Link>
               )}
               {isAdmin && (
@@ -254,7 +254,7 @@ export function SiteHeader() {
             {user ? (
               <>
                 {(isDealer(profile) || isJeweller(profile)) && (
-                  <Link to={defaultDashboardPath(profile)} onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 hover:bg-muted">Dashboard</Link>
+                  <Link to={defaultDashboardPath(profile)} onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 hover:bg-muted">{isDealer(profile) ? "Manage inventory" : "Dashboard"}</Link>
                 )}
                 {isAdmin && (
                   <Link to="/admin" onClick={() => setMenuOpen(false)} className="rounded-md px-3 py-3 text-[var(--color-gold)] hover:bg-muted">Admin</Link>

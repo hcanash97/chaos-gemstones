@@ -53,42 +53,137 @@ function DashboardOverview() {
     <div>
       <RoleSwitcher current="dealer" />
       <ReferralNudge />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="font-serif text-3xl text-foreground">Dealer Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Manage your gemstone inventory.</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Add, automate, translate, and manage your gemstone inventory from one place.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/dashboard/import">
-            <Button variant="outline">Import stones via CSV →</Button>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/dashboard/stones">
+            <Button variant="outline">View all inventory</Button>
           </Link>
-          <Link to="/dashboard/stones/new">
+          <Link to="/dashboard/import">
             <Button className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
-              + New stone
+              Upload Excel / CSV
             </Button>
           </Link>
         </div>
       </div>
-      {showOnboarding ? (
+
+      <InventoryActionHub />
+      <TranslationHelpCard />
+
+      {showOnboarding && (
         <DealerOnboarding
           profileComplete={!!(dealerProfile?.bio && (dealerProfile?.specialities?.length ?? 0) > 0 && dealerProfile?.logo_url)}
           hasFeed={!!dealerProfile?.external_feed_url}
           slug={dealerProfile?.slug ?? null}
         />
-      ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {cards.map((s) => (
-            <div key={s.label} className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-                <span>{s.label}</span>
-                <InfoTooltip>{s.hint}</InfoTooltip>
-              </div>
-              <div className="mt-2 font-serif text-3xl text-foreground">{s.value}</div>
+      )}
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {cards.map((s) => (
+          <div key={s.label} className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+              <span>{s.label}</span>
+              <InfoTooltip>{s.hint}</InfoTooltip>
             </div>
+            <div className="mt-2 font-serif text-3xl text-foreground">{s.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+function InventoryActionHub() {
+  const actions = [
+    {
+      title: "Upload an Excel or CSV file",
+      desc: "Use this if your stock is in a spreadsheet from Excel, Numbers, RapNet, Kodllin, or another system.",
+      cta: "Upload Excel / CSV",
+      to: "/dashboard/import",
+      emphasis: true,
+    },
+    {
+      title: "Connect automatic inventory sync",
+      desc: "Use this if you have a live feed, API URL, Kodllin export, or another system Chaos should check again.",
+      cta: "Set up automatic sync",
+      to: "/dashboard/dealer/api",
+      emphasis: false,
+    },
+    {
+      title: "Paste WhatsApp stock messages",
+      desc: "Use this when suppliers send stones by WhatsApp and you want Chaos to turn the message into draft listings.",
+      cta: "Paste WhatsApp stock",
+      to: "/dashboard/dealer/whatsapp",
+      emphasis: false,
+    },
+    {
+      title: "Add or edit stones manually",
+      desc: "Use this to add one stone, change prices, mark stones sold, or review everything currently listed.",
+      cta: "View all inventory",
+      to: "/dashboard/stones",
+      emphasis: false,
+    },
+  ];
+  return (
+    <section className="mt-6 rounded-xl border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Inventory setup</div>
+          <h2 className="mt-1 font-serif text-2xl text-foreground">How do you want to add your inventory?</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Choose the option that matches how your stock is stored today. You can change this later.
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {actions.map((a) => (
+          <Link
+            key={a.title}
+            to={a.to}
+            className={`group flex h-full flex-col rounded-lg border p-4 transition hover:-translate-y-0.5 hover:shadow-md ${
+              a.emphasis
+                ? "border-[var(--color-gold)] bg-background"
+                : "border-border bg-background/80"
+            }`}
+          >
+            <h3 className="font-medium text-foreground">{a.title}</h3>
+            <p className="mt-2 flex-1 text-sm text-muted-foreground">{a.desc}</p>
+            <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--color-gold)]">
+              {a.cta} <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TranslationHelpCard() {
+  const languages = ["English", "हिन्दी", "ไทย", "සිංහල", "Español", "Français"];
+  return (
+    <section className="mt-4 rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="font-medium text-foreground">Need this setup guidance in another language?</h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            Dealer setup pages can be written in simpler translated guidance so uploading, syncing, and WhatsApp intake are easier to follow.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {languages.map((language) => (
+            <span key={language} className="rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
+              {language}
+            </span>
           ))}
         </div>
-      )}
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -105,8 +200,8 @@ function DealerOnboarding({
   const steps = [
     { done: profileComplete, title: "Complete your dealer profile (bio, specialities, logo)", to: "/dashboard/account", cta: "Edit profile", action: null as null | (() => void) },
     { done: false, title: "Upload your first stones manually", to: "/dashboard/stones/new", cta: "Add stones", action: null },
-    { done: false, title: "Or bulk import stones via CSV", to: "/dashboard/import", cta: "Import stones via CSV →", action: null },
-    { done: hasFeed, title: "Connect your inventory feed for automatic sync (optional)", to: "/dashboard/import", cta: "Set up feed sync", action: null },
+    { done: false, title: "Upload an Excel or CSV file", to: "/dashboard/import", cta: "Upload Excel / CSV", action: null },
+    { done: hasFeed, title: "Connect automatic inventory sync", to: "/dashboard/dealer/api", cta: "Set up automatic sync", action: null },
     {
       done: false,
       title: "Share your Chaos profile with your existing buyers",
@@ -123,7 +218,7 @@ function DealerOnboarding({
   return (
     <div className="mt-6 rounded-lg border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-6">
       <div className="text-xs uppercase tracking-[0.18em] text-[var(--color-gold)]">Getting started as a dealer</div>
-      <h2 className="mt-1 font-serif text-2xl">Four steps to go live on Chaos</h2>
+      <h2 className="mt-1 font-serif text-2xl">Finish setting up your dealer account</h2>
       <ol className="mt-5 space-y-3">
         <li className="flex items-start gap-3 opacity-60">
           <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
