@@ -454,18 +454,52 @@ function ImportPage() {
 
       {stage === "map" && (
         <div className="mt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-xl">Map columns</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-serif text-2xl">Match your columns to Chaos fields</h2>
+              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                Chaos has read your file. Now tell Chaos what each supplier column means. Nothing is imported until you preview and confirm.
+              </p>
+            </div>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={reset}>Start over</Button>
               <Button onClick={() => setStage("preview")}>Preview & validate →</Button>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">{headers.length} columns detected · {rows.length} rows. Map each column from your file to a Chaos field, or skip it.</p>
+
+          <div className="rounded-lg border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--color-gold)]">1. Check the sample</div>
+                <p className="mt-1 text-sm text-muted-foreground">Use the sample value to understand what the supplier meant by that column.</p>
+              </div>
+              <div>
+                <div className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--color-gold)]">2. Pick the Chaos field</div>
+                <p className="mt-1 text-sm text-muted-foreground">Example: supplier column “Wt” should usually map to “Carat weight”.</p>
+              </div>
+              <div>
+                <div className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--color-gold)]">3. Skip what you do not need</div>
+                <p className="mt-1 text-sm text-muted-foreground">Columns like internal notes, row numbers, or old stock labels can be skipped safely.</p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {["English", "हिन्दी सहायता", "ไทย", "සිංහල", "Español", "Français"].map((label) => (
+                <span key={label} className="rounded-full border border-border bg-background px-3 py-1">{label}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{headers.length} columns detected</span>
+            <span>·</span>
+            <span>{rows.length} rows found</span>
+            <span>·</span>
+            <span>Required fields are marked with *</span>
+          </div>
           <div className="rounded-md border border-border">
             <table className="w-full text-sm">
               <thead className="bg-muted text-xs">
-                <tr><th className="px-3 py-2 text-left">Your column</th><th className="px-3 py-2 text-left">Sample value</th><th className="px-3 py-2 text-left">Maps to</th></tr>
+                <tr><th className="px-3 py-2 text-left">Supplier column</th><th className="px-3 py-2 text-left">Example from file</th><th className="px-3 py-2 text-left">Chaos field</th></tr>
               </thead>
               <tbody>
                 {headers.map((h) => (
