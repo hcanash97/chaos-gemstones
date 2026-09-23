@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -42,7 +43,7 @@ export const Route = createFileRoute("/dashboard/stones/")({
 });
 
 function StonesList() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [slug, setSlug] = useState<string | null>(null);
@@ -59,17 +60,17 @@ function StonesList() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isDealer(profile)) return;
     supabase
       .from("dealer_profiles")
       .select("slug")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => setSlug((data as { slug?: string } | null)?.slug ?? null));
-  }, [user]);
+  }, [user, profile]);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user || !isDealer(profile)) return;
     setLoading(true);
     const from = (page - 1) * INVENTORY_PAGE_SIZE;
     const to = from + INVENTORY_PAGE_SIZE - 1;
@@ -83,13 +84,13 @@ function StonesList() {
     setTotalRows(count ?? 0);
     setSelected(new Set());
     setLoading(false);
-  }, [user, page]);
+  }, [user, profile, page]);
 
   useEffect(() => { load(); }, [load]);
 
   async function remove(id: string) {
     if (!confirm("Delete this stone? This cannot be undone.")) return;
-    const { error } = await supabase.from("stones").delete().eq("id", id);
+    const { error } = await supabase.from("stones").delete().eq("id", id).eq("dealer_id", user.id);
     if (error) { alert(error.message); return; }
     setRows((r) => r.filter((x) => x.id !== id));
   }
@@ -111,7 +112,7 @@ function StonesList() {
     setBulkBusy(true);
     const ids = Array.from(selected);
     for (const chunk of chunkIds(ids)) {
-      const { error } = await supabase.from("stones").delete().in("id", chunk);
+      const { error } = await supabase.from("stones").delete().in("id", chunk).eq("dealer_id", user.id);
       if (error) { toast.error(error.message); setBulkBusy(false); return; }
     }
     setRows((r) => r.filter((x) => !selected.has(x.id)));
@@ -125,7 +126,7 @@ function StonesList() {
     setBulkBusy(true);
     const ids = Array.from(selected);
     for (const chunk of chunkIds(ids)) {
-      const { error } = await supabase.from("stones").update({ status }).in("id", chunk);
+      const { error } = await supabase.from("stones").update({ status }).in("id", chunk).eq("dealer_id", user.id);
       if (error) { toast.error(error.message); setBulkBusy(false); return; }
     }
     setRows((r) => r.map((x) => (selected.has(x.id) ? { ...x, status } : x)));
@@ -137,7 +138,7 @@ function StonesList() {
   async function updateStatus(id: string, status: "available" | "reserved" | "sold") {
     const prev = rows;
     setRows((r) => r.map((x) => (x.id === id ? { ...x, status } : x)));
-    const { error } = await supabase.from("stones").update({ status }).eq("id", id);
+    const { error } = await supabase.from("stones").update({ status }).eq("id", id).eq("dealer_id", user.id);
     if (error) {
       setRows(prev);
       toast.error(error.message);
@@ -153,6 +154,10 @@ function StonesList() {
   }
 
   const totalPages = Math.max(1, Math.ceil(totalRows / INVENTORY_PAGE_SIZE));
+
+  if (profile && !isDealer(profile)) {
+    return <div className="text-sm text-muted-foreground">Dealers only.</div>;
+  }
 
   return (
     <div>

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer } from "@/lib/auth.utils";
 import { StoneForm, emptyStone } from "@/components/dashboard/StoneForm";
 
 export const Route = createFileRoute("/dashboard/stones/new")({
@@ -7,8 +8,9 @@ export const Route = createFileRoute("/dashboard/stones/new")({
 });
 
 function NewStone() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   if (!user) return null;
+  if (profile && !isDealer(profile)) return <div className="text-sm text-muted-foreground">Dealers only.</div>;
   return (
     <div>
       <Link to="/dashboard/stones" className="text-sm text-muted-foreground hover:text-foreground">

@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer } from "@/lib/auth.utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -94,7 +95,7 @@ function ImportPage() {
   const [originalSource, setOriginalSource] = useState<"csv" | "feed">("csv");
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isDealer(profile)) return;
     (async () => {
       const { getDealerFeedConfig } = await import("@/lib/profile-settings.functions");
       const [certs, dealer] = await Promise.all([
@@ -112,7 +113,7 @@ function ImportPage() {
       }
       setFeedBody(dp.external_feed_body ?? "");
     })();
-  }, [user]);
+  }, [user, profile]);
 
   // Build mapped rows + validation for preview.
   // IMPORTANT: this useMemo must run on EVERY render (Rules of Hooks).
@@ -157,6 +158,9 @@ function ImportPage() {
         </Button>
       </div>
     );
+  }
+  if (profile && !isDealer(profile)) {
+    return <div className="text-sm text-muted-foreground">Dealers only.</div>;
   }
 
   function ingestParsed(parsed: { headers: string[]; rows: ParsedRow[] }) {

@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDealer } from "@/lib/auth.utils";
 import { StoneForm, emptyStone, type StoneFormValues } from "@/components/dashboard/StoneForm";
 import { StoneImages } from "@/components/dashboard/StoneImages";
 import { CertUpload } from "@/components/dashboard/CertUpload";
@@ -14,14 +15,14 @@ export const Route = createFileRoute("/dashboard/stones/$id")({
 
 function EditStone() {
   const { id } = Route.useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [values, setValues] = useState<StoneFormValues | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isDealer(profile)) return;
     (async () => {
       const { data, error } = await supabase
         .from("stones")
@@ -84,7 +85,11 @@ function EditStone() {
         provenance_report: (data as any).provenance_report ?? "",
       });
     })();
-  }, [id, user]);
+  }, [id, user, profile]);
+
+  if (profile && !isDealer(profile)) {
+    return <div className="text-sm text-muted-foreground">Dealers only.</div>;
+  }
 
   if (notFound) {
     return (

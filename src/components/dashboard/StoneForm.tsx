@@ -275,8 +275,10 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    const privateUntil = values.private_drop_enabled
+      ? new Date(Date.now() + Number(values.private_drop_duration_hours) * 60 * 60 * 1000).toISOString()
+      : null;
     const payload = {
-      dealer_id: dealerId,
       stone_type: values.stone_type.trim(),
       shape: values.shape.trim() || null,
       carat_weight: values.carat_weight ? Number(values.carat_weight) : null,
@@ -319,6 +321,8 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
       black_inclusion: values.black_inclusion.trim() || null,
       enhancement: values.enhancement.trim() || null,
       listing_type: values.listing_type,
+      source_type: values.source_type,
+      private_until: privateUntil,
       parcel_quantity: values.parcel_quantity ? Number(values.parcel_quantity) : null,
       matching_pair: values.matching_pair,
       has_video: values.has_video,
@@ -327,14 +331,14 @@ export function StoneForm({ initial, stoneId, dealerId, draftKey }: Props) {
     };
     let resultId = stoneId;
     if (stoneId) {
-      const { error } = await supabase.from("stones").update(payload).eq("id", stoneId);
+      const { error } = await supabase.from("stones").update(payload).eq("id", stoneId).eq("dealer_id", dealerId);
       if (error) {
         setError(error.message);
         setSaving(false);
         return;
       }
     } else {
-      const { data, error } = await supabase.from("stones").insert(payload).select("id").single();
+      const { data, error } = await supabase.from("stones").insert({ ...payload, dealer_id: dealerId }).select("id").single();
       if (error) {
         setError(error.message);
         setSaving(false);
