@@ -354,45 +354,102 @@ function ImportPage() {
 
   return (
     <div>
-      <h1 className="font-serif text-3xl">Bulk import</h1>
-      <p className="text-sm text-muted-foreground">Upload a CSV or pull from an external inventory feed.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="font-serif text-3xl">Add inventory</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Upload a spreadsheet once, or connect a live feed so Chaos can help keep your stock up to date.
+          </p>
+        </div>
+        <Link to="/dashboard/stones">
+          <Button variant="outline">View all inventory</Button>
+        </Link>
+      </div>
 
       {stage === "upload" && (
-        <Tabs value={source} onValueChange={(v) => setSource(v as "csv" | "feed")} className="mt-6">
-          <TabsList>
-            <TabsTrigger value="csv">CSV upload</TabsTrigger>
-            <TabsTrigger value="feed">Import from feed URL</TabsTrigger>
-          </TabsList>
-          <TabsContent value="csv" className="mt-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Input type="file" accept=".csv,text/csv,.xlsx,.xls" onChange={onFileUpload} className="max-w-sm" />
-              <Button variant="outline" onClick={downloadTemplate}>Download template CSV</Button>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Accepts CSV <em>or</em> Excel (.xlsx / .xls). For dealer exports with summary rows at
-              the top, the header row is auto-detected. Column names don't need to match exactly — you'll map them in the next step.
+        <div className="mt-6 space-y-5">
+          <section className="rounded-xl border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-5">
+            <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-gold)]">Choose your setup method</div>
+            <h2 className="mt-1 font-serif text-2xl text-foreground">Where is your stock list today?</h2>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Start with the option that matches what you already have. After Chaos reads your columns, you will review the mapping before anything is imported.
             </p>
-          </TabsContent>
-          <TabsContent value="feed" className="mt-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Input
-                type="url"
-                placeholder="https://your-system.example.com/feed.csv"
-                value={feedUrl}
-                onChange={(e) => setFeedUrl(e.target.value)}
-                className="max-w-xl"
-              />
-              <Button onClick={() => loadFeed(feedUrl)} disabled={!feedUrl || fetching}>
-                {fetching ? "Fetching…" : "Fetch feed"}
-              </Button>
-              {savedFeedUrl && (
-                <Button variant="outline" onClick={syncFeed} disabled={fetching}>Sync saved feed</Button>
-              )}
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setSource("csv")}
+                className={`rounded-lg border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+                  source === "csv" ? "border-[var(--color-gold)] bg-background" : "border-border bg-background/80"
+                }`}
+              >
+                <div className="font-medium text-foreground">I have an Excel or CSV file</div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Best for spreadsheets, one-off uploads, RapNet exports, Kodllin exports, or supplier files you receive by email.
+                </p>
+                <span className="mt-3 inline-flex text-sm font-medium text-[var(--color-gold)]">Upload a file below</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSource("feed")}
+                className={`rounded-lg border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+                  source === "feed" ? "border-[var(--color-gold)] bg-background" : "border-border bg-background/80"
+                }`}
+              >
+                <div className="font-medium text-foreground">I have a live feed or API URL</div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Best when another inventory system gives you a URL that Chaos should fetch now and save for future syncs.
+                </p>
+                <span className="mt-3 inline-flex text-sm font-medium text-[var(--color-gold)]">Paste a feed URL below</span>
+              </button>
             </div>
-            {savedFeedUrl && <p className="mt-2 text-xs text-muted-foreground">Saved feed: <span className="font-mono">{savedFeedUrl}</span></p>}
-            <p className="mt-2 text-xs text-muted-foreground">Works with any publicly reachable CSV or JSON URL. We auto-detect format and let you map columns next.</p>
-          </TabsContent>
-        </Tabs>
+          </section>
+
+          <Tabs value={source} onValueChange={(v) => setSource(v as "csv" | "feed")}>
+            <TabsList>
+              <TabsTrigger value="csv">Upload Excel / CSV</TabsTrigger>
+              <TabsTrigger value="feed">Connect live feed</TabsTrigger>
+            </TabsList>
+            <TabsContent value="csv" className="mt-4 rounded-lg border border-border bg-card p-5">
+              <h2 className="font-medium text-foreground">Upload your spreadsheet</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Choose your dealer stock file. Chaos accepts Excel (.xlsx / .xls) and CSV files.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Input type="file" accept=".csv,text/csv,.xlsx,.xls" onChange={onFileUpload} className="max-w-sm" />
+                <Button variant="outline" onClick={downloadTemplate}>Download example template</Button>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                If your file has extra summary rows at the top, Chaos will try to find the real header row automatically. Your column names do not need to match Chaos exactly.
+              </p>
+            </TabsContent>
+            <TabsContent value="feed" className="mt-4 rounded-lg border border-border bg-card p-5">
+              <h2 className="font-medium text-foreground">Connect a live feed</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Paste a CSV or JSON feed URL from your inventory system. Chaos will fetch it and ask you to review the column mapping.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Input
+                  type="url"
+                  placeholder="https://your-system.example.com/feed.csv"
+                  value={feedUrl}
+                  onChange={(e) => setFeedUrl(e.target.value)}
+                  className="max-w-xl"
+                />
+                <Button onClick={() => loadFeed(feedUrl)} disabled={!feedUrl || fetching}>
+                  {fetching ? "Fetching…" : "Fetch feed"}
+                </Button>
+                {savedFeedUrl && (
+                  <Button variant="outline" onClick={syncFeed} disabled={fetching}>Sync saved feed</Button>
+                )}
+              </div>
+              {savedFeedUrl && <p className="mt-2 text-xs text-muted-foreground">Saved feed: <span className="font-mono">{savedFeedUrl}</span></p>}
+              <p className="mt-3 text-xs text-muted-foreground">If the URL needs a private token or POST body, use Automatic sync for the full setup options.</p>
+              <Link to="/dashboard/dealer/api" className="mt-3 inline-flex text-sm font-medium text-[var(--color-gold)] hover:opacity-80">
+                Open automatic sync settings →
+              </Link>
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
 
       {stage === "map" && (
